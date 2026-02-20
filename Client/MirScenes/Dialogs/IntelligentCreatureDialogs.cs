@@ -368,7 +368,7 @@ namespace Client.MirScenes.Dialogs
             FullnessFG.Library.Draw(FullnessFG.Index, section, FullnessFG.DisplayLocation, Color.White, false);
 
 
-            FullnessNow.Location = new Point(FullnessFG.Location.X + section.Size.Width - 8, FullnessNow.Location.Y);
+            FullnessNow.Location = new Point(FullnessFG.Location.X + section.Size.X - 8, FullnessNow.Location.Y);
 
             percent = GameScene.User.IntelligentCreatures[selectedCreature].CreatureRules.MinimalFullness / ((double)10000);
             Size size = new Size((int)((FullnessFG.Size.Width) * percent), FullnessFG.Size.Height);

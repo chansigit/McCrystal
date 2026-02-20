@@ -23,7 +23,7 @@ namespace Client.MirObjects
         public bool Blend = true;
         public float Rate = 1F;
         public Point DrawLocation;
-        public Point DrawOffset = Point.Empty;
+        public Point DrawOffset = Point.Zero;
         public bool Repeat;
         public long RepeatUntil;
 

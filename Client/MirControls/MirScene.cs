@@ -1,7 +1,7 @@
-﻿using Client.MirGraphics;
+using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirScenes;
-using SlimDX.Direct3D9;
+using Microsoft.Xna.Framework.Graphics;
 using S = ServerPackets;
 
 namespace Client.MirControls
@@ -16,8 +16,8 @@ namespace Client.MirControls
 
         protected MirScene()
         {
-            DrawControlTexture = true;
-            BackColour = Color.Magenta;
+            DrawControlTexture = false;
+            BackColour = Color.Black;
             Size = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
         }
 
@@ -34,7 +34,11 @@ namespace Client.MirControls
 
             OnBeforeShown();
 
+            // Draw scene-specific content (e.g. GameScene draws map here)
             DrawControl();
+
+            // Draw UI children directly to back buffer (no intermediate render target)
+            DrawChildControls();
 
             if (CMain.DebugBaseLabel != null && !CMain.DebugBaseLabel.IsDisposed)
                 CMain.DebugBaseLabel.Draw();
@@ -50,28 +54,48 @@ namespace Client.MirControls
             if (Size != TextureSize)
                 DisposeTexture();
 
-            if (ControlTexture == null || ControlTexture.Disposed)
+            if (ControlTexture == null || ControlTexture.IsDisposed)
             {
                 DXManager.ControlList.Add(this);
-                ControlTexture = new Texture(DXManager.Device, Size.Width, Size.Height, 1, Usage.RenderTarget, Format.A8R8G8B8, Pool.Default);
+                ControlTexture = new RenderTarget2D(DXManager.Device, Size.Width, Size.Height, false,
+                    SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
                 TextureSize = Size;
             }
-            Surface oldSurface = DXManager.CurrentSurface;
-            Surface surface = ControlTexture.GetSurfaceLevel(0);
-            DXManager.SetSurface(surface);
 
-            DXManager.Device.Clear(ClearFlags.Target, BackColour, 0, 0);
+            var oldSurface = DXManager.CurrentSurface;
+            DXManager.SetSurface((RenderTarget2D)ControlTexture);
+
+            DXManager.Device.Clear(BackColour);
 
             BeforeDrawControl();
             DrawChildControls();
             AfterDrawControl();
 
-            DXManager.Sprite.Flush();
-
+            DXManager.EndSpriteBatch();
 
             DXManager.SetSurface(oldSurface);
             TextureValid = true;
-            surface.Dispose();
+        }
+
+        /// <summary>
+        /// Walk the control tree to find the deepest visible control at the given point.
+        /// This is used as a fallback when Highlight() was blocked by the ActiveControl guard.
+        /// </summary>
+        private static MirControl FindControlAtPoint(MirControl parent, Point p)
+        {
+            if (parent.Controls != null)
+            {
+                for (int i = parent.Controls.Count - 1; i >= 0; i--)
+                {
+                    var child = parent.Controls[i];
+                    if (child.IsMouseOver(p))
+                    {
+                        var deeper = FindControlAtPoint(child, p);
+                        return deeper ?? child;
+                    }
+                }
+            }
+            return null;
         }
 
         public override void OnMouseDown(MouseEventArgs e)
@@ -80,9 +104,19 @@ namespace Client.MirControls
                 return;
 
             if (MouseControl != null && MouseControl != this)
+            {
                 MouseControl.OnMouseDown(e);
+            }
             else
-                base.OnMouseDown(e);
+            {
+                // MouseControl wasn't set (Highlight guard blocked it).
+                // Find the actual control under the mouse and dispatch to it.
+                var target = FindControlAtPoint(this, CMain.MPoint);
+                if (target != null && target != this)
+                    target.OnMouseDown(e);
+                else
+                    base.OnMouseDown(e);
+            }
         }
         public override void OnMouseUp(MouseEventArgs e)
         {
@@ -91,7 +125,13 @@ namespace Client.MirControls
             if (MouseControl != null && MouseControl != this)
                 MouseControl.OnMouseUp(e);
             else
-                base.OnMouseUp(e);
+            {
+                var target = FindControlAtPoint(this, CMain.MPoint);
+                if (target != null && target != this)
+                    target.OnMouseUp(e);
+                else
+                    base.OnMouseUp(e);
+            }
         }
         public override void OnMouseMove(MouseEventArgs e)
         {
@@ -130,9 +170,19 @@ namespace Client.MirControls
                 _lastClickTime = 0;
 
             if (ActiveControl != null && ActiveControl.IsMouseOver(CMain.MPoint) && ActiveControl != this)
+            {
                 ActiveControl.OnMouseClick(e);
+            }
             else
-                base.OnMouseClick(e);
+            {
+                // ActiveControl wasn't set properly or mouse is outside it.
+                // Find the actual control under the mouse and dispatch to it.
+                var target = FindControlAtPoint(this, CMain.MPoint);
+                if (target != null && target != this)
+                    target.OnMouseClick(e);
+                else
+                    base.OnMouseClick(e);
+            }
 
             _clickedControl = ActiveControl;
 
@@ -167,7 +217,7 @@ namespace Client.MirControls
         {
             TextureValid = false;
         }
-        
+
         public virtual void ProcessPacket(Packet p)
         {
             switch (p.Index)

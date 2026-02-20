@@ -162,7 +162,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Location = new Point(30, 40),
                 Size = new Size(200, 30),
-                BackColour = Color.Empty,
+                BackColour = Color.Transparent,
                 ForeColour = Color.LightGray,
                 DrawFormat = TextFormatFlags.VerticalCenter,
                 Parent = this,
@@ -174,7 +174,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Location = new Point(30, 65),
                 Size = new Size(200, 30),
-                BackColour = Color.Empty,
+                BackColour = Color.Transparent,
                 ForeColour = Color.LightGray,
                 DrawFormat = TextFormatFlags.VerticalCenter,
                 Parent = this,
@@ -186,7 +186,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Location = new Point(30, 90),
                 Size = new Size(200, 30),
-                BackColour = Color.Empty,
+                BackColour = Color.Transparent,
                 ForeColour = Color.LightGray,
                 DrawFormat = TextFormatFlags.VerticalCenter,
                 Parent = this,
@@ -198,7 +198,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Location = new Point(30, 115),
                 Size = new Size(200, 30),
-                BackColour = Color.Empty,
+                BackColour = Color.Transparent,
                 ForeColour = Color.LightGray,
                 DrawFormat = TextFormatFlags.VerticalCenter,
                 Parent = this,

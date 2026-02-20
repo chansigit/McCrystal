@@ -1,7 +1,7 @@
-﻿using Client.MirGraphics;
-using SlimDX;
-using SlimDX.Direct3D9;
-using System.Drawing.Imaging;
+using Client.MirGraphics;
+using Client.MirScenes;
+using Microsoft.Xna.Framework.Graphics;
+using SkiaSharp;
 
 namespace Client.MirControls
 {
@@ -12,8 +12,8 @@ namespace Client.MirControls
         protected override void OnBackColourChanged()
         {
             base.OnBackColourChanged();
-            if (TextBox != null && !TextBox.IsDisposed)
-                TextBox.BackColor = BackColour;
+            TextureValid = false;
+            Redraw();
         }
 
         #endregion
@@ -23,8 +23,6 @@ namespace Client.MirControls
         protected override void OnEnabledChanged()
         {
             base.OnEnabledChanged();
-            if (TextBox != null && !TextBox.IsDisposed)
-                TextBox.Enabled = Enabled;
         }
 
         #endregion
@@ -34,8 +32,8 @@ namespace Client.MirControls
         protected override void OnForeColourChanged()
         {
             base.OnForeColourChanged();
-            if (TextBox != null && !TextBox.IsDisposed)
-                TextBox.ForeColor = ForeColour;
+            TextureValid = false;
+            Redraw();
         }
 
         #endregion
@@ -45,9 +43,6 @@ namespace Client.MirControls
         protected override void OnLocationChanged()
         {
             base.OnLocationChanged();
-            if (TextBox != null && !TextBox.IsDisposed)
-                TextBox.Location = DisplayLocation;
-
             TextureValid = false;
             Redraw();
         }
@@ -56,19 +51,11 @@ namespace Client.MirControls
 
         #region Max Length
 
+        private int _maxLength = 256;
         public int MaxLength
         {
-            get
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    return TextBox.MaxLength;
-                return -1;
-            }
-            set
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    TextBox.MaxLength = value;
-            }
+            get { return _maxLength; }
+            set { _maxLength = value; }
         }
 
         #endregion
@@ -78,26 +65,22 @@ namespace Client.MirControls
         protected override void OnParentChanged()
         {
             base.OnParentChanged();
-            if (TextBox != null && !TextBox.IsDisposed)
-                OnVisibleChanged();
+            OnVisibleChanged();
         }
 
         #endregion
 
         #region Password
 
+        private bool _password;
         public bool Password
         {
-            get
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    return TextBox.UseSystemPasswordChar;
-                return false;
-            }
+            get { return _password; }
             set
             {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    TextBox.UseSystemPasswordChar = value;
+                _password = value;
+                TextureValid = false;
+                Redraw();
             }
         }
 
@@ -105,18 +88,21 @@ namespace Client.MirControls
 
         #region Font
 
-        public System.Drawing.Font Font
+        private float _fontSize;
+        private string _fontName;
+
+        public object Font
         {
-            get
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    return TextBox.Font;
-                return null;
-            }
+            get { return null; }
             set
             {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    TextBox.Font = ScaleFont(value);
+                if (value is Client.Font f)
+                {
+                    _fontName = f.FontFamily;
+                    _fontSize = MirControl.ScaleFontSize(f.Size);
+                }
+                TextureValid = false;
+                Redraw();
             }
         }
 
@@ -126,23 +112,126 @@ namespace Client.MirControls
 
         protected override void OnSizeChanged()
         {
-            TextBox.Size = Size;
-
             DisposeTexture();
-
             _size = Size;
-
-            if (TextBox != null && !TextBox.IsDisposed)
-                base.OnSizeChanged();
+            base.OnSizeChanged();
         }
 
         #endregion
-        
-        #region TextBox
+
+        #region TextBox State
 
         public bool CanLoseFocus;
-        public readonly TextBox TextBox;
-        private Pen CaretPen;
+        private string _text = "";
+        private int _cursorPosition;
+        private int _selectionStart;
+        private int _selectionLength;
+        private bool _focused;
+        private long _cursorBlinkTime;
+        private bool _cursorVisible = true;
+        private int _scrollOffset; // horizontal scroll for single-line
+
+        /// <summary>Tracks the currently focused text box so only one has focus at a time.</summary>
+        private static MirTextBox _currentFocused;
+
+        #endregion
+
+        #region Compatibility Properties (WinForms TextBox bridge)
+
+        /// <summary>
+        /// Self-referencing property for WinForms compatibility.
+        /// Allows code like mirTextBox.TextBox.Text to work by delegating to mirTextBox.Text.
+        /// Also supports object initializer syntax: TextBox = { MaxLength = 50 }.
+        /// </summary>
+        public MirTextBox TextBox => this;
+
+        /// <summary>Event raised when the Text property changes.</summary>
+        public event EventHandler TextChanged;
+
+        /// <summary>Event raised when the control receives focus.</summary>
+        public event EventHandler GotFocus;
+
+        public int SelectionStart
+        {
+            get { return _selectionStart; }
+            set { _selectionStart = value; }
+        }
+
+        public int SelectionLength
+        {
+            get { return _selectionLength; }
+            set { _selectionLength = value; }
+        }
+
+        public bool Focused
+        {
+            get { return _focused; }
+        }
+
+        public string SelectedText
+        {
+            get
+            {
+                if (_selectionLength <= 0 || _selectionStart < 0 || _selectionStart >= (_text?.Length ?? 0))
+                    return string.Empty;
+                int len = Math.Min(_selectionLength, _text.Length - _selectionStart);
+                return _text.Substring(_selectionStart, len);
+            }
+        }
+
+        private char _passwordChar;
+        public char PasswordChar
+        {
+            get { return _password ? (_passwordChar != '\0' ? _passwordChar : '*') : '\0'; }
+            set
+            {
+                _passwordChar = value;
+                _password = value != '\0';
+                TextureValid = false;
+                Redraw();
+            }
+        }
+
+        public object Tag { get; set; }
+
+        public void SelectAll()
+        {
+            _selectionStart = 0;
+            _selectionLength = (_text ?? "").Length;
+            _cursorPosition = _selectionLength;
+        }
+
+        public void Focus()
+        {
+            SetFocus();
+        }
+
+        /// <summary>Stub for WinForms compatibility. Returns 0.</summary>
+        public int GetFirstCharIndexFromLine(int lineNumber)
+        {
+            if (string.IsNullOrEmpty(_text)) return 0;
+            string[] lines = _text.Split('\n');
+            int index = 0;
+            for (int i = 0; i < lineNumber && i < lines.Length; i++)
+                index += lines[i].Length + 1; // +1 for '\n'
+            return Math.Min(index, _text.Length);
+        }
+
+        /// <summary>Stub for WinForms compatibility. No-op.</summary>
+        public void ScrollToCaret()
+        {
+            // No-op in MonoGame standalone text box
+        }
+
+        private void RaiseTextChanged()
+        {
+            TextChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        private void RaiseGotFocus()
+        {
+            GotFocus?.Invoke(this, EventArgs.Empty);
+        }
 
         #endregion
 
@@ -150,30 +239,26 @@ namespace Client.MirControls
 
         public string Text
         {
-            get
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    return TextBox.Text;
-                return null;
-            }
+            get { return _text ?? ""; }
             set
             {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    TextBox.Text = value;
+                _text = value ?? "";
+                if (_cursorPosition > _text.Length)
+                    _cursorPosition = _text.Length;
+                TextureValid = false;
+                Redraw();
+                RaiseTextChanged();
             }
         }
+
         public string[] MultiText
         {
-            get
-            {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    return TextBox.Lines;
-                return null;
-            }
+            get { return _text?.Split('\n'); }
             set
             {
-                if (TextBox != null && !TextBox.IsDisposed)
-                    TextBox.Lines = value;
+                _text = value != null ? string.Join("\n", value) : "";
+                TextureValid = false;
+                Redraw();
             }
         }
 
@@ -183,10 +268,7 @@ namespace Client.MirControls
 
         public override bool Visible
         {
-            get
-            {
-                return base.Visible;
-            }
+            get { return base.Visible; }
             set
             {
                 base.Visible = value;
@@ -198,44 +280,24 @@ namespace Client.MirControls
         {
             base.OnVisibleChanged();
 
-            if (TextBox != null && !TextBox.IsDisposed)
-                TextBox.Visible = Visible;
-        }
-        private void TextBox_VisibleChanged(object sender, EventArgs e)
-        {
-            DialogChanged();
-
-            if (TextBox.Visible && TextBox.CanFocus)
-                if (Program.Form.ActiveControl == null || Program.Form.ActiveControl == Program.Form)
-                    Program.Form.ActiveControl = TextBox;
-
-            if (!TextBox.Visible)
-                if (Program.Form.ActiveControl == TextBox)
-                    Program.Form.Focus();
-        }
-        private void SetFocus(object sender, EventArgs e)
-        {
-            if (TextBox.Visible)
-                TextBox.VisibleChanged -= SetFocus;
-            if (TextBox.Parent != null)
-                TextBox.ParentChanged -= SetFocus;
-
-            if (TextBox.CanFocus) TextBox.Focus();
-            else if (TextBox.Visible && TextBox.Parent != null)
-                Program.Form.ActiveControl = TextBox;
-
-
+            if (Visible)
+            {
+                SetFocus();
+            }
+            else
+            {
+                _focused = false;
+            }
         }
 
         #endregion
 
         #region MultiLine
 
+        private bool _multiline;
         public override void MultiLine()
         {
-            TextBox.Multiline = true;
-            TextBox.Size = Size;
-
+            _multiline = true;
             DisposeTexture();
             Redraw();
         }
@@ -245,143 +307,192 @@ namespace Client.MirControls
         public MirTextBox()
         {
             BackColour = Color.Black;
-
             DrawControlTexture = true;
             TextureValid = false;
 
-            TextBox = new TextBox
-            {
-                BackColor = BackColour,
-                BorderStyle = BorderStyle.None,
-                Font = new System.Drawing.Font(Settings.FontName, 10F * 96f / CMain.Graphics.DpiX),
-                ForeColor = ForeColour,
-                Location = DisplayLocation,
-                Size = Size,
-                Visible = Visible,
-                Tag = this,
-                Cursor = CMain.Cursors[(byte)MouseCursor.TextPrompt]
-            };
-
-            CaretPen = new Pen(ForeColour, 1);
-
-            TextBox.VisibleChanged += TextBox_VisibleChanged;
-            TextBox.ParentChanged += TextBox_VisibleChanged;
-            TextBox.KeyUp += TextBoxOnKeyUp;  
-            TextBox.KeyPress += TextBox_KeyPress;
-
-            TextBox.KeyPress += TextBox_NeedRedraw;
-            TextBox.KeyUp += TextBox_NeedRedraw;
-            TextBox.MouseDown += TextBox_NeedRedraw;
-            TextBox.MouseUp += TextBox_NeedRedraw;
-            TextBox.LostFocus += TextBox_NeedRedraw;
-            TextBox.GotFocus += TextBox_NeedRedraw;
-            TextBox.MouseWheel += TextBox_NeedRedraw;
-
-            Shown += MirTextBox_Shown;
-            TextBox.MouseMove += CMain.CMain_MouseMove;
+            _fontName = Settings.FontName;
+            _fontSize = MirControl.ScaleFontSize(10F);
+            _text = "";
+            _cursorPosition = 0;
         }
 
-        private void TextBox_NeedRedraw(object sender, EventArgs e)
+        public override void OnKeyPress(KeyPressEventArgs e)
         {
-            TextureValid = false;
-            Redraw();
-        }
+            if (!_focused || !Enabled) return;
 
-        protected unsafe override void CreateTexture()
-        {
-            if (!Settings.FullScreen) return;
+            char c = e.KeyChar;
 
-            if (Size.IsEmpty)
-                return;
-
-            if (TextureSize != Size)
-                DisposeTexture();
-
-            if (ControlTexture == null || ControlTexture.Disposed)
+            // Handle special keys
+            if (c == '\b') // Backspace
             {
-                DXManager.ControlList.Add(this);
-
-                ControlTexture = new Texture(DXManager.Device, Size.Width, Size.Height, 1, Usage.None, Format.A8R8G8B8, Pool.Managed);
-                TextureSize = Size;
-            }
-
-            Point caret = GetCaretPosition();
-
-            DataRectangle stream = ControlTexture.LockRectangle(0, LockFlags.Discard);
-            using (Bitmap bm = new Bitmap(Size.Width, Size.Height, Size.Width * 4, PixelFormat.Format32bppArgb, stream.Data.DataPointer))
-            {
-                TextBox.DrawToBitmap(bm, new Rectangle(0, 0, Size.Width, Size.Height));
-                using (Graphics graphics = Graphics.FromImage(bm))
+                if (_cursorPosition > 0 && _text.Length > 0)
                 {
-                    graphics.DrawImage(bm, Point.Empty);
-                    if (TextBox.Focused)
-                        graphics.DrawLine(CaretPen, new Point(caret.X, caret.Y), new Point(caret.X, caret.Y + TextBox.Font.Height));
+                    _text = _text.Remove(_cursorPosition - 1, 1);
+                    _cursorPosition--;
+                    TextureValid = false;
+                    Redraw();
+                    RaiseTextChanged();
                 }
-
-            }
-            ControlTexture.UnlockRectangle(0);
-            DXManager.Sprite.Flush();
-            TextureValid = true;
-        }
-
-        private Point GetCaretPosition()
-        {
-            Point result = TextBox.GetPositionFromCharIndex(TextBox.SelectionStart);
-
-            if (result.X == 0 && TextBox.Text.Length > 0)
-            {
-                result = TextBox.GetPositionFromCharIndex(TextBox.Text.Length - 1);
-                int s = result.X / TextBox.Text.Length;
-                result.X = (int)(result.X + (s * 1.46));
-                result.Y = TextBox.GetLineFromCharIndex(TextBox.SelectionStart) * TextBox.Font.Height;
+                e.Handled = true;
+                return;
             }
 
-            return result;
-        }
-
-        private void TextBoxOnKeyUp(object sender, KeyEventArgs e)
-        {
-            switch (e.KeyCode)
+            if (c == (char)Keys.Escape)
             {
-                case Keys.PrintScreen:
-                    CMain.CMain_KeyUp(sender, e);
-                    break;
-
+                _focused = false;
+                e.Handled = true;
+                return;
             }
-        }
 
-        void TextBox_KeyPress(object sender, KeyPressEventArgs e)
-        {
-            base.OnKeyPress(e);
-
-            if (e.KeyChar == (char)Keys.Escape)
+            if (c == '\r' || c == '\n')
             {
-                Program.Form.ActiveControl = null;
+                if (_multiline)
+                {
+                    InsertChar('\n');
+                }
+                e.Handled = true;
+                return;
+            }
+
+            if (c == '\t')
+            {
+                e.Handled = true;
+                return;
+            }
+
+            // Normal character input
+            if (!char.IsControl(c) || c == ' ')
+            {
+                InsertChar(c);
                 e.Handled = true;
             }
+
+            base.OnKeyPress(e);
         }
 
-
-        void MirTextBox_Shown(object sender, EventArgs e)
+        public override void OnKeyDown(KeyEventArgs e)
         {
-            TextBox.Parent = Program.Form;
-            CMain.Ctrl = false;
-            CMain.Shift = false;
-            CMain.Alt = false;
-            CMain.Tilde = false;
+            if (!_focused || !Enabled) return;
 
+            switch (e.KeyCode)
+            {
+                case Keys.Left:
+                    if (_cursorPosition > 0) _cursorPosition--;
+                    TextureValid = false;
+                    Redraw();
+                    e.Handled = true;
+                    break;
+                case Keys.Right:
+                    if (_cursorPosition < _text.Length) _cursorPosition++;
+                    TextureValid = false;
+                    Redraw();
+                    e.Handled = true;
+                    break;
+                case Keys.Home:
+                    _cursorPosition = 0;
+                    TextureValid = false;
+                    Redraw();
+                    e.Handled = true;
+                    break;
+                case Keys.End:
+                    _cursorPosition = _text.Length;
+                    TextureValid = false;
+                    Redraw();
+                    e.Handled = true;
+                    break;
+                case Keys.Delete:
+                    if (_cursorPosition < _text.Length)
+                    {
+                        _text = _text.Remove(_cursorPosition, 1);
+                        TextureValid = false;
+                        Redraw();
+                        RaiseTextChanged();
+                    }
+                    e.Handled = true;
+                    break;
+                case Keys.V:
+                    if (e.Control)
+                    {
+                        // Paste from clipboard via SDL2
+                        try
+                        {
+                            string clipText = SDL2.SDL.SDL_GetClipboardText();
+                            if (!string.IsNullOrEmpty(clipText))
+                            {
+                                foreach (char c in clipText)
+                                {
+                                    if (!char.IsControl(c))
+                                        InsertChar(c);
+                                }
+                            }
+                        }
+                        catch { }
+                        e.Handled = true;
+                    }
+                    break;
+                case Keys.C:
+                    if (e.Control)
+                    {
+                        try
+                        {
+                            SDL2.SDL.SDL_SetClipboardText(_text);
+                        }
+                        catch { }
+                        e.Handled = true;
+                    }
+                    break;
+                case Keys.A:
+                    if (e.Control)
+                    {
+                        _cursorPosition = _text.Length;
+                        e.Handled = true;
+                    }
+                    break;
+            }
+
+            base.OnKeyDown(e);
+        }
+
+        private void InsertChar(char c)
+        {
+            if (_text.Length >= _maxLength) return;
+
+            _text = _text.Insert(_cursorPosition, c.ToString());
+            _cursorPosition++;
             TextureValid = false;
+            Redraw();
+            ResetCursorBlink();
+            RaiseTextChanged();
+        }
+
+        private void ResetCursorBlink()
+        {
+            _cursorVisible = true;
+            _cursorBlinkTime = CMain.Time + 500;
+        }
+
+        public override void OnMouseDown(MouseEventArgs e)
+        {
+            base.OnMouseDown(e);
             SetFocus();
         }
 
         public void SetFocus()
         {
-            if (!TextBox.Visible)
-                TextBox.VisibleChanged += SetFocus;
-            else if (TextBox.Parent == null)
-                TextBox.ParentChanged += SetFocus;
-            else
-                TextBox.Focus();
+            // Unfocus the previously focused text box
+            if (_currentFocused != null && _currentFocused != this && !_currentFocused.IsDisposed)
+            {
+                _currentFocused._focused = false;
+                _currentFocused.TextureValid = false;
+                _currentFocused.Redraw();
+            }
+
+            _focused = true;
+            _currentFocused = this;
+            ResetCursorBlink();
+            TextureValid = false;
+            Redraw();
+            RaiseGotFocus();
         }
 
         public void DialogChanged()
@@ -397,13 +508,88 @@ namespace Client.MirControls
                 box3 = (MirAmountBox) MirScene.ActiveScene.Controls.FirstOrDefault(ob => ob is MirAmountBox);
             }
 
-
-            if ((box1 != null && box1 != Parent) || (box2 != null && box2 != Parent)  || (box3 != null && box3 != Parent))
-                TextBox.Visible = false;
-            else
-                TextBox.Visible = Visible && TextBox.Parent != null;
+            if ((box1 != null && box1 != Parent) || (box2 != null && box2 != Parent) || (box3 != null && box3 != Parent))
+                _focused = false;
         }
 
+        protected override void CreateTexture()
+        {
+            if (Size.IsEmpty)
+                return;
+
+            if (TextureSize != Size)
+                DisposeTexture();
+
+            if (ControlTexture == null || ControlTexture.IsDisposed)
+            {
+                DXManager.ControlList.Add(this);
+                ControlTexture = new Texture2D(DXManager.Device, Size.Width, Size.Height, false, SurfaceFormat.Color);
+                TextureSize = Size;
+            }
+
+            // Update cursor blink
+            if (CMain.Time >= _cursorBlinkTime)
+            {
+                _cursorVisible = !_cursorVisible;
+                _cursorBlinkTime = CMain.Time + 500;
+            }
+
+            // Render text using SkiaSharp
+            byte[] pixelData;
+            using (var bitmap = new SKBitmap(Size.Width, Size.Height, SKColorType.Rgba8888, SKAlphaType.Premul))
+            {
+                using (var canvas = new SKCanvas(bitmap))
+                {
+                    canvas.Clear(new SKColor(BackColour.R, BackColour.G, BackColour.B, BackColour.A));
+
+                    using (var paint = new SKPaint())
+                    {
+                        paint.TextSize = _fontSize > 0 ? _fontSize : 12;
+                        paint.IsAntialias = true;
+                        paint.Typeface = SKTypeface.FromFamilyName(_fontName ?? Settings.FontName);
+                        paint.Color = new SKColor(ForeColour.R, ForeColour.G, ForeColour.B, ForeColour.A);
+
+                        string displayText = _password ? new string('*', _text.Length) : _text;
+
+                        float y = paint.FontSpacing;
+                        canvas.DrawText(displayText, 2, y, paint);
+
+                        // Draw cursor
+                        if (_focused && _cursorVisible)
+                        {
+                            string textBeforeCursor = _password ?
+                                new string('*', _cursorPosition) :
+                                _text.Substring(0, Math.Min(_cursorPosition, _text.Length));
+
+                            float cursorX = paint.MeasureText(textBeforeCursor) + 2;
+
+                            using (var cursorPaint = new SKPaint())
+                            {
+                                cursorPaint.Color = new SKColor(ForeColour.R, ForeColour.G, ForeColour.B, ForeColour.A);
+                                cursorPaint.StrokeWidth = 1;
+                                canvas.DrawLine(cursorX, 2, cursorX, Size.Height - 2, cursorPaint);
+                            }
+                        }
+                    }
+                }
+
+                pixelData = bitmap.GetPixelSpan().ToArray();
+            }
+
+            ControlTexture.SetData(pixelData);
+            TextureValid = true;
+        }
+
+        protected internal override void DrawControl()
+        {
+            // Force redraw for cursor blink animation
+            if (_focused && CMain.Time >= _cursorBlinkTime)
+            {
+                TextureValid = false;
+            }
+
+            base.DrawControl();
+        }
 
         #region Disposable
 
@@ -413,10 +599,9 @@ namespace Client.MirControls
 
             if (!disposing) return;
 
-            if (!TextBox.IsDisposed)
-                TextBox.Dispose();
+            _text = null;
+            _focused = false;
         }
-
 
         #endregion
     }

@@ -1,16 +1,16 @@
-﻿using Client.MirGraphics;
+using Client.MirGraphics;
 using Client.MirSounds;
-using SlimDX;
-using SlimDX.Direct3D9;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Client.MirControls
 {
     public class MirControl : IDisposable
     {
         public static MirControl ActiveControl, MouseControl;
-        
+
         public virtual Point DisplayLocation { get { return Parent == null ? Location : Parent.DisplayLocation.Add(Location); } }
-        public Rectangle DisplayRectangle { get { return new Rectangle(DisplayLocation, Size); } }
+        public Rectangle DisplayRectangle { get { return new Rectangle(DisplayLocation.X, DisplayLocation.Y, Size.Width, Size.Height); } }
 
         public bool GrayScale { get; set; }
         public bool Blending { get; set; }
@@ -43,33 +43,6 @@ namespace Client.MirControls
         #region Border
         protected Rectangle BorderRectangle;
         private bool _border;
-        protected Vector2[] _borderInfo;
-        protected virtual Vector2[] BorderInfo
-        {
-            get
-            {
-                if (Size == Size.Empty)
-                    return null;
-
-                if (BorderRectangle != DisplayRectangle)
-                {
-                    _borderInfo = new[]
-                        {
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Bottom),
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Bottom),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Bottom),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Bottom)
-                        };
-
-                    BorderRectangle = DisplayRectangle;
-                }
-                return _borderInfo;
-            }
-        }
         public virtual bool Border
         {
             get { return _border; }
@@ -114,7 +87,7 @@ namespace Client.MirControls
 
         #region Control Texture
         public long CleanTime;
-        protected Texture ControlTexture;
+        protected Texture2D ControlTexture;
         protected internal bool TextureValid;
         private bool _drawControlTexture;
         protected Size TextureSize;
@@ -131,26 +104,25 @@ namespace Client.MirControls
         }
         protected virtual void CreateTexture()
         {
-            if (ControlTexture == null || ControlTexture.Disposed)
+            if (ControlTexture == null || ControlTexture.IsDisposed)
             {
                 DXManager.ControlList.Add(this);
-                ControlTexture = new Texture(DXManager.Device, Size.Width, Size.Height, 1, Usage.RenderTarget, Format.A8R8G8B8, Pool.Default);
+                ControlTexture = new RenderTarget2D(DXManager.Device, Size.Width, Size.Height, false,
+                    SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
                 TextureSize = Size;
             }
 
-            Surface oldSurface = DXManager.CurrentSurface;
-            Surface surface = ControlTexture.GetSurfaceLevel(0);
-            DXManager.SetSurface(surface);
-            DXManager.Device.Clear(ClearFlags.Target, BackColour, 0, 0);
+            var oldSurface = DXManager.CurrentSurface;
+            DXManager.SetSurface((RenderTarget2D)ControlTexture);
+            DXManager.Device.Clear(BackColour);
             DXManager.SetSurface(oldSurface);
 
             TextureValid = true;
-            surface.Dispose();
         }
 
         internal void DisposeTexture()
         {
-            if (ControlTexture == null || ControlTexture.Disposed) return;
+            if (ControlTexture == null || ControlTexture.IsDisposed) return;
 
             ControlTexture.Dispose();
             ControlTexture = null;
@@ -442,9 +414,7 @@ namespace Client.MirControls
 
         #region Size
 
-// ReSharper disable InconsistentNaming
         protected Size _size;
-// ReSharper restore InconsistentNaming
 
         public virtual Size Size
         {
@@ -468,7 +438,7 @@ namespace Client.MirControls
         {
             TextureValid = false;
             Redraw();
-            
+
             if (SizeChanged != null)
                 SizeChanged.Invoke(this, EventArgs.Empty);
         }
@@ -555,7 +525,7 @@ namespace Client.MirControls
                 VisibleChanged.Invoke(this, EventArgs.Empty);
 
             Moving = false;
-            _movePoint = Point.Empty;
+            _movePoint = Point.Zero;
 
             if (Sort && Parent != null)
             {
@@ -594,7 +564,7 @@ namespace Client.MirControls
 
             if (Shown != null)
                 Shown.Invoke(this, EventArgs.Empty);
-            
+
             HasShown = true;
         }
         #endregion
@@ -692,7 +662,7 @@ namespace Client.MirControls
 
         public virtual void Draw()
         {
-            if (IsDisposed || !Visible /*|| Size.Width == 0 || Size.Height == 0*/ || Size.Width > Settings.ScreenWidth || Size.Height > Settings.ScreenHeight)
+            if (IsDisposed || !Visible || Size.Width > Settings.ScreenWidth || Size.Height > Settings.ScreenHeight)
                 return;
 
             OnBeforeShown();
@@ -721,10 +691,13 @@ namespace Client.MirControls
             if (!TextureValid)
                 CreateTexture();
 
-            if (ControlTexture == null || ControlTexture.Disposed)
+            if (ControlTexture == null || ControlTexture.IsDisposed)
                 return;
 
-            DXManager.DrawOpaque(ControlTexture, new Rectangle(0, 0, Size.Width, Size.Height), new Vector3?(new Vector3((float)(DisplayLocation.X), (float)(DisplayLocation.Y), 0.0f)), Color.White, Opacity);
+            DXManager.DrawOpaque(ControlTexture,
+                new Rectangle(0, 0, Size.Width, Size.Height),
+                new Vector2(DisplayLocation.X, DisplayLocation.Y),
+                Color.White, Opacity);
 
             CleanTime = CMain.Time + Settings.CleanDelay;
         }
@@ -737,10 +710,10 @@ namespace Client.MirControls
         }
         protected virtual void DrawBorder()
         {
-            if (!Border || BorderInfo == null)
+            if (!Border || Size == Size.Empty)
                 return;
-            DXManager.Sprite.Flush();
-            DXManager.Line.Draw(BorderInfo, _borderColour);
+
+            DXManager.DrawRectangleBorder(DisplayRectangle, _borderColour);
         }
         protected void AfterDrawControl()
         {
@@ -755,7 +728,7 @@ namespace Client.MirControls
 
             ActiveControl = null;
             Moving = false;
-            _movePoint = Point.Empty;
+            _movePoint = Point.Zero;
         }
         protected virtual void Dehighlight()
         {
@@ -926,7 +899,7 @@ namespace Client.MirControls
             if (Moving)
             {
                 Moving = false;
-                _movePoint = Point.Empty;
+                _movePoint = Point.Zero;
             }
 
             if (ActiveControl != null) ActiveControl.Deactivate();
@@ -996,12 +969,16 @@ namespace Client.MirControls
         }
 
         #region Font
-        public virtual System.Drawing.Font ScaleFont(System.Drawing.Font font)
+        // Font scaling - returns a font size scaled for DPI
+        public static float ScaleFontSize(float size)
         {
-            var theFont = new System.Drawing.Font(font.Name, font.Size * 96f / CMain.Graphics.DpiX, font.Style);
-            font.Dispose();
-            
-            return theFont;
+            return size * 96f / CMain.DpiX;
+        }
+
+        // Compatibility method for ScaleFont(new Font(...)) calls
+        public static Font ScaleFont(Font font)
+        {
+            return new Font(font.FontFamily, ScaleFontSize(font.Size), font.Style);
         }
         #endregion
 
@@ -1025,15 +1002,14 @@ namespace Client.MirControls
                 Disposing = null;
 
                 BackColourChanged = null;
-                _backColour = Color.Empty;
+                _backColour = Color.Transparent;
 
                 BorderChanged = null;
                 _border = false;
                 BorderRectangle = Rectangle.Empty;
-                _borderInfo = null;
 
                 BorderColourChanged = null;
-                _borderColour = Color.Empty;
+                _borderColour = Color.Transparent;
 
                 DrawControlTexture = false;
                 DisposeTexture();
@@ -1075,16 +1051,16 @@ namespace Client.MirControls
                 KeyDown = null;
 
                 ForeColourChanged = null;
-                _foreColour = Color.Empty;
+                _foreColour = Color.Transparent;
 
                 LocationChanged = null;
-                _location = Point.Empty;
+                _location = Point.Zero;
 
                 ModalChanged = null;
                 _modal = false;
 
                 MovableChanged = null;
-                _movePoint = Point.Empty;
+                _movePoint = Point.Zero;
                 Moving = false;
                 OnMoving = null;
                 _movable = false;

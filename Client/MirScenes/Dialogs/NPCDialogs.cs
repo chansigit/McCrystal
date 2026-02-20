@@ -6,7 +6,6 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using Font = System.Drawing.Font;
 using C = ClientPackets;
 using S = ServerPackets;
 using System.Diagnostics;
@@ -193,9 +192,9 @@ namespace Client.MirScenes.Dialogs
                 Visible = false,
                 NotControl = true,
                 Sort = true,
-                BackColour = Color.FromArgb(240, 80, 60, 40), // Darker brownish color
+                BackColour = new Color(80, 60, 40, 240), // Darker brownish color
                 Border = true,
-                BorderColour = Color.FromArgb(255, 120, 100, 80), // Brownish border
+                BorderColour = new Color(120, 100, 80), // Brownish border
                 DrawControlTexture = true,
                 Modal = false
             };
@@ -329,7 +328,7 @@ namespace Client.MirScenes.Dialogs
                         if (actionSplit.Length > 1)
                             colourString = actionSplit[1];
 
-                        Color color = Color.FromName(colourString);
+                        Color color = Colors.FromName(colourString);
 
                         BigButton button = new BigButton
                         {
@@ -551,7 +550,7 @@ namespace Client.MirScenes.Dialogs
                
         private void NewColour(string text, string colour, Point p)
         {
-            Color textColour = Color.FromName(colour);
+            Color textColour = Colors.FromName(colour);
 
             MirLabel temp = new MirLabel
             {
@@ -971,7 +970,7 @@ namespace Client.MirScenes.Dialogs
         internal static Point CalculateLinkOffset(string text, MirLabel label)
         {
             if (label == null || string.IsNullOrEmpty(text))
-                return Point.Empty;
+                return Point.Zero;
 
             int maxWidth = Math.Max(1, label.Size.Width);
             int x = 0;
@@ -3479,7 +3478,7 @@ namespace Client.MirScenes.Dialogs
             {
                 if (_label != null && !_label.IsDisposed)
                     return _label.ForeColour;
-                return Color.Empty;
+                return Color.Transparent;
             }
             set
             {

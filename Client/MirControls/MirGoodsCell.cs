@@ -1,6 +1,5 @@
 ﻿using Client.MirGraphics;
 using Client.MirScenes;
-using SlimDX;
 
 namespace Client.MirControls
 {
@@ -86,36 +85,15 @@ namespace Client.MirControls
             }
         }
 
-        protected override Vector2[] BorderInfo
+        protected override void DrawBorder()
         {
-            get
-            {
-                if (Size == Size.Empty) return null;
+            if (!Border || Size == Size.Empty) return;
 
-                if (BorderRectangle != DisplayRectangle)
-                {
-                    _borderInfo = new[]
-                        {
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Top - 1),
-
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Bottom),
-
-                            new Vector2(DisplayRectangle.Left - 1, DisplayRectangle.Bottom),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Bottom),
-
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Top - 1),
-                            new Vector2(DisplayRectangle.Right, DisplayRectangle.Bottom),
-
-                            new Vector2(DisplayRectangle.Left + 40, DisplayRectangle.Bottom),
-                            new Vector2(DisplayRectangle.Left + 40, DisplayRectangle.Top - 1)
-                        };
-
-                    BorderRectangle = DisplayRectangle;
-                }
-                return _borderInfo;
-            }
+            DXManager.DrawRectangleBorder(DisplayRectangle, BorderColour);
+            DXManager.DrawLine(
+                new Vector2(DisplayRectangle.Left + 40, DisplayRectangle.Bottom),
+                new Vector2(DisplayRectangle.Left + 40, DisplayRectangle.Top - 1),
+                BorderColour);
         }
 
         protected override void OnMouseEnter()

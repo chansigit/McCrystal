@@ -3,7 +3,6 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using Font = System.Drawing.Font;
 using C = ClientPackets;
 
 namespace Client.MirScenes.Dialogs
@@ -342,7 +341,7 @@ namespace Client.MirScenes.Dialogs
                 int index = i;
                 MembersRanks[i] = new MirDropDownBox()
                 {
-                    BackColour = i % 2 == 0 ? Color.FromArgb(255, 10, 10, 10) : Color.FromArgb(255, 15, 15, 15),
+                    BackColour = i % 2 == 0 ? new Color(10, 10, 10) : new Color(15, 15, 15),
                     ForeColour = Color.White,
                     Parent = MembersPage,
                     Size = new Size(100, 14),
@@ -357,7 +356,7 @@ namespace Client.MirScenes.Dialogs
             {
                 MembersName[i] = new MirLabel()
                 {
-                    BackColour = i % 2 == 0 ? Color.FromArgb(255, 05, 05, 05) : Color.FromArgb(255, 07, 07, 07),
+                    BackColour = i % 2 == 0 ? new Color(05, 05, 05) : new Color(07, 07, 07),
                     ForeColour = Color.White,
                     Parent = MembersPage,
                     Size = new Size(100, 14),
@@ -373,7 +372,7 @@ namespace Client.MirScenes.Dialogs
             {
                 MembersStatus[i] = new MirLabel()
                 {
-                    BackColour = i % 2 == 0 ? Color.FromArgb(255, 10, 10, 10) : Color.FromArgb(255, 15, 15, 15),
+                    BackColour = i % 2 == 0 ? new Color(10, 10, 10) : new Color(15, 15, 15),
                     ForeColour = Color.White,
                     Parent = MembersPage,
                     Size = new Size(100, 14),
@@ -583,9 +582,9 @@ namespace Client.MirScenes.Dialogs
                 Parent = StatusPage,
                 Visible = true,
                 Text = "",
-                BackColour = Color.FromArgb(255, 25, 25, 25),
+                BackColour = new Color(25, 25, 25),
                 Border = true,
-                BorderColour = Color.FromArgb(255, 35, 35, 35),
+                BorderColour = new Color(35, 35, 35),
                 CanLoseFocus = true
             };
             RecruitMemberButton = new MirButton()
@@ -785,8 +784,8 @@ namespace Client.MirScenes.Dialogs
                 ForeColour = Color.White,
                 Visible = true,
                 Enabled = true,
-                BackColour = Color.FromArgb(255, 25, 25, 25),
-                BorderColour = Color.FromArgb(255, 35, 35, 35),
+                BackColour = new Color(25, 25, 25),
+                BorderColour = new Color(35, 35, 35),
             };
             RanksSelectBox.ValueChanged += (o, e) => OnRankSelect(RanksSelectBox._WantedIndex);
 
@@ -800,8 +799,8 @@ namespace Client.MirScenes.Dialogs
                 Enabled = false,
                 Text = "",
                 Border = true,
-                BackColour = Color.FromArgb(255, 25, 25, 25),
-                BorderColour = Color.FromArgb(255, 35, 35, 35),
+                BackColour = new Color(25, 25, 25),
+                BorderColour = new Color(35, 35, 35),
             };
             RanksName.BeforeDraw += (o, e) => RanksName_BeforeDraw();
             RanksName.TextBox.KeyPress += RanksName_KeyPress;
@@ -1170,7 +1169,7 @@ namespace Client.MirScenes.Dialogs
         {
             GameScene.Scene.GuildBuffLabel = new MirControl
             {
-                BackColour = Color.FromArgb(255, 50, 50, 50),
+                BackColour = new Color(50, 50, 50),
                 Border = true,
                 BorderColour = Color.Gray,
                 NotControl = true,

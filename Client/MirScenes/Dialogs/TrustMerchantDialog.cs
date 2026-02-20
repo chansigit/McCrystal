@@ -1451,7 +1451,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Size = new Size(354, 32);
                 Sound = SoundList.ButtonA;
-                BorderColour = Color.FromArgb(255, 200, 100, 0);
+                BorderColour = new Color(200, 100, 0);
                 BeforeDraw += AuctionRow_BeforeDraw;
 
                 NameLabel = new MirLabel

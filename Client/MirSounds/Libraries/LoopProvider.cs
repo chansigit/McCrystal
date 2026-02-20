@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using NAudio.Wave;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Client.MirSounds.Libraries
 {
@@ -12,8 +7,8 @@ namespace Client.MirSounds.Libraries
         public int Index { get; set; }
         public long ExpireTime { get; set; }
 
-        private WaveOutEvent outputDevice;
-        private AudioFileReader audioFile;
+        private SoundEffect _soundEffect;
+        private SoundEffectInstance _instance;
 
         private int _unscaledVolume;
         private string _fileName;
@@ -57,56 +52,54 @@ namespace Client.MirSounds.Libraries
             _loop = loop;
             _fileName = fileName;
 
+            try
+            {
+                using (var stream = File.OpenRead(fileName))
+                {
+                    _soundEffect = SoundEffect.FromStream(stream);
+                }
+
+                _instance = _soundEffect.CreateInstance();
+                _instance.IsLooped = loop;
+            }
+            catch
+            {
+                _soundEffect = null;
+                _instance = null;
+            }
+
             Play(volume);
         }
 
         public bool IsPlaying()
         {
-            return outputDevice.PlaybackState == PlaybackState.Playing;
+            return _instance?.State == SoundState.Playing;
         }
 
         public void Play(int volume)
         {
-            if (outputDevice?.PlaybackState == PlaybackState.Playing)
+            if (_instance == null) return;
+
+            if (_instance.State == SoundState.Playing)
             {
                 return;
             }
 
             ExpireTime = CMain.Time + Settings.SoundCleanMinutes * 60 * 1000;
 
-            if (outputDevice == null)
-            {
-                outputDevice = new WaveOutEvent();
-                outputDevice.PlaybackStopped += (_,_) => OutputDevice_PlaybackStopped();
-            }
+            _instance.Volume = ScaleVolume(volume);
 
-            if (audioFile == null)
+            try
             {
-                audioFile = new AudioFileReader(_fileName);
-                outputDevice.Init(audioFile);
+                _instance.Play();
             }
-
-            // loop or sound already cached
-            if (outputDevice?.PlaybackState == PlaybackState.Stopped)
-            {
-                try
-                {
-                    audioFile.Seek(0, SeekOrigin.Begin);
-                }
-                catch
-                {
-                    audioFile = new AudioFileReader(_fileName);
-                    outputDevice.Init(audioFile);
-                }
-            }
-
-            outputDevice.Volume = ScaleVolume(volume);
-            outputDevice.Play();
+            catch { }
         }
 
         public void SetVolume(int vol)
         {
-            outputDevice.Volume = ScaleVolume(vol);
+            if (_instance == null) return;
+            _instance.Volume = ScaleVolume(vol);
         }
 
         public void Stop()
@@ -114,29 +107,21 @@ namespace Client.MirSounds.Libraries
             Dispose();
         }
 
-        private void OutputDevice_PlaybackStopped()
-        {
-            if (_loop &&
-                !_isDisposing)
-            {
-                    Play(_unscaledVolume);
-            }
-        }
-
         public void Dispose()
         {
             _isDisposing = true;
 
-            outputDevice?.Dispose();
-            audioFile?.Dispose();
+            _instance?.Stop();
+            _instance?.Dispose();
+            _soundEffect?.Dispose();
+            _instance = null;
+            _soundEffect = null;
         }
 
         private float ScaleVolume(int volume)
         {
             _unscaledVolume = volume;
-
-            float scaled = 0.0f + (float)(volume - 0) / (100 - 0) * (1.0f - 0.0f);
-            return scaled;
+            return Math.Clamp(volume / 100f, 0f, 1f);
         }
     }
 }

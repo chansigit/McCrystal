@@ -4,8 +4,6 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using SlimDX;
-using Font = System.Drawing.Font;
 using C = ClientPackets;
 
 namespace Client.MirScenes.Dialogs
@@ -834,7 +832,7 @@ namespace Client.MirScenes.Dialogs
                     foreColour = Color.Green;
                     break;
                 case ChatType.LevelUp:
-                    backColour = Color.FromArgb(255, 225, 185, 250);
+                    backColour = new Color(225, 185, 250);
                     foreColour = Color.Blue;
                     break;
                 case ChatType.Relationship:
@@ -1930,7 +1928,7 @@ namespace Client.MirScenes.Dialogs
             if (viewRect.X < 0) viewRect.X = 0;
             if (viewRect.Y < 0) viewRect.Y = 0;
 
-            Libraries.MiniMap.Draw(map.MiniMap, viewRect, drawLocation, Color.FromArgb(255, 255, 255), _fade);
+            Libraries.MiniMap.Draw(map.MiniMap, viewRect, drawLocation, new Color(255, 255, 255), _fade);
 
 
             int startPointX = (int)(viewRect.X / scaleX);
@@ -1945,18 +1943,18 @@ namespace Client.MirScenes.Dialogs
                 Color colour;
 
                 if ((GroupDialog.GroupList.Contains(ob.Name) && MapObject.User != ob) || ob.Name.EndsWith(string.Format("({0})", MapObject.User.Name)))
-                    colour = Color.FromArgb(0, 0, 255);
+                    colour = new Color(0, 0, 255);
                 else
                     if (ob is PlayerObject)
                 {
-                    colour = Color.FromArgb(255, 255, 255);
+                    colour = new Color(255, 255, 255);
                 }
                 else if (ob is NPCObject || ob.AI == 6)
                 {
-                    colour = Color.FromArgb(0, 255, 50);
+                    colour = new Color(0, 255, 50);
                 }
                 else
-                    colour = Color.FromArgb(255, 0, 0);
+                    colour = new Color(255, 0, 0);
 
                 DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3((float)(x - 0.5), (float)(y - 0.5), 0.0F), colour);
 
@@ -1965,7 +1963,7 @@ namespace Client.MirScenes.Dialogs
                 if (ob is NPCObject npc && npc.GetAvailableQuests(true).Any())
                 {
                     string text = "";
-                    Color color = Color.Empty;
+                    Color color = Color.Transparent;
 
                     switch (npc.QuestIcon)
                     {
@@ -2865,7 +2863,7 @@ namespace Client.MirScenes.Dialogs
                 };
 
                 SoundBar.Library.Draw(SoundBar.Index, section, SoundBar.DisplayLocation, Color.White, false);
-                VolumeBar.Location = new Point(159 + section.Size.Width, 218);
+                VolumeBar.Location = new Point(159 + section.Size.X, 218);
             }
             else
                 VolumeBar.Location = new Point(159, 218);
@@ -2888,7 +2886,7 @@ namespace Client.MirScenes.Dialogs
                 };
 
                 MusicSoundBar.Library.Draw(MusicSoundBar.Index, section, MusicSoundBar.DisplayLocation, Color.White, false);
-                MusicVolumeBar.Location = new Point(159 + section.Size.Width, 244);
+                MusicVolumeBar.Location = new Point(159 + section.Size.X, 244);
             }
             else
                 MusicVolumeBar.Location = new Point(159, 244);

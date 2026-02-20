@@ -414,7 +414,7 @@ namespace Client.MirScenes.Dialogs
             {
                 Location = new Point(0, 0),
                 Size = new Size(115, 17),
-                BackColour = Color.Empty,
+                BackColour = Color.Transparent,
                 DrawFormat = TextFormatFlags.VerticalCenter,
                 Parent = this,
                 NotControl = true,
@@ -449,7 +449,7 @@ namespace Client.MirScenes.Dialogs
             }
             else
             {
-                NameLabel.BackColour = Color.Empty;
+                NameLabel.BackColour = Color.Transparent;
             }
         }
 

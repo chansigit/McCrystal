@@ -1,4 +1,4 @@
-﻿using Client.MirGraphics;
+using Client.MirGraphics;
 
 namespace Client.MirControls
 {
@@ -201,7 +201,7 @@ namespace Client.MirControls
         protected override void Dispose(bool disposing)
         {
             base.Dispose(disposing);
-            
+
             if (!disposing) return;
 
             DrawImageChanged = null;

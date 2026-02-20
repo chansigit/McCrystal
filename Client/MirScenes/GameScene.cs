@@ -3,9 +3,7 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using SlimDX;
-using SlimDX.Direct3D9;
-using Font = System.Drawing.Font;
+using Microsoft.Xna.Framework.Graphics;
 using S = ServerPackets;
 using C = ClientPackets;
 using Effect = Client.MirObjects.Effect;
@@ -515,7 +513,7 @@ namespace Client.MirScenes
                     continue;
                 if (KeyCheck.Key != e.KeyCode)
                     continue;
-                if (KeyCheck.Key == Keys.Insert && e.KeyCode == Keys.Insert && e.Modifiers == Keys.Control)
+                if (KeyCheck.Key == Keys.Insert && e.KeyCode == Keys.Insert && e.Modifiers == Keys.LeftControl)
                 {
                     //When Ctrl is held down, KeyData=Insert | Control, the system may mistakenly recognize it as Keys.Insert, requiring special judgment to be added.
                     continue;
@@ -2244,7 +2242,7 @@ namespace Client.MirScenes
         private void UserLocation(S.UserLocation p)
         {
             MapControl.NextAction = 0;
-            if (User.CurrentLocation == p.Location && User.Direction == p.Direction) return;
+            if (User.CurrentLocation == (Point)p.Location && User.Direction == p.Direction) return;
 
             MapControl.RemoveObject(User);
             User.CurrentLocation = p.Location;
@@ -3813,14 +3811,14 @@ namespace Client.MirScenes
         }
         private void ColourChanged(S.ColourChanged p)
         {
-            User.NameColour = p.NameColour;
+            User.NameColour = p.NameColour.ToXnaColor();
         }
         private void ObjectColourChanged(S.ObjectColourChanged p)
         {
             if (p.ObjectID == User.ObjectID) return;
 
             if (MapControl.Objects.TryGetValue(p.ObjectID, out var ob))
-                ob.NameColour = p.NameColour;
+                ob.NameColour = p.NameColour.ToXnaColor();
         }
 
         private void ObjectGuildNameChanged(S.ObjectGuildNameChanged p)
@@ -3922,7 +3920,7 @@ namespace Client.MirScenes
             if (MapControl.Objects.TryGetValue(p.ObjectID, out var ob) && ob is NPCObject npc && ob.Race == ObjectType.Merchant)
             {
                 npc.Image = p.Image;
-                npc.Colour = p.Colour;
+                npc.Colour = p.Colour.ToXnaColor();
                 npc.LoadLibrary();
             }
         }
@@ -5423,7 +5421,7 @@ namespace Client.MirScenes
 
         private void UserDash(S.UserDash p)
         {
-            if (User.Direction == p.Direction && User.CurrentLocation == p.Location)
+            if (User.Direction == p.Direction && User.CurrentLocation == (Point)p.Location)
             {
                 MapControl.NextAction = 0;
                 return;
@@ -5474,7 +5472,7 @@ namespace Client.MirScenes
 
         private void UserBackStep(S.UserBackStep p)
         {
-            if (User.Direction == p.Direction && User.CurrentLocation == p.Location)
+            if (User.Direction == p.Direction && User.CurrentLocation == (Point)p.Location)
             {
                 MapControl.NextAction = 0;
                 return;
@@ -5495,7 +5493,7 @@ namespace Client.MirScenes
 
         private void UserDashAttack(S.UserDashAttack p)
         {
-            if (User.Direction == p.Direction && User.CurrentLocation == p.Location)
+            if (User.Direction == p.Direction && User.CurrentLocation == (Point)p.Location)
             {
                 MapControl.NextAction = 0;
                 return;
@@ -5518,7 +5516,7 @@ namespace Client.MirScenes
         private void UserAttackMove(S.UserAttackMove p)//Warrior Skill - SlashingBurst
         {
             MapControl.NextAction = 0;
-            if (User.CurrentLocation == p.Location && User.Direction == p.Direction) return;
+            if (User.CurrentLocation == (Point)p.Location && User.Direction == p.Direction) return;
 
 
             MapControl.RemoveObject(User);
@@ -7082,7 +7080,7 @@ namespace Client.MirScenes
             #region OUTLINE
             MirControl outLine = new MirControl
             {
-                BackColour = Color.FromArgb(255, 50, 50, 50),
+                BackColour = new Color(50, 50, 50),
                 Border = true,
                 BorderColour = Color.Gray,
                 NotControl = true,
@@ -7718,7 +7716,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -8305,7 +8303,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -8489,7 +8487,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -8589,7 +8587,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -8667,7 +8665,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -8865,7 +8863,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -9564,7 +9562,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -9670,7 +9668,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -9747,7 +9745,7 @@ namespace Client.MirScenes
                 #region OUTLINE
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -9790,7 +9788,7 @@ namespace Client.MirScenes
 
                 MirControl outLine = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 50, 50, 50),
+                    BackColour = new Color(50, 50, 50),
                     Border = true,
                     BorderColour = Color.Gray,
                     NotControl = true,
@@ -9831,9 +9829,9 @@ namespace Client.MirScenes
 
             ItemLabel = new MirControl
             {
-                BackColour = Color.FromArgb(255, 0, 0, 0),
+                BackColour = new Color(0, 0, 0),
                 Border = true,
-                BorderColour = ((HoverItem.CurrentDura == 0 && HoverItem.MaxDura != 0) ? Color.Red : Color.FromArgb(255, 148, 146, 148)),
+                BorderColour = ((HoverItem.CurrentDura == 0 && HoverItem.MaxDura != 0) ? Color.Red : new Color(148, 146, 148)),
                 DrawControlTexture = true,
                 NotControl = true,
                 Parent = this,
@@ -9886,7 +9884,7 @@ namespace Client.MirScenes
 
             MailLabel = new MirControl
             {
-                BackColour = Color.FromArgb(255, 50, 50, 50),
+                BackColour = new Color(50, 50, 50),
                 Border = true,
                 BorderColour = Color.Gray,
                 DrawControlTexture = true,
@@ -9962,7 +9960,7 @@ namespace Client.MirScenes
 
             MemoLabel = new MirControl
             {
-                BackColour = Color.FromArgb(255, 50, 50, 50),
+                BackColour = new Color(50, 50, 50),
                 Border = true,
                 BorderColour = Color.Gray,
                 DrawControlTexture = true,
@@ -10320,7 +10318,7 @@ namespace Client.MirScenes
 
         public static Point MapLocation
         {
-            get { return GameScene.User == null ? Point.Empty : new Point(MouseLocation.X / CellWidth - OffSetX, MouseLocation.Y / CellHeight - OffSetY).Add(GameScene.User.CurrentLocation); }
+            get { return GameScene.User == null ? Point.Zero : new Point(MouseLocation.X / CellWidth - OffSetX, MouseLocation.Y / CellHeight - OffSetY).Add(GameScene.User.CurrentLocation); }
         }
 
         public static Point ToMouseLocation(Point p)
@@ -10553,21 +10551,19 @@ namespace Client.MirScenes
             if (!FloorValid)
                 DrawFloor();
 
-
             if (Size != TextureSize)
                 DisposeTexture();
 
-            if (ControlTexture == null || ControlTexture.Disposed)
+            if (ControlTexture == null || ControlTexture.IsDisposed)
             {
                 DXManager.ControlList.Add(this);
-                ControlTexture = new Texture(DXManager.Device, Size.Width, Size.Height, 1, Usage.RenderTarget, Format.A8R8G8B8, Pool.Default);
+                ControlTexture = new RenderTarget2D(DXManager.Device, Size.Width, Size.Height, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
                 TextureSize = Size;
             }
 
-            Surface oldSurface = DXManager.CurrentSurface;
-            Surface surface = ControlTexture.GetSurfaceLevel(0);
-            DXManager.SetSurface(surface);
-            DXManager.Device.Clear(ClearFlags.Target, BackColour, 0, 0);
+            RenderTarget2D oldSurface = DXManager.CurrentSurface;
+            DXManager.SetSurface((RenderTarget2D)ControlTexture);
+            DXManager.Device.Clear(BackColour);
 
             DrawBackground();
 
@@ -10584,7 +10580,7 @@ namespace Client.MirScenes
                 engine.Draw();
             }
 
-            //Render Death, 
+            //Render Death,
 
             LightSetting setting = Lights == LightSetting.Normal ? GameScene.Scene.Lights : Lights;
 
@@ -10629,7 +10625,6 @@ namespace Client.MirScenes
                 MapObject.User.DrawName();
 
             DXManager.SetSurface(oldSurface);
-            surface.Dispose();
             TextureValid = true;
 
         }
@@ -10641,7 +10636,7 @@ namespace Client.MirScenes
             if (!TextureValid)
                 CreateTexture();
 
-            if (ControlTexture == null || ControlTexture.Disposed)
+            if (ControlTexture == null || ControlTexture.IsDisposed)
                 return;
 
             float oldOpacity = DXManager.Opacity;
@@ -10657,16 +10652,14 @@ namespace Client.MirScenes
 
         private void DrawFloor()
         {
-            if (DXManager.FloorTexture == null || DXManager.FloorTexture.Disposed)
+            if (DXManager.FloorTexture == null || DXManager.FloorTexture.IsDisposed)
             {
-                DXManager.FloorTexture = new Texture(DXManager.Device, Settings.ScreenWidth, Settings.ScreenHeight, 1, Usage.RenderTarget, Format.A8R8G8B8, Pool.Default);
-                DXManager.FloorSurface = DXManager.FloorTexture.GetSurfaceLevel(0);
+                DXManager.FloorTexture = new RenderTarget2D(DXManager.Device, Settings.ScreenWidth, Settings.ScreenHeight, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
             }
 
-            Surface oldSurface = DXManager.CurrentSurface;
-            DXManager.SetSurface(DXManager.FloorSurface);
-            DXManager.Device.Clear(ClearFlags.Target, Color.Empty, 0, 0);
-
+            RenderTarget2D oldSurface = DXManager.CurrentSurface;
+            DXManager.SetSurface(DXManager.FloorTexture);
+            DXManager.Device.Clear(Color.Transparent);
 
             int startX = User.Movement.X - ViewRangeX;
             int endX = User.Movement.X + ViewRangeX;
@@ -10929,7 +10922,7 @@ namespace Client.MirScenes
                     }
                     else
                     {
-                        if (fileIndex == 28 && Libraries.MapLibs[fileIndex].GetOffSet(index) != Point.Empty)
+                        if (fileIndex == 28 && Libraries.MapLibs[fileIndex].GetOffSet(index) != Point.Zero)
                             Libraries.MapLibs[fileIndex].Draw(index, new Point(drawX, drawY - CellHeight), Color.White, true);
                         else
                             Libraries.MapLibs[fileIndex].Draw(index, drawX, drawY - s.Height);
@@ -10945,7 +10938,8 @@ namespace Client.MirScenes
                 }
             }
 
-            DXManager.Sprite.Flush();
+            DXManager.EndSpriteBatch();
+            DXManager.BeginSpriteBatch();
             float oldOpacity = DXManager.Opacity;
             DXManager.SetOpacity(0.4F);
 
@@ -11016,7 +11010,7 @@ namespace Client.MirScenes
             }
 
             int count = MapObject.User.BlindCount;
-            light = Color.FromArgb(255, Math.Max(20, light.R - (count * 10)), Math.Max(20, light.G - (count * 10)), Math.Max(20, light.B - (count * 10)));
+            light = new Color(Math.Max(20, light.R - (count * 10)), Math.Max(20, light.G - (count * 10)), Math.Max(20, light.B - (count * 10)));
 
             return light;
         }
@@ -11025,14 +11019,13 @@ namespace Client.MirScenes
         {
             if (DXManager.Lights == null || DXManager.Lights.Count == 0) return;
 
-            if (DXManager.LightTexture == null || DXManager.LightTexture.Disposed)
+            if (DXManager.LightTexture == null || DXManager.LightTexture.IsDisposed)
             {
-                DXManager.LightTexture = new Texture(DXManager.Device, Settings.ScreenWidth, Settings.ScreenHeight, 1, Usage.RenderTarget, Format.A8R8G8B8, Pool.Default);
-                DXManager.LightSurface = DXManager.LightTexture.GetSurfaceLevel(0);
+                DXManager.LightTexture = new RenderTarget2D(DXManager.Device, Settings.ScreenWidth, Settings.ScreenHeight, false, SurfaceFormat.Color, DepthFormat.None, 0, RenderTargetUsage.PreserveContents);
             }
 
-            Surface oldSurface = DXManager.CurrentSurface;
-            DXManager.SetSurface(DXManager.LightSurface);
+            RenderTarget2D oldSurface = DXManager.CurrentSurface;
+            DXManager.SetSurface(DXManager.LightTexture);
 
             #region Night Lights
             Color darkness;
@@ -11044,7 +11037,7 @@ namespace Client.MirScenes
                         switch (MapDarkLight)
                         {
                             case 1:
-                                darkness = Color.FromArgb(255, 20, 20, 20);
+                                darkness = new Color(20, 20, 20);
                                 break;
                             case 2:
                                 darkness = Color.LightSlateGray;
@@ -11063,11 +11056,11 @@ namespace Client.MirScenes
                     break;
                 case LightSetting.Evening:
                 case LightSetting.Dawn:
-                    darkness = Color.FromArgb(255, 50, 50, 50);
+                    darkness = new Color(50, 50, 50);
                     break;
                 default:
                 case LightSetting.Day:
-                    darkness = Color.FromArgb(255, 255, 255, 255);
+                    darkness = new Color(255, 255, 255);
                     break;
             }
 
@@ -11076,15 +11069,13 @@ namespace Client.MirScenes
                 darkness = GetBlindLight(darkness);
             }
 
-            DXManager.Device.Clear(ClearFlags.Target, darkness, 0, 0);
+            DXManager.Device.Clear(darkness);
 
             #endregion
 
             int light;
             Point p;
             DXManager.SetBlend(true);
-            DXManager.Device.SetRenderState(RenderState.SourceBlend, Blend.SourceAlpha);
-            DXManager.Device.SetRenderState(RenderState.DestinationBlend, Blend.One);
 
             #region Object Lights (Player/Mob/NPC)
             foreach (var ob in Objects.Values)
@@ -11106,25 +11097,25 @@ namespace Client.MirScenes
                         switch (light / 15)
                         {
                             case 0://no light source
-                                lightColour = Color.FromArgb(255, 60, 60, 60);
+                                lightColour = new Color(60, 60, 60);
                                 break;
                             case 1:
-                                lightColour = Color.FromArgb(255, 120, 120, 120);
+                                lightColour = new Color(120, 120, 120);
                                 break;
                             case 2://Candle
-                                lightColour = Color.FromArgb(255, 180, 180, 180);
+                                lightColour = new Color(180, 180, 180);
                                 break;
                             case 3://Torch
-                                lightColour = Color.FromArgb(255, 240, 240, 240);
+                                lightColour = new Color(240, 240, 240);
                                 break;
                             default://Peddler Torch
-                                lightColour = Color.FromArgb(255, 255, 255, 255);
+                                lightColour = new Color(255, 255, 255);
                                 break;
                         }
                     }
                     else if (ob.Race == ObjectType.Merchant)
                     {
-                        lightColour = Color.FromArgb(255, 120, 120, 120);
+                        lightColour = new Color(120, 120, 120);
                     }
 
                     if (MapObject.User.Poison.HasFlag(PoisonType.Blindness))
@@ -11132,7 +11123,7 @@ namespace Client.MirScenes
                         lightColour = GetBlindLight(lightColour);
                     }
 
-                    if (DXManager.Lights[lightRange] != null && !DXManager.Lights[lightRange].Disposed)
+                    if (DXManager.Lights[lightRange] != null && !DXManager.Lights[lightRange].IsDisposed)
                     {
                         p.Offset(-(DXManager.LightSizes[lightRange].X / 2) - (CellWidth / 2), -(DXManager.LightSizes[lightRange].Y / 2) - (CellHeight / 2) - 5);
                         DXManager.Draw(DXManager.Lights[lightRange], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightColour);
@@ -11157,7 +11148,7 @@ namespace Client.MirScenes
                         lightColour = GetBlindLight(lightColour);
                     }
 
-                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].Disposed)
+                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].IsDisposed)
                     {
                         p.Offset(-(DXManager.LightSizes[light].X / 2) - (CellWidth / 2), -(DXManager.LightSizes[light].Y / 2) - (CellHeight / 2) - 5);
                         DXManager.Draw(DXManager.Lights[light], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightColour);
@@ -11188,7 +11179,7 @@ namespace Client.MirScenes
                         lightColour = GetBlindLight(lightColour);
                     }
 
-                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].Disposed)
+                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].IsDisposed)
                     {
                         p.Offset(-(DXManager.LightSizes[light].X / 2) - (CellWidth / 2), -(DXManager.LightSizes[light].Y / 2) - (CellHeight / 2) - 5);
                         DXManager.Draw(DXManager.Lights[light], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightColour);
@@ -11220,19 +11211,19 @@ namespace Client.MirScenes
                     switch (M2CellInfo[x, y].Light / 10)
                     {
                         case 1:
-                            lightIntensity = Color.FromArgb(255, 255, 255, 255);
+                            lightIntensity = new Color(255, 255, 255);
                             break;
                         case 2:
-                            lightIntensity = Color.FromArgb(255, 120, 180, 255);
+                            lightIntensity = new Color(120, 180, 255);
                             break;
                         case 3:
-                            lightIntensity = Color.FromArgb(255, 255, 180, 120);
+                            lightIntensity = new Color(255, 180, 120);
                             break;
                         case 4:
-                            lightIntensity = Color.FromArgb(255, 22, 160, 5);
+                            lightIntensity = new Color(22, 160, 5);
                             break;
                         default:
-                            lightIntensity = Color.FromArgb(255, 255, 255, 255);
+                            lightIntensity = new Color(255, 255, 255);
                             break;
                     }
 
@@ -11252,7 +11243,7 @@ namespace Client.MirScenes
                     if (light >= DXManager.Lights.Count)
                         light = DXManager.Lights.Count - 1;
 
-                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].Disposed)
+                    if (DXManager.Lights[light] != null && !DXManager.Lights[light].IsDisposed)
                     {
                         p.Offset(-(DXManager.LightSizes[light].X / 2) - (CellWidth / 2) + 10, -(DXManager.LightSizes[light].Y / 2) - (CellHeight / 2) - 5);
                         DXManager.Draw(DXManager.Lights[light], null, new Vector3((float)p.X, (float)p.Y, 0.0F), lightIntensity);
@@ -11264,13 +11255,17 @@ namespace Client.MirScenes
             DXManager.SetBlend(false);
             DXManager.SetSurface(oldSurface);
 
-            DXManager.Device.SetRenderState(RenderState.SourceBlend, Blend.Zero);
-            DXManager.Device.SetRenderState(RenderState.DestinationBlend, Blend.SourceColor);
-
-            DXManager.Draw(DXManager.LightTexture, new Rectangle(0, 0, Settings.ScreenWidth, Settings.ScreenHeight), Vector3.Zero, Color.White);
-
+            // Draw LightTexture with multiplicative blending: result = lightColor * sceneColor
+            // This makes dark areas dark and lit areas keep original scene colors
+            DXManager.EndSpriteBatch();
+            DXManager.Sprite.Begin(SpriteSortMode.Deferred, DXManager.MultiplyBlend,
+                SamplerState.PointClamp, null, null, null);
+            DXManager.Sprite.Draw(DXManager.LightTexture,
+                Vector2.Zero,
+                new Rectangle(0, 0, Settings.ScreenWidth, Settings.ScreenHeight),
+                Color.White);
             DXManager.Sprite.End();
-            DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
+            DXManager.BeginSpriteBatch();
         }
 
         private static void OnMouseClick(object sender, EventArgs e)
@@ -12247,7 +12242,7 @@ namespace Client.MirScenes
                 Objects.Clear();
 
                 MapButtons = 0;
-                MouseLocation = Point.Empty;
+                MouseLocation = Point.Zero;
                 InputDelay = 0;
                 NextAction = 0;
 

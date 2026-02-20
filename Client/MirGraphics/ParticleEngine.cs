@@ -1,12 +1,5 @@
 ﻿using Client.MirGraphics.Particles;
 using Client.MirScenes;
-using SlimDX;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Client.MirGraphics
 {
@@ -168,8 +161,7 @@ namespace Client.MirGraphics
                     {
                         Engine = this,
                         ImageInfo = tex,
-                        Color = System.Drawing.ColorTranslator.FromHtml("#ffffff85"),
-                        // Color = Color.White,
+                        Color = new Color(255, 255, 255, 133),
                         Size = 1F,
                         BlendRate = 1F,
                         AliveTime = DateTime.MaxValue,
@@ -276,7 +268,7 @@ namespace Client.MirGraphics
                 case ParticleType.Blizzard:
                     particle = new FogParticle(this, tex)
                     {
-                        Color = Color.FromArgb(255, 172, 229, 238),
+                        Color = new Color(172, 229, 238, 255),
                         Size = 1F,
                         AliveTime = DateTime.MaxValue,
                         BlendRate = 0.2F,

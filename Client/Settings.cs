@@ -1,4 +1,4 @@
-﻿using Client.MirSounds;
+using Client.MirSounds;
 
 namespace Client
 {
@@ -7,8 +7,9 @@ namespace Client
         public const long CleanDelay = 600000;
 
         public static int ScreenWidth = 1024, ScreenHeight = 768;
-        private static InIReader Reader = new InIReader(@".\Mir2Config.ini");
-        private static InIReader QuestTrackingReader = new InIReader(Path.Combine(UserDataPath, @".\QuestTracking.ini"));
+        private static InIReader Reader = new InIReader(Path.Combine(".", "Mir2Config.ini"));
+        private static InIReader _questTrackingReader;
+        private static InIReader QuestTrackingReader => _questTrackingReader ??= new InIReader(Path.Combine(UserDataPath, "QuestTracking.ini"));
 
         private static bool _useTestConfig;
         public static bool UseTestConfig
@@ -21,46 +22,46 @@ namespace Client
             {
                 if (value == true)
                 {
-                    Reader = new InIReader(@".\Mir2Test.ini");
+                    Reader = new InIReader(Path.Combine(".", "Mir2Test.ini"));
                 }
                 _useTestConfig = value;
             }
         }
 
-        public const string DataPath = @".\Data\",
-                            MapPath = @".\Map\",
-                            SoundPath = @".\Sound\",
-                            ExtraDataPath = @".\Data\Extra\",
-                            ShadersPath = @".\Data\Shaders\",
-                            MonsterPath = @".\Data\Monster\",
-                            GatePath = @".\Data\Gate\",
-                            FlagPath = @".\Data\Flag\",
-                            SiegePath = @".\Data\Siege\",
-                            NPCPath = @".\Data\NPC\",
-                            CArmourPath = @".\Data\CArmour\",
-                            CWeaponPath = @".\Data\CWeapon\",
-                            CWeaponEffectPath = @".\Data\CWeaponEffect\",
-                            CHairPath = @".\Data\CHair\",
-                            AArmourPath = @".\Data\AArmour\",
-                            AWeaponPath = @".\Data\AWeapon\",
-                            AHairPath = @".\Data\AHair\",
-                            ARArmourPath = @".\Data\ARArmour\",
-                            ARWeaponPath = @".\Data\ARWeapon\",
-                            ARHairPath = @".\Data\ARHair\",
-                            CHumEffectPath = @".\Data\CHumEffect\",
-                            AHumEffectPath = @".\Data\AHumEffect\",
-                            ARHumEffectPath = @".\Data\ARHumEffect\",
-                            MountPath = @".\Data\Mount\",
-                            FishingPath = @".\Data\Fishing\",
-                            PetsPath = @".\Data\Pet\",
-                            TransformPath = @".\Data\Transform\",
-                            TransformMountsPath = @".\Data\TransformRide2\",
-                            TransformEffectPath = @".\Data\TransformEffect\",
-                            TransformWeaponEffectPath = @".\Data\TransformWeaponEffect\",
-                            MouseCursorPath = @".\Data\Cursors\",
-                            ResourcePath = @".\DirectX\",
-                            UserDataPath = @".\Data\UserData\",
-                            DbLanguageJsonPath = @".\DbLanguage.json";
+        public static readonly string DataPath = Path.Combine(".", "Data") + Path.DirectorySeparatorChar,
+                            MapPath = Path.Combine(".", "Map") + Path.DirectorySeparatorChar,
+                            SoundPath = Path.Combine(".", "Sound") + Path.DirectorySeparatorChar,
+                            ExtraDataPath = Path.Combine(".", "Data", "Extra") + Path.DirectorySeparatorChar,
+                            ShadersPath = Path.Combine(".", "Data", "Shaders") + Path.DirectorySeparatorChar,
+                            MonsterPath = Path.Combine(".", "Data", "Monster") + Path.DirectorySeparatorChar,
+                            GatePath = Path.Combine(".", "Data", "Gate") + Path.DirectorySeparatorChar,
+                            FlagPath = Path.Combine(".", "Data", "Flag") + Path.DirectorySeparatorChar,
+                            SiegePath = Path.Combine(".", "Data", "Siege") + Path.DirectorySeparatorChar,
+                            NPCPath = Path.Combine(".", "Data", "NPC") + Path.DirectorySeparatorChar,
+                            CArmourPath = Path.Combine(".", "Data", "CArmour") + Path.DirectorySeparatorChar,
+                            CWeaponPath = Path.Combine(".", "Data", "CWeapon") + Path.DirectorySeparatorChar,
+                            CWeaponEffectPath = Path.Combine(".", "Data", "CWeaponEffect") + Path.DirectorySeparatorChar,
+                            CHairPath = Path.Combine(".", "Data", "CHair") + Path.DirectorySeparatorChar,
+                            AArmourPath = Path.Combine(".", "Data", "AArmour") + Path.DirectorySeparatorChar,
+                            AWeaponPath = Path.Combine(".", "Data", "AWeapon") + Path.DirectorySeparatorChar,
+                            AHairPath = Path.Combine(".", "Data", "AHair") + Path.DirectorySeparatorChar,
+                            ARArmourPath = Path.Combine(".", "Data", "ARArmour") + Path.DirectorySeparatorChar,
+                            ARWeaponPath = Path.Combine(".", "Data", "ARWeapon") + Path.DirectorySeparatorChar,
+                            ARHairPath = Path.Combine(".", "Data", "ARHair") + Path.DirectorySeparatorChar,
+                            CHumEffectPath = Path.Combine(".", "Data", "CHumEffect") + Path.DirectorySeparatorChar,
+                            AHumEffectPath = Path.Combine(".", "Data", "AHumEffect") + Path.DirectorySeparatorChar,
+                            ARHumEffectPath = Path.Combine(".", "Data", "ARHumEffect") + Path.DirectorySeparatorChar,
+                            MountPath = Path.Combine(".", "Data", "Mount") + Path.DirectorySeparatorChar,
+                            FishingPath = Path.Combine(".", "Data", "Fishing") + Path.DirectorySeparatorChar,
+                            PetsPath = Path.Combine(".", "Data", "Pet") + Path.DirectorySeparatorChar,
+                            TransformPath = Path.Combine(".", "Data", "Transform") + Path.DirectorySeparatorChar,
+                            TransformMountsPath = Path.Combine(".", "Data", "TransformRide2") + Path.DirectorySeparatorChar,
+                            TransformEffectPath = Path.Combine(".", "Data", "TransformEffect") + Path.DirectorySeparatorChar,
+                            TransformWeaponEffectPath = Path.Combine(".", "Data", "TransformWeaponEffect") + Path.DirectorySeparatorChar,
+                            MouseCursorPath = Path.Combine(".", "Data", "Cursors") + Path.DirectorySeparatorChar,
+                            ResourcePath = Path.Combine(".", "DirectX") + Path.DirectorySeparatorChar,
+                            UserDataPath = Path.Combine(".", "Data", "UserData") + Path.DirectorySeparatorChar,
+                            DbLanguageJsonPath = Path.Combine(".", "DbLanguage.json");
 
         //Logs
         public static bool LogErrors = true;
@@ -68,7 +69,7 @@ namespace Client
         public static int RemainingErrorLogs = 100;
 
         //Graphics
-        public static bool FullScreen = true, Borderless = true, TopMost = true, MouseClip = false;
+        public static bool FullScreen = false, Borderless = true, TopMost = false, MouseClip = false;
         public static string FontName = "Arial"; //"MS Sans Serif"
         public static float FontSize = 8F;
         public static bool UseMouseCursors = true;
@@ -188,7 +189,7 @@ namespace Client
 
 
         //AutoPatcher
-        public static bool P_Patcher = true;
+        public static bool P_Patcher = false; // Disabled by default on macOS
         public static string P_Host = @"http://mirfiles.com/mir2/cmir/patch/";
         public static string P_PatchFileName = @"PList.gz";
         public static bool P_NeedLogin = false;
@@ -196,7 +197,7 @@ namespace Client
         public static string P_Password = string.Empty;
         public static string P_ServerName = string.Empty;
         public static string P_BrowserAddress = "https://www.lomcn.org/mir2-patchsite/";
-        public static string P_Client = Application.StartupPath + "\\";
+        public static string P_Client = AppContext.BaseDirectory;
         public static bool P_AutoStart = false;
         public static int P_Concurrency = 1;
 
@@ -215,6 +216,21 @@ namespace Client
             TopMost = Reader.ReadBoolean("Graphics", "AlwaysOnTop", TopMost);
             FPSCap = Reader.ReadBoolean("Graphics", "FPSCap", FPSCap);
             Resolution = Reader.ReadInt32("Graphics", "Resolution", Resolution);
+            switch (Resolution)
+            {
+                case 1280:
+                    ScreenWidth = 1280; ScreenHeight = 800;
+                    break;
+                case 1366:
+                    ScreenWidth = 1366; ScreenHeight = 768;
+                    break;
+                case 1920:
+                    ScreenWidth = 1920; ScreenHeight = 1080;
+                    break;
+                default:
+                    ScreenWidth = 1024; ScreenHeight = 768;
+                    break;
+            }
             DebugMode = Reader.ReadBoolean("Graphics", "DebugMode", DebugMode);
             UseMouseCursors = Reader.ReadBoolean("Graphics", "UseMouseCursors", UseMouseCursors);
 
@@ -317,7 +333,7 @@ namespace Client
 
             try
             {
-                string languageDirectory = @".\Localization\";
+                string languageDirectory = Path.Combine(".", "Localization");
                 if (!Directory.Exists(languageDirectory))
                 {
                     Directory.CreateDirectory(languageDirectory);
@@ -329,7 +345,7 @@ namespace Client
             {
                 CMain.SaveError($"Load Client Language Error:{ex.Message}");
             }
-            
+
         }
 
         public static void Save()

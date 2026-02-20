@@ -46,7 +46,7 @@ namespace Client.MirScenes.Dialogs
                 Font = new Font(Settings.FontName, Settings.FontSize + 2, FontStyle.Bold),
                 DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter,
                 Parent = this,
-                Size = new System.Drawing.Size(242, 30),
+                Size = new Size(242, 30),
                 Location = new Point(135, 34)
             };
 
@@ -300,7 +300,7 @@ namespace Client.MirScenes.Dialogs
 
         public void CheckNewInput(KeyEventArgs e)
         {
-            if (e.KeyCode == Keys.ControlKey || e.KeyCode == Keys.Menu || e.KeyCode == Keys.ShiftKey || e.KeyCode == Keys.Oem8 || e.KeyCode == Keys.None) return;
+            if (e.KeyCode == Keys.LeftControl || e.KeyCode == Keys.LeftAlt || e.KeyCode == Keys.LeftShift || e.KeyCode == Keys.Oem8 || e.KeyCode == Keys.None) return;
 
             KeyBind bind = CMain.InputKeys.Keylist.Single(x => x.function == WaitingForBind.function);
 

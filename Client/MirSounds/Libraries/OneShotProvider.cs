@@ -1,26 +1,8 @@
-﻿using NAudio.Wave;
+// OneShotProvider is no longer needed with MonoGame audio.
+// SoundEffect.CreateInstance() replaces the NAudio mixer-based approach.
+// This file is kept as a stub for compilation compatibility.
 
 namespace Client.MirSounds.Libraries
 {
-    class OneShotProvider : ISampleProvider
-    {
-        private readonly CachedSound cachedSound;
-        private long position;
-        
-        public OneShotProvider(CachedSound cachedSound)
-        {
-            this.cachedSound = cachedSound;
-        }
-
-        public int Read(float[] buffer, int offset, int count)
-        {
-            var availableSamples = cachedSound.AudioData.Length - position;
-            var samplesToCopy = Math.Min(availableSamples, count);
-            Array.Copy(cachedSound.AudioData, position, buffer, offset, samplesToCopy);
-            position += samplesToCopy;
-            return (int)samplesToCopy;
-        }
-
-        public WaveFormat WaveFormat { get { return cachedSound.WaveFormat; } }
-    }
+    // No longer used - MonoGame handles one-shot audio via SoundEffectInstance
 }

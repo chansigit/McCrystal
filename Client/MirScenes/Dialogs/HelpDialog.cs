@@ -378,7 +378,7 @@ namespace Client.MirScenes.Dialogs
             Page = page;
 
             NotControl = true;
-            Size = new System.Drawing.Size(508, 396 + 40);
+            Size = new Size(508, 396 + 40);
 
             BeforeDraw += HelpPage_BeforeDraw;
 
@@ -388,7 +388,7 @@ namespace Client.MirScenes.Dialogs
                 Font = new Font(Settings.FontName, 10F, FontStyle.Bold),
                 DrawFormat = TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter,
                 Parent = this,
-                Size = new System.Drawing.Size(242, 30),
+                Size = new Size(242, 30),
                 Location = new Point(135, 4)
             };
         }

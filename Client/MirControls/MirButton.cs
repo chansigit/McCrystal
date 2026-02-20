@@ -11,7 +11,7 @@ namespace Client.MirControls
             {
                 if (_label != null && !_label.IsDisposed)
                     return _label.ForeColour;
-                return Color.Empty;
+                return Color.Transparent;
             }
             set
             {
@@ -170,7 +170,7 @@ namespace Client.MirControls
                     Parent = this,
                     //Font = new Font("Constantia", 8, FontStyle.Italic),
                     //OutLine = true,
-                    //OutLineColour = Color.FromArgb(255, 70, 50, 30),
+                    //OutLineColour = new Color(70, 50, 30),
                 };
         }
 

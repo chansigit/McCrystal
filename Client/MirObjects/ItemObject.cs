@@ -27,7 +27,7 @@ namespace Client.MirObjects
         public void Load(S.ObjectItem info)
         {
             Name = info.Name;
-            NameColour = info.NameColour;
+            NameColour = info.NameColour.ToXnaColor();
 
             BodyLibrary = Libraries.FloorItems;
 
@@ -112,7 +112,7 @@ namespace Client.MirObjects
 
         public void DrawName(int y)
         {
-            CreateLabel(Color.FromArgb(100, 0, 24, 48), true, false);
+            CreateLabel(new Color(0, 24, 48, 100), true, false);
 
             NameLabel.Location = new Point(
                 DisplayRectangle.X + (DisplayRectangle.Width - NameLabel.Size.Width) / 2,

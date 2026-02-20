@@ -1,6 +1,5 @@
-﻿using Client.MirSounds.Libraries;
-using NAudio.Wave;
-using NAudio.Wave.SampleProviders;
+using Client.MirSounds.Libraries;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Client.MirSounds
 {
@@ -12,8 +11,6 @@ namespace Client.MirSounds
 
         private static Dictionary<int, LoopProvider> _loopingSounds = new Dictionary<int, LoopProvider>();
         private static LoopProvider _music;
-        private static WaveOutEvent _OneShots;
-        private static MixingSampleProvider mixer;
 
         private static int _vol;
         private static int _musicVol;
@@ -21,7 +18,7 @@ namespace Client.MirSounds
         public static readonly List<string> SupportedFileTypes;
         private static long _checkSoundTime;
         public static ISoundLibrary Music => _music;
-        
+
         public static int Vol
         {
             get { return _vol; }
@@ -53,7 +50,8 @@ namespace Client.MirSounds
             SupportedFileTypes = new List<string>
             {
                 ".wav",
-                ".mp3"
+                // .mp3 not directly supported by MonoGame SoundEffect
+                // Users should convert .mp3 to .wav or .ogg
             };
 
             SoundList.LoadSoundList();
@@ -61,15 +59,7 @@ namespace Client.MirSounds
 
         public static void Create()
         {
-            int sampleRate = 44100;
-            int channelCount = 2;
-
-            _OneShots = new WaveOutEvent();
-            mixer = new MixingSampleProvider(WaveFormat.CreateIeeeFloatWaveFormat(sampleRate, channelCount));
-            mixer.ReadFully = true;
-            _OneShots.Init(mixer);
-            _OneShots.Volume = ScaleVolume(_vol);
-            _OneShots.Play();
+            // MonoGame audio is initialized automatically with the Game
         }
 
         public static void PlaySound(int index, bool loop = false, int delay = 0)
@@ -99,9 +89,15 @@ namespace Client.MirSounds
                     _cachedOneShots.Add(index, cachedSound);
                 }
 
-                if (cachedSound.AudioData?.Length > 0)
+                if (cachedSound.Effect != null)
                 {
-                    AddMixerInput(new OneShotProvider(cachedSound));
+                    try
+                    {
+                        var instance = cachedSound.Effect.CreateInstance();
+                        instance.Volume = ScaleVolume(_vol);
+                        instance.Play();
+                    }
+                    catch { }
                     cachedSound.ExpireTime = CMain.Time + Settings.SoundCleanMinutes * 60 * 1000;
                 }
             }
@@ -110,11 +106,10 @@ namespace Client.MirSounds
                 var sound = LoopProvider.TryCreate(index, _indexList[index], MusicVol, loop);
                 if (sound != null)
                 {
-                    _loopingSounds.Add(index, sound);
+                    _loopingSounds[index] = sound;
                     _loopingSounds[index].Play(Vol);
                 }
             }
-            
         }
 
         public static void StopSound(int index)
@@ -157,11 +152,6 @@ namespace Client.MirSounds
 
         private static void AdjustAllVolumes()
         {
-            if (_OneShots != null)
-            {
-                _OneShots.Volume = ScaleVolume(Vol);
-            }
-
             foreach (int key in _loopingSounds.Keys)
             {
                 _loopingSounds[key].SetVolume(Vol);
@@ -170,26 +160,7 @@ namespace Client.MirSounds
 
         private static float ScaleVolume(int volume)
         {
-            float scaled = 0.0f + (float)(volume - 0) / (100 - 0) * (1.0f - 0.0f);
-            return scaled;
-        }
-
-        private static void AddMixerInput(ISampleProvider input)
-        {
-            mixer.AddMixerInput(ConvertToRightChannelCount(input));
-        }
-
-        private static ISampleProvider ConvertToRightChannelCount(ISampleProvider input)
-        {
-            if (input.WaveFormat.Channels == mixer.WaveFormat.Channels)
-            {
-                return input;
-            }
-            if (input.WaveFormat.Channels == 1 && mixer.WaveFormat.Channels == 2)
-            {
-                return new MonoToStereoSampleProvider(input);
-            }
-            throw new NotImplementedException("Not yet implemented this channel count conversion");
+            return Math.Clamp(volume / 100f, 0f, 1f);
         }
 
         private static void CheckSoundTimeOut()
@@ -207,8 +178,12 @@ namespace Client.MirSounds
                     }
                 }
 
-                keysToRemove.ForEach(key => { _cachedOneShots.Remove(key); });
-                
+                keysToRemove.ForEach(key =>
+                {
+                    _cachedOneShots[key].Dispose();
+                    _cachedOneShots.Remove(key);
+                });
+
                 keysToRemove.Clear();
                 foreach(var key in _loopingSounds.Keys)
                 {
@@ -224,10 +199,12 @@ namespace Client.MirSounds
 
         public static void Dispose()
         {
-            _OneShots?.Dispose();
             _music?.Dispose();
 
             foreach (var sound in _loopingSounds.Values) { sound.Stop(); }
+
+            foreach (var cached in _cachedOneShots.Values) { cached.Dispose(); }
+            _cachedOneShots.Clear();
         }
     }
 }

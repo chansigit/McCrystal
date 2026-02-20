@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
+using Microsoft.Xna.Framework.Graphics;
 
 namespace Client.Resolution
 {
@@ -21,20 +15,28 @@ namespace Client.Resolution
             {
                 List<string> list = new();
 
-                DEVMODE vDevMode = new DEVMODE();
-                int i = 0;
-                while (EnumDisplaySettings(null, i, ref vDevMode))
+                // Use MonoGame GraphicsAdapter to enumerate display modes
+                foreach (var displayMode in GraphicsAdapter.DefaultAdapter.SupportedDisplayModes)
                 {
-                    string displayResolution = $"w{vDevMode.dmPelsWidth}h{vDevMode.dmPelsHeight}";
+                    string displayResolution = $"w{displayMode.Width}h{displayMode.Height}";
 
-                    if(supportedResolutions.Contains(displayResolution))
+                    if (supportedResolutions.Contains(displayResolution))
                     {
                         if (!list.Contains(displayResolution))
                         {
                             list.Add(displayResolution);
                         }
                     }
-                    i++;
+                }
+
+                // If no modes found via adapter, add common resolutions as fallback
+                if (list.Count == 0)
+                {
+                    // Fallback: assume common resolutions are supported
+                    foreach (var resName in supportedResolutions)
+                    {
+                        list.Add(resName);
+                    }
                 }
 
                 if (list.Count > 0)
@@ -44,7 +46,8 @@ namespace Client.Resolution
                         eSupportedResolution resolution;
                         if (Enum.TryParse(displayResolution, true, out resolution))
                         {
-                            DisplaySupportedResolutions.Add(resolution);
+                            if (!DisplaySupportedResolutions.Contains(resolution))
+                                DisplaySupportedResolutions.Add(resolution);
                         }
                     }
                 }
@@ -53,7 +56,7 @@ namespace Client.Resolution
                 {
                     parsedOK = true;
                 }
-                
+
             }
             catch
             {
@@ -76,57 +79,11 @@ namespace Client.Resolution
                 return false;
             }
 
-            if(!Enum.IsDefined(typeof(eSupportedResolution), res))
+            if (!Enum.IsDefined(typeof(eSupportedResolution), res))
             {
                 return false;
             }
             return true;
-        }
-
-        [DllImport("user32.dll")]
-        internal static extern bool EnumDisplaySettings(
-              string deviceName, int modeNum, ref DEVMODE devMode);
-        const int ENUM_CURRENT_SETTINGS = -1;
-
-        const int ENUM_REGISTRY_SETTINGS = -2;
-
-        [StructLayout(LayoutKind.Sequential)]
-        internal struct DEVMODE
-        {
-            private const int CCHDEVICENAME = 0x20;
-            private const int CCHFORMNAME = 0x20;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
-            public string dmDeviceName;
-            public short dmSpecVersion;
-            public short dmDriverVersion;
-            public short dmSize;
-            public short dmDriverExtra;
-            public int dmFields;
-            public int dmPositionX;
-            public int dmPositionY;
-            public ScreenOrientation dmDisplayOrientation;
-            public int dmDisplayFixedOutput;
-            public short dmColor;
-            public short dmDuplex;
-            public short dmYResolution;
-            public short dmTTOption;
-            public short dmCollate;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 0x20)]
-            public string dmFormName;
-            public short dmLogPixels;
-            public int dmBitsPerPel;
-            public int dmPelsWidth;
-            public int dmPelsHeight;
-            public int dmDisplayFlags;
-            public int dmDisplayFrequency;
-            public int dmICMMethod;
-            public int dmICMIntent;
-            public int dmMediaType;
-            public int dmDitherType;
-            public int dmReserved1;
-            public int dmReserved2;
-            public int dmPanningWidth;
-            public int dmPanningHeight;
         }
     }
 }

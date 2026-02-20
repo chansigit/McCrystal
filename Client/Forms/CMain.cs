@@ -1,26 +1,20 @@
-﻿using System.ComponentModel;
 using System.Diagnostics;
-using System.Drawing.Drawing2D;
-using System.Drawing.Imaging;
-using System.Drawing.Text;
-using System.Runtime.InteropServices;
-using System.Security;
 using Client.MirControls;
 using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirScenes;
 using Client.MirSounds;
-using SlimDX.Direct3D9;
-using SlimDX.Windows;
-using Font = System.Drawing.Font;
+using Microsoft.Xna.Framework;
+using Microsoft.Xna.Framework.Graphics;
+using Microsoft.Xna.Framework.Input;
+using SkiaSharp;
 
 namespace Client
 {
-    public partial class CMain : RenderForm
+    public class CMain : Game
     {
         public static MirControl DebugBaseLabel, HintBaseLabel;
         public static MirLabel DebugTextLabel, HintTextLabel, ScreenshotTextLabel;
-        public static Graphics Graphics;
         public static Point MPoint;
 
         public readonly static Stopwatch Timer = Stopwatch.StartNew();
@@ -47,80 +41,251 @@ namespace Client
 
         public static KeyBindSettings InputKeys = new KeyBindSettings();
 
+        private GraphicsDeviceManager _graphics;
+
+        // Input state tracking
+        private MouseState _previousMouseState;
+        private KeyboardState _previousKeyboardState;
+        private bool _mouseWasPressed;
+        private static long _lastClickTime;
+        private static MouseButtons _lastClickButton;
+
+        // DPI for font scaling (default 96)
+        public static float DpiX = 96f;
+
+        // Compatibility stub for TextRenderer.MeasureText calls
+        public static object Graphics => null;
+
+        /// <summary>
+        /// Compatibility stub for WinForms Controls collection.
+        /// In the WinForms version, MirTextBox added a real TextBox to this collection.
+        /// In MonoGame, this returns an empty collection so legacy iteration loops are no-ops.
+        /// </summary>
+        public ControlCollection Controls { get; } = new ControlCollection();
+
+        /// <summary>
+        /// Compatibility stub for WinForms Close() method.
+        /// MonoGame Game uses Exit() instead.
+        /// </summary>
+        public void Close()
+        {
+            Exit();
+        }
+
+        /// <summary>
+        /// Compatibility stub for WinForms ActiveControl property.
+        /// Returns null since MonoGame doesn't use WinForms controls.
+        /// </summary>
+        public object ActiveControl { get; set; }
+
+        /// <summary>
+        /// Compatibility stub for Control.IsKeyLocked (e.g. CapsLock check).
+        /// Uses SDL2 to check the actual key lock state.
+        /// </summary>
+        public static bool IsKeyLocked(Keys key)
+        {
+            try
+            {
+                if (key == Keys.CapsLock)
+                {
+                    var modState = SDL2.SDL.SDL_GetModState();
+                    return (modState & SDL2.SDL.SDL_Keymod.KMOD_CAPS) != 0;
+                }
+                if (key == Keys.NumLock)
+                {
+                    var modState = SDL2.SDL.SDL_GetModState();
+                    return (modState & SDL2.SDL.SDL_Keymod.KMOD_NUM) != 0;
+                }
+            }
+            catch { }
+            return false;
+        }
+
         public CMain()
         {
-            InitializeComponent();
+            _graphics = new GraphicsDeviceManager(this);
+            _graphics.PreferredBackBufferWidth = Settings.ScreenWidth;
+            _graphics.PreferredBackBufferHeight = Settings.ScreenHeight;
+            _graphics.SynchronizeWithVerticalRetrace = Settings.FPSCap;
+            _graphics.IsFullScreen = Settings.FullScreen;
+            _graphics.HardwareModeSwitch = false; // Use borderless fullscreen
 
-            Application.Idle += Application_Idle;
+            IsMouseVisible = true;
+            IsFixedTimeStep = false;
 
-            MouseClick += CMain_MouseClick;
-            MouseDown += CMain_MouseDown;
-            MouseUp += CMain_MouseUp;
-            MouseMove += CMain_MouseMove;
-            MouseDoubleClick += CMain_MouseDoubleClick;
-            KeyPress += CMain_KeyPress;
-            KeyDown += CMain_KeyDown;
-            KeyUp += CMain_KeyUp;
-            Deactivate += CMain_Deactivate;
-            MouseWheel += CMain_MouseWheel;
+            Window.AllowUserResizing = false;
+            Window.Title = "Legend of Mir";
 
-
-            SetStyle(ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint | ControlStyles.Selectable, true);
-            FormBorderStyle = Settings.FullScreen || Settings.Borderless ? FormBorderStyle.None : FormBorderStyle.FixedDialog;
-
-            Graphics = CreateGraphics();
-            Graphics.SmoothingMode = SmoothingMode.AntiAlias;
-            Graphics.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            Graphics.CompositingQuality = CompositingQuality.HighQuality;
-            Graphics.InterpolationMode = InterpolationMode.NearestNeighbor;
-            Graphics.PixelOffsetMode = PixelOffsetMode.HighQuality;
-            Graphics.TextContrast = 0;
+            // Enable text input for MirTextBox
+            Window.TextInput += OnTextInput;
         }
 
-        private void CMain_Load(object sender, EventArgs e)
+        protected override void Initialize()
         {
-            this.Text = GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.GameName);
+            base.Initialize();
+
+            DXManager.Device = GraphicsDevice;
+            DXManager.Create();
+
+            SoundManager.Create();
+
+            Window.Title = GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.GameName);
+        }
+
+        protected override void LoadContent()
+        {
+            base.LoadContent();
+        }
+
+        protected override void Update(GameTime gameTime)
+        {
             try
             {
-                ClientSize = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
-
-                LoadMouseCursors();
-                SetMouseCursor(MouseCursor.Default);
-
-                SlimDX.Configuration.EnableObjectTracking = true;
-
-                DXManager.Create();
-                SoundManager.Create();
-                CenterToScreen();
+                UpdateTime();
+                ProcessInput();
+                UpdateEnviroment();
             }
             catch (Exception ex)
             {
                 SaveError(ex.ToString());
             }
+
+            base.Update(gameTime);
         }
 
-        private static void Application_Idle(object sender, EventArgs e)
+        protected override void Draw(GameTime gameTime)
         {
             try
             {
-                while (AppStillIdle)
+                RenderEnvironment();
+                UpdateFrameTime();
+            }
+            catch (Exception ex)
+            {
+                SaveError(ex.ToString());
+            }
+
+            base.Draw(gameTime);
+        }
+
+        protected override void OnExiting(object sender, ExitingEventArgs args)
+        {
+            Settings.Save();
+            DXManager.Dispose();
+            SoundManager.Dispose();
+            base.OnExiting(sender, args);
+        }
+
+        #region Input Processing
+
+        private void ProcessInput()
+        {
+            var mouseState = Mouse.GetState();
+            var keyboardState = Keyboard.GetState();
+
+            ProcessMouseInput(mouseState);
+            ProcessKeyboardInput(keyboardState);
+
+            _previousMouseState = mouseState;
+            _previousKeyboardState = keyboardState;
+        }
+
+        private void ProcessMouseInput(MouseState mouseState)
+        {
+            // Scale mouse coordinates from window/native space to back buffer space
+            // On Retina/HiDPI displays, Mouse.GetState() returns coordinates in the window's
+            // point space which may differ from the back buffer pixel space.
+            int mx = mouseState.X;
+            int my = mouseState.Y;
+
+            var clientBounds = Window.ClientBounds;
+            int bbW = _graphics.PreferredBackBufferWidth;
+            int bbH = _graphics.PreferredBackBufferHeight;
+
+            if (clientBounds.Width > 0 && clientBounds.Height > 0 &&
+                (clientBounds.Width != bbW || clientBounds.Height != bbH))
+            {
+                mx = mx * bbW / clientBounds.Width;
+                my = my * bbH / clientBounds.Height;
+            }
+
+            MPoint = new Point(mx, my);
+
+            // Mouse move
+            if (mouseState.X != _previousMouseState.X || mouseState.Y != _previousMouseState.Y)
+            {
+                var e = new MouseEventArgs(MouseButtons.None, 0, mx, my, 0);
+                CMain_MouseMove(this, e);
+            }
+
+            // Mouse buttons
+            ProcessMouseButton(mouseState.LeftButton, _previousMouseState.LeftButton, MouseButtons.Left, mx, my);
+            ProcessMouseButton(mouseState.RightButton, _previousMouseState.RightButton, MouseButtons.Right, mx, my);
+            ProcessMouseButton(mouseState.MiddleButton, _previousMouseState.MiddleButton, MouseButtons.Middle, mx, my);
+
+            // Mouse wheel
+            int scrollDelta = mouseState.ScrollWheelValue - _previousMouseState.ScrollWheelValue;
+            if (scrollDelta != 0)
+            {
+                var e = new MouseEventArgs(MouseButtons.None, 0, mx, my, scrollDelta);
+                CMain_MouseWheel(this, e);
+            }
+        }
+
+        private void ProcessMouseButton(ButtonState current, ButtonState previous, MouseButtons button, int mx, int my)
+        {
+            if (current == ButtonState.Pressed && previous == ButtonState.Released)
+            {
+                var e = new MouseEventArgs(button, 1, mx, my, 0);
+                CMain_MouseDown(this, e);
+            }
+            else if (current == ButtonState.Released && previous == ButtonState.Pressed)
+            {
+                var e = new MouseEventArgs(button, 1, mx, my, 0);
+                CMain_MouseUp(this, e);
+                CMain_MouseClick(this, e);
+            }
+        }
+
+        private void ProcessKeyboardInput(KeyboardState keyboardState)
+        {
+            Shift = keyboardState.IsKeyDown(Keys.LeftShift) || keyboardState.IsKeyDown(Keys.RightShift);
+            Alt = keyboardState.IsKeyDown(Keys.LeftAlt) || keyboardState.IsKeyDown(Keys.RightAlt);
+            Ctrl = keyboardState.IsKeyDown(Keys.LeftControl) || keyboardState.IsKeyDown(Keys.RightControl);
+
+            var currentKeys = keyboardState.GetPressedKeys();
+            var previousKeys = _previousKeyboardState.GetPressedKeys();
+
+            // Key down events
+            foreach (var key in currentKeys)
+            {
+                if (!_previousKeyboardState.IsKeyDown(key))
                 {
-                    UpdateTime();
-                    UpdateEnviroment();
-
-                    if (IsDrawTime())
-                    {
-                        RenderEnvironment();
-                        UpdateFrameTime();
-                    }
+                    var e = new KeyEventArgs(key) { Shift = Shift, Alt = Alt, Control = Ctrl };
+                    CMain_KeyDown(this, e);
                 }
-
             }
-            catch (Exception ex)
+
+            // Key up events
+            foreach (var key in previousKeys)
             {
-                SaveError(ex.ToString());
+                if (!keyboardState.IsKeyDown(key))
+                {
+                    var e = new KeyEventArgs(key) { Shift = Shift, Alt = Alt, Control = Ctrl };
+                    CMain_KeyUp(this, e);
+                }
             }
         }
+
+        private void OnTextInput(object sender, TextInputEventArgs e)
+        {
+            var keyPressArgs = new KeyPressEventArgs(e.Character);
+            CMain_KeyPress(this, keyPressArgs);
+        }
+
+        #endregion
+
+        #region Event Handlers
 
         private static void CMain_Deactivate(object sender, EventArgs e)
         {
@@ -147,8 +312,7 @@ namespace Client
                 SpellTargetLock = false;
             }
 
-
-            if (e.KeyCode == Keys.Oem8)
+            if (e.KeyCode == Keys.OemTilde)
                 CMain.Tilde = true;
 
             try
@@ -161,19 +325,16 @@ namespace Client
 
                 if (MirScene.ActiveScene != null)
                     MirScene.ActiveScene.OnKeyDown(e);
-
             }
             catch (Exception ex)
             {
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseMove(object sender, MouseEventArgs e)
         {
-            if (Settings.FullScreen || Settings.MouseClip)
-                Cursor.Clip = Program.Form.RectangleToScreen(Program.Form.ClientRectangle);
-
-            MPoint = Program.Form.PointToClient(Cursor.Position);
+            MPoint = new Point(e.X, e.Y);
 
             try
             {
@@ -185,6 +346,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_KeyUp(object sender, KeyEventArgs e)
         {
             Shift = e.Shift;
@@ -200,7 +362,7 @@ namespace Client
                 SpellTargetLock = false;
             }
 
-            if (e.KeyCode == Keys.Oem8)
+            if (e.KeyCode == Keys.OemTilde)
                 CMain.Tilde = false;
 
             foreach (KeyBind KeyCheck in CMain.InputKeys.Keylist)
@@ -218,8 +380,8 @@ namespace Client
                     continue;
                 Program.Form.CreateScreenShot();
                 break;
-
             }
+
             try
             {
                 if (MirScene.ActiveScene != null)
@@ -230,6 +392,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_KeyPress(object sender, KeyPressEventArgs e)
         {
             try
@@ -242,6 +405,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseDoubleClick(object sender, MouseEventArgs e)
         {
             try
@@ -254,6 +418,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseUp(object sender, MouseEventArgs e)
         {
             MapControl.MapButtons &= ~e.Button;
@@ -270,16 +435,9 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseDown(object sender, MouseEventArgs e)
         {
-            if (Program.Form.ActiveControl is TextBox)
-            {
-                MirTextBox textBox = Program.Form.ActiveControl.Tag as MirTextBox;
-
-                if (textBox != null && textBox.CanLoseFocus)
-                    Program.Form.ActiveControl = null;
-            }
-
             if (e.Button == MouseButtons.Right && (GameScene.SelectedCell != null || GameScene.PickedUpGold))
             {
                 GameScene.SelectedCell = null;
@@ -297,6 +455,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseClick(object sender, MouseEventArgs e)
         {
             try
@@ -309,6 +468,7 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
         public static void CMain_MouseWheel(object sender, MouseEventArgs e)
         {
             try
@@ -321,6 +481,10 @@ namespace Client
                 SaveError(ex.ToString());
             }
         }
+
+        #endregion
+
+        #region Game Loop Helpers
 
         private static void UpdateTime()
         {
@@ -340,18 +504,6 @@ namespace Client
             }
             else
                 _fps++;
-        }
-
-        private static bool IsDrawTime()
-        {
-            const int TargetUpdates = 1000 / 60; // 60 frames per second
-
-            if (Time >= _drawTime)
-            {
-                _drawTime = Time + TargetUpdates;
-                return true;
-            }
-            return false;
         }
 
         private static void UpdateEnviroment()
@@ -393,30 +545,24 @@ namespace Client
                     return;
                 }
 
-                DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
-                DXManager.Device.BeginScene();
-                DXManager.Sprite.Begin(SpriteFlags.AlphaBlend);
-                DXManager.SetSurface(DXManager.MainSurface);
+                DXManager.Device.Clear(Color.Black);
+                DXManager.BeginSpriteBatch();
 
                 if (MirScene.ActiveScene != null)
                     MirScene.ActiveScene.Draw();
 
-                DXManager.Sprite.End();
-                DXManager.Device.EndScene();
-                DXManager.Device.Present();
-            }
-            catch (Direct3D9Exception ex)
-            {
-                DXManager.DeviceLost = true;
-                SaveError(ex.ToString());
+                DXManager.EndSpriteBatch();
             }
             catch (Exception ex)
             {
                 SaveError(ex.ToString());
-
                 DXManager.AttemptRecovery();
             }
         }
+
+        #endregion
+
+        #region UI Labels
 
         private static void CreateDebugLabel()
         {
@@ -425,9 +571,7 @@ namespace Client
             if (MirControl.MouseControl != null)
             {
                 text = string.Format("FPS: {0}", FPS);
-
                 text += string.Format(", DPS: {0}", DPS);
-
                 text += string.Format(", Time: {0:HH:mm:ss UTC}", Now);
 
                 if (MirControl.MouseControl is MapControl)
@@ -443,13 +587,9 @@ namespace Client
                     text += string.Format(", Debug: {0}", DebugText);
 
                 if (MirObjects.MapObject.MouseObject != null)
-                {
                     text += string.Format(", Target: {0}", MirObjects.MapObject.MouseObject.Name);
-                }
                 else
-                {
                     text += string.Format(", Target: none");
-                }
             }
             else
             {
@@ -457,57 +597,42 @@ namespace Client
             }
 
             text += string.Format(", Ping: {0}", PingTime);
-
             text += string.Format(", Sent: {0}, Received: {1}", Functions.ConvertByteSize(BytesSent), Functions.ConvertByteSize(BytesReceived));
-
             text += string.Format(", TLC: {0}", DXManager.TextureList.Count(x => x.TextureValid));
             text += string.Format(", CLC: {0}", DXManager.ControlList.Count(x => x.IsDisposed == false));
 
-            if (Settings.FullScreen)
+            if (DebugBaseLabel == null || DebugBaseLabel.IsDisposed)
             {
-                if (DebugBaseLabel == null || DebugBaseLabel.IsDisposed)
+                DebugBaseLabel = new MirControl
                 {
-                    DebugBaseLabel = new MirControl
-                    {
-                        BackColour = Color.FromArgb(50, 50, 50),
-                        Border = true,
-                        BorderColour = Color.Black,
-                        DrawControlTexture = true,
-                        Location = new Point(5, 5),
-                        NotControl = true,
-                        Opacity = 0.5F
-                    };
-                }
-
-                if (DebugTextLabel == null || DebugTextLabel.IsDisposed)
-                {
-                    DebugTextLabel = new MirLabel
-                    {
-                        AutoSize = true,
-                        BackColour = Color.Transparent,
-                        ForeColour = Color.White,
-                        Parent = DebugBaseLabel,
-                    };
-
-                    DebugTextLabel.SizeChanged += (o, e) => DebugBaseLabel.Size = DebugTextLabel.Size;
-                }
-
-                DebugTextLabel.Text = text;
+                    BackColour = Color.FromNonPremultiplied(50, 50, 50, 255),
+                    Border = true,
+                    BorderColour = Color.Black,
+                    DrawControlTexture = true,
+                    Location = new Point(5, 5),
+                    NotControl = true,
+                    Opacity = 0.5F
+                };
             }
-            else
-            {
-                if (DebugBaseLabel != null && DebugBaseLabel.IsDisposed == false)
-                {
-                    DebugBaseLabel.Dispose();
-                    DebugBaseLabel = null;
-                }
-                if (DebugTextLabel != null && DebugTextLabel.IsDisposed == false)
-                {
-                    DebugTextLabel.Dispose();
-                    DebugTextLabel = null;
-                }
 
-                Program.Form.Text = $"{GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.GameName)} - {text}";
+            if (DebugTextLabel == null || DebugTextLabel.IsDisposed)
+            {
+                DebugTextLabel = new MirLabel
+                {
+                    AutoSize = true,
+                    BackColour = Color.Transparent,
+                    ForeColour = Color.White,
+                    Parent = DebugBaseLabel,
+                };
+
+                DebugTextLabel.SizeChanged += (o, e) => DebugBaseLabel.Size = DebugTextLabel.Size;
+            }
+
+            DebugTextLabel.Text = text;
+
+            if (!Settings.FullScreen)
+            {
+                Program.Form.Window.Title = $"{GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.GameName)} - {text}";
             }
         }
 
@@ -517,17 +642,16 @@ namespace Client
             {
                 HintBaseLabel = new MirControl
                 {
-                    BackColour = Color.FromArgb(255, 0, 0, 0),
+                    BackColour = Color.FromNonPremultiplied(0, 0, 0, 255),
                     Border = true,
                     DrawControlTexture = true,
-                    BorderColour = Color.FromArgb(255, 144, 144, 0),
+                    BorderColour = Color.FromNonPremultiplied(144, 144, 0, 255),
                     ForeColour = Color.Yellow,
                     Parent = MirScene.ActiveScene,
                     NotControl = true,
                     Opacity = 0.5F
                 };
             }
-
 
             if (HintTextLabel == null || HintTextLabel.IsDisposed)
             {
@@ -567,65 +691,72 @@ namespace Client
             HintBaseLabel.Location = point;
         }
 
+        #endregion
+
         private static void ToggleFullScreen()
         {
             Settings.FullScreen = !Settings.FullScreen;
 
-            Program.Form.FormBorderStyle = Settings.FullScreen || Settings.Borderless ? FormBorderStyle.None : FormBorderStyle.FixedDialog;
-
-            Program.Form.TopMost = Settings.FullScreen;
-
-            DXManager.Parameters.Windowed = !Settings.FullScreen;
-
-            Program.Form.ClientSize = new Size(Settings.ScreenWidth, Settings.ScreenHeight);
-
-            DXManager.ResetDevice();
+            Program.Form._graphics.IsFullScreen = Settings.FullScreen;
+            Program.Form._graphics.ApplyChanges();
 
             if (MirScene.ActiveScene == GameScene.Scene)
             {
-                GameScene.Scene.MapControl.FloorValid = false; 
+                GameScene.Scene.MapControl.FloorValid = false;
                 GameScene.Scene.TextureValid = false;
             }
-
-            Program.Form.CenterToScreen();
         }
 
         public void CreateScreenShot()
         {
-            string text = string.Format("[{0} Server {1}] {2} {3:hh\\:mm\\:ss}",
-                Settings.P_ServerName.Length > 0 ? Settings.P_ServerName : "Crystal",
-                MapControl.User != null ? MapControl.User.Name : "",
-                Now.ToShortDateString(),
-                Now.TimeOfDay);
-
-            Surface backbuffer = DXManager.Device.GetBackBuffer(0, 0);
-
-            using (var stream = Surface.ToStream(backbuffer, ImageFileFormat.Png))
+            try
             {
-                Bitmap image = new Bitmap(stream);
+                string text = string.Format("[{0} Server {1}] {2} {3:hh\\:mm\\:ss}",
+                    Settings.P_ServerName.Length > 0 ? Settings.P_ServerName : "Crystal",
+                    MapControl.User != null ? MapControl.User.Name : "",
+                    Now.ToShortDateString(),
+                    Now.TimeOfDay);
 
-                using (Graphics graphics = Graphics.FromImage(image))
+                int w = GraphicsDevice.PresentationParameters.BackBufferWidth;
+                int h = GraphicsDevice.PresentationParameters.BackBufferHeight;
+
+                byte[] data = new byte[w * h * 4];
+                GraphicsDevice.GetBackBufferData(data);
+
+                // Use SkiaSharp to save screenshot
+                using (var bitmap = new SKBitmap(w, h, SKColorType.Rgba8888, SKAlphaType.Premul))
                 {
-                    StringFormat sf = new StringFormat
+                    // Write pixel data directly to bitmap
+                    System.Runtime.InteropServices.Marshal.Copy(data, 0, bitmap.GetPixels(), data.Length);
+
+                    using (var canvas = new SKCanvas(bitmap))
                     {
-                        LineAlignment = StringAlignment.Center,
-                        Alignment = StringAlignment.Center
-                    };
+                        using (var paint = new SKPaint())
+                        {
+                            paint.TextSize = 12;
+                            paint.IsAntialias = true;
+                            paint.Color = SKColors.White;
+                            canvas.DrawText(text, w / 2f, 14, paint);
+                        }
+                    }
 
-                    graphics.DrawString(text, new Font(Settings.FontName, 9F), Brushes.Black, new Point((Settings.ScreenWidth / 2) + 3, 10), sf);
-                    graphics.DrawString(text, new Font(Settings.FontName, 9F), Brushes.Black, new Point((Settings.ScreenWidth / 2) + 4, 9), sf);
-                    graphics.DrawString(text, new Font(Settings.FontName, 9F), Brushes.Black, new Point((Settings.ScreenWidth / 2) + 5, 10), sf);
-                    graphics.DrawString(text, new Font(Settings.FontName, 9F), Brushes.Black, new Point((Settings.ScreenWidth / 2) + 4, 11), sf);
-                    graphics.DrawString(text, new Font(Settings.FontName, 9F), Brushes.White, new Point((Settings.ScreenWidth / 2) + 4, 10), sf);//SandyBrown               
-
-                    string path = Path.Combine(Application.StartupPath, @"Screenshots\");
+                    string path = Path.Combine(AppContext.BaseDirectory, "Screenshots");
                     if (!Directory.Exists(path))
                         Directory.CreateDirectory(path);
 
                     int count = Directory.GetFiles(path, "*.png").Length;
 
-                    image.Save(Path.Combine(path, string.Format("Image {0}.png", count)), ImageFormat.Png);
+                    using (var image = SKImage.FromBitmap(bitmap))
+                    using (var encodedData = image.Encode(SKEncodedImageFormat.Png, 100))
+                    using (var stream = File.OpenWrite(Path.Combine(path, $"Image {count}.png")))
+                    {
+                        encodedData.SaveTo(stream);
+                    }
                 }
+            }
+            catch (Exception ex)
+            {
+                SaveError(ex.ToString());
             }
         }
 
@@ -635,7 +766,7 @@ namespace Client
             {
                 if (Settings.RemainingErrorLogs-- > 0)
                 {
-                    File.AppendAllText(@".\Error.txt",
+                    File.AppendAllText(Path.Combine(".", "Error.txt"),
                                        string.Format("[{0}] {1}{2}", Now, ex, Environment.NewLine));
                 }
             }
@@ -650,148 +781,23 @@ namespace Client
 
             Settings.ScreenWidth = width;
             Settings.ScreenHeight = height;
-            Program.Form.ClientSize = new Size(width, height);
 
-            DXManager.Device.Clear(ClearFlags.Target, Color.Black, 0, 0);
-            DXManager.Device.Present();
-            DXManager.ResetDevice();
-
-            if (!Settings.FullScreen)
-                Program.Form.CenterToScreen();
+            Program.Form._graphics.PreferredBackBufferWidth = width;
+            Program.Form._graphics.PreferredBackBufferHeight = height;
+            Program.Form._graphics.ApplyChanges();
         }
 
-        #region ScreenCapture
+        #region Mouse Cursor
 
-        //private Bitmap CaptureScreen()
-        //{
-            
-        //}
-
-        #endregion
-
-        #region Idle Check
-        private static bool AppStillIdle
-        {
-            get
-            {
-                PeekMsg msg;
-                return !PeekMessage(out msg, IntPtr.Zero, 0, 0, 0);
-            }
-        }
-
-        [SuppressUnmanagedCodeSecurity]
-        [DllImport("User32.dll", CharSet = CharSet.Auto)]
-        private static extern bool PeekMessage(out PeekMsg msg, IntPtr hWnd, uint messageFilterMin,
-                                               uint messageFilterMax, uint flags);
-
-        [StructLayout(LayoutKind.Sequential)]
-        private struct PeekMsg
-        {
-            private readonly IntPtr hWnd;
-            private readonly Message msg;
-            private readonly IntPtr wParam;
-            private readonly IntPtr lParam;
-            private readonly uint time;
-            private readonly Point p;
-        }
-        #endregion
-
-        private void CMain_FormClosing(object sender, FormClosingEventArgs e)
-        {
-            if (CMain.Time < GameScene.LogTime && !Settings.UseTestConfig && !GameScene.Observing)
-            {
-                GameScene.Scene.ChatDialog.ReceiveChat(GameLanguage.ClientTextMap.GetLocalization((ClientTextKeys.CannotLeaveGame) , (GameScene.LogTime - CMain.Time) / 1000), ChatType.System);
-                e.Cancel = true;
-            }
-            else
-            {
-                Settings.Save();
-
-                DXManager.Dispose();
-                SoundManager.Dispose();
-            }
-        }
-
-        protected override void WndProc(ref Message m)
-        {
-            if (m.Msg == 0x0112) // WM_SYSCOMMAND
-            {
-                if (m.WParam.ToInt32() == 0xF100) // SC_KEYMENU
-                {
-                    m.Result = IntPtr.Zero;
-                    return;
-                }
-                else if (m.WParam.ToInt32() == 0xF030) // SC_MAXIMISE
-                {
-                    ToggleFullScreen();
-                    return;
-                }
-            }
-
-            base.WndProc(ref m);
-        }
-
-
-        public static Cursor[] Cursors;
         public static MouseCursor CurrentCursor = MouseCursor.None;
+
         public static void SetMouseCursor(MouseCursor cursor)
         {
-            if (!Settings.UseMouseCursors) return;
-
-            if (CurrentCursor != cursor)
-            {
-                CurrentCursor = cursor;
-                Program.Form.Cursor = Cursors[(byte)cursor];
-            }
+            // MonoGame cursor support - for now just track the cursor state
+            // Custom .CUR files would need conversion to textures
+            CurrentCursor = cursor;
         }
 
-        private static void LoadMouseCursors()
-        {
-            Cursors = new Cursor[8];
-
-            Cursors[(int)MouseCursor.None] = Program.Form.Cursor;
-
-            string path = $"{Settings.MouseCursorPath}Cursor_Default.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.Default] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_Normal_Atk.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.Attack] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_Compulsion_Atk.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.AttackRed] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_Npc.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.NPCTalk] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_TextPrompt.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.TextPrompt] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_Trash.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.Trash] = LoadCustomCursor(path);
-
-            path = $"{Settings.MouseCursorPath}Cursor_Upgrade.CUR";
-            if (File.Exists(path))
-                Cursors[(int)MouseCursor.Upgrade] = LoadCustomCursor(path);
-        }
-
-        public static Cursor LoadCustomCursor(string path)
-        {
-            IntPtr hCurs = LoadCursorFromFile(path);
-            if (hCurs == IntPtr.Zero) throw new Win32Exception();
-            var curs = new Cursor(hCurs);
-            // Note: force the cursor to own the handle so it gets released properly
-            //var fi = typeof(Cursor).GetField("ownHandle", BindingFlags.NonPublic | BindingFlags.Instance);
-            //fi.SetValue(curs, true);
-            return curs;
-        }
-
-        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        private static extern IntPtr LoadCursorFromFile(string path);
+        #endregion
     }
 }

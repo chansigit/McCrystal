@@ -23,7 +23,7 @@ namespace Client.MirObjects
         public override void Load(S.UserInformation info)
         {
             Name = info.Name;
-            NameColour = info.NameColour;
+            NameColour = info.NameColour.ToXnaColor();
             Class = info.Class;
             Gender = info.Gender;
             Level = info.Level;

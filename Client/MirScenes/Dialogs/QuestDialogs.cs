@@ -6,9 +6,7 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using SlimDX.Direct3D9;
 using C = ClientPackets;
-using Font = System.Drawing.Font;
 
 namespace Client.MirScenes.Dialogs
 {
@@ -1335,7 +1333,7 @@ namespace Client.MirScenes.Dialogs
 
         private void NewColour(string text, string colour, Point p)
         {
-            Color textColour = Color.FromName(colour);
+            Color textColour = Colors.FromName(colour);
 
             MirLabel temp = new MirLabel
             {

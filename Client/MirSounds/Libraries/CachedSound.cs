@@ -1,14 +1,13 @@
-﻿using NAudio.Wave;
-using System;
+using Microsoft.Xna.Framework.Audio;
 
 namespace Client.MirSounds.Libraries
 {
-    class CachedSound
+    class CachedSound : IDisposable
     {
         public int Index { get; private set; }
         public long ExpireTime { get; set; }
-        public float[] AudioData { get; private set; }
-        public WaveFormat WaveFormat { get; private set; }
+        public SoundEffect Effect { get; private set; }
+
         public CachedSound(int index, string fileName)
         {
             Index = index;
@@ -34,19 +33,24 @@ namespace Client.MirSounds.Libraries
             if (SoundManager.SupportedFileTypes.Contains(fileType) &&
                 File.Exists(fileName))
             {
-                using (var audioFileReader = new AudioFileReader(fileName))
+                try
                 {
-                    WaveFormat = audioFileReader.WaveFormat;
-                    var wholeFile = new List<float>((int)(audioFileReader.Length / 4));
-                    var readBuffer = new float[audioFileReader.WaveFormat.SampleRate * audioFileReader.WaveFormat.Channels];
-                    int samplesRead;
-                    while ((samplesRead = audioFileReader.Read(readBuffer, 0, readBuffer.Length)) > 0)
+                    using (var stream = File.OpenRead(fileName))
                     {
-                        wholeFile.AddRange(readBuffer.Take(samplesRead));
+                        Effect = SoundEffect.FromStream(stream);
                     }
-                    AudioData = wholeFile.ToArray();
+                }
+                catch
+                {
+                    Effect = null;
                 }
             }
+        }
+
+        public void Dispose()
+        {
+            Effect?.Dispose();
+            Effect = null;
         }
     }
 }

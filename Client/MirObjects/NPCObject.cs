@@ -50,7 +50,7 @@ namespace Client.MirObjects
         public void Load(S.ObjectNPC info)
         {
             Name = info.Name;
-            NameColour = info.NameColour;
+            NameColour = info.NameColour.ToXnaColor();
             CurrentLocation = info.Location;
             Direction = info.Direction;
             Movement = info.Location;
@@ -60,7 +60,7 @@ namespace Client.MirObjects
             Quests = GameScene.QuestInfoList.Where(c => c.NPCIndex == ObjectID).ToList();
 
             Image = info.Image;
-            Colour = info.Colour;
+            Colour = info.Colour.ToXnaColor();
 
             LoadLibrary();
 

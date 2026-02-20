@@ -1,7 +1,4 @@
-﻿using System.Diagnostics;
-using Launcher;
-using System.Runtime.InteropServices;
-using System.Runtime.CompilerServices;
+using System.Diagnostics;
 using Client.Resolution;
 
 namespace Client
@@ -9,7 +6,6 @@ namespace Client
     internal static class Program
     {
         public static CMain Form;
-        public static AMain PForm;
 
         public static bool Restart;
         public static bool Launch;
@@ -31,132 +27,27 @@ namespace Client
 
             try
             {
-                if (UpdatePatcher()) return;
-
-                if (RuntimePolicyHelper.LegacyV2RuntimeEnabledSuccessfully == true) { }
-
                 Packet.IsServer = false;
                 Settings.Load();
 
-                Application.EnableVisualStyles();
-                Application.SetCompatibleTextRenderingDefault(false);
-
                 CheckResolutionSetting();
 
-                Launch = false;
-                if (Settings.P_Patcher)
-                    Application.Run(PForm = new AMain());
-                else
-                    Launch = true;
+                Launch = true;
 
                 if (Launch)
-                    Application.Run(Form = new CMain());
-
-                Settings.Save();
-
-                if (Restart)
                 {
-                    Application.Restart();
-                }
-            }
-            catch (Exception ex)
-            {
-                CMain.SaveError(ex.ToString());
-            }
-        }
-
-        private static bool UpdatePatcher()
-        {
-            try
-            {
-                const string fromName = @".\AutoPatcher.gz", toName = @".\AutoPatcher.exe";
-                if (!File.Exists(fromName)) return false;
-
-                Process[] processes = Process.GetProcessesByName("AutoPatcher");
-
-                if (processes.Length > 0)
-                {
-                    string patcherPath = Application.StartupPath + @"\AutoPatcher.exe";
-
-                    for (int i = 0; i < processes.Length; i++)
-                        if (processes[i].MainModule.FileName == patcherPath)
-                            processes[i].Kill();
-
-                    Stopwatch stopwatch = Stopwatch.StartNew();
-                    bool wait = true;
-                    processes = Process.GetProcessesByName("AutoPatcher");
-
-                    while (wait)
+                    using (Form = new CMain())
                     {
-                        wait = false;
-                        for (int i = 0; i < processes.Length; i++)
-                            if (processes[i].MainModule.FileName == patcherPath)
-                            {
-                                wait = true;
-                            }
-
-                        if (stopwatch.ElapsedMilliseconds <= 3000) continue;
-                        MessageBox.Show("Failed to close AutoPatcher during update.");
-                        return true;
+                        Form.Run();
                     }
                 }
 
-                if (File.Exists(toName)) File.Delete(toName);
-                File.Move(fromName, toName);
-                Process.Start(toName, "Auto");
-
-                return true;
+                Settings.Save();
             }
             catch (Exception ex)
             {
+                Console.WriteLine(ex.ToString());
                 CMain.SaveError(ex.ToString());
-                
-                throw;
-            }
-        }
-
-        public static class RuntimePolicyHelper
-        {
-            public static bool LegacyV2RuntimeEnabledSuccessfully { get; private set; }
-
-            static RuntimePolicyHelper()
-            {
-                //ICLRRuntimeInfo clrRuntimeInfo =
-                //    (ICLRRuntimeInfo)RuntimeEnvironment.GetRuntimeInterfaceAsObject(
-                //        Guid.Empty,
-                //        typeof(ICLRRuntimeInfo).GUID);
-
-                //try
-                //{
-                //    clrRuntimeInfo.BindAsLegacyV2Runtime();
-                //    LegacyV2RuntimeEnabledSuccessfully = true;
-                //}
-                //catch (COMException)
-                //{
-                //    // This occurs with an HRESULT meaning 
-                //    // "A different runtime was already bound to the legacy CLR version 2 activation policy."
-                //    LegacyV2RuntimeEnabledSuccessfully = false;
-                //}
-            }
-
-            [ComImport]
-            [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
-            [Guid("BD39D1D2-BA2F-486A-89B0-B4B0CB466891")]
-            private interface ICLRRuntimeInfo
-            {
-                void xGetVersionString();
-                void xGetRuntimeDirectory();
-                void xIsLoaded();
-                void xIsLoadable();
-                void xLoadErrorString();
-                void xLoadLibrary();
-                void xGetProcAddress();
-                void xGetInterface();
-                void xSetDefaultStartupFlags();
-                void xGetDefaultStartupFlags();
-
-                [MethodImpl(MethodImplOptions.InternalCall, MethodCodeType = MethodCodeType.Runtime)]
-                void BindAsLegacyV2Runtime();
             }
         }
 
@@ -165,17 +56,12 @@ namespace Client
             var parsedOK = DisplayResolutions.GetDisplayResolutions();
             if (!parsedOK)
             {
-                MessageBox.Show(GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.CouldNotGetDisplayResolutions), GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.GetDisplayResolutionIssue), MessageBoxButtons.OK, MessageBoxIcon.Error);
-                Environment.Exit(0);
+                Console.WriteLine("Could not get display resolutions.");
             }
 
             if (!DisplayResolutions.IsSupported(Settings.Resolution))
             {
-                MessageBox.Show(GameLanguage.ClientTextMap.GetLocalization((ClientTextKeys.ClientNotSupportSettingResolution), Settings.Resolution),
-                    GameLanguage.ClientTextMap.GetLocalization(ClientTextKeys.InvalidClientResolution),
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Error);
-
+                Console.WriteLine($"Resolution {Settings.Resolution} is not supported, defaulting to 1024x768.");
                 Settings.Resolution = (int)eSupportedResolution.w1024h768;
                 Settings.Save();
             }

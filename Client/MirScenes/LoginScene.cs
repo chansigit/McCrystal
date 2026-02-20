@@ -64,12 +64,12 @@ namespace Client.MirScenes
             Version = new MirLabel
             {
                 AutoSize = true,
-                BackColour = Color.FromArgb(200, 50, 50, 50),
+                BackColour = new Color(50, 50, 50, 200),
                 Border = true,
                 BorderColour = Color.Black,
                 Location = new Point(5, Settings.ScreenHeight - 20),
                 Parent = _background,
-                Text = string.Format("Build: {0}.{1}.{2}", Globals.ProductCodename, Settings.UseTestConfig ? "Debug" : "Release", Application.ProductVersion),
+                Text = string.Format("Build: {0}.{1}.{2}", Globals.ProductCodename, Settings.UseTestConfig ? "Debug" : "Release", System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0"),
             };
 
             TestLabel = new MirImageControl
@@ -139,7 +139,7 @@ namespace Client.MirScenes
             {
                 byte[] sum;
                 using (MD5 md5 = MD5.Create())
-                using (FileStream stream = File.OpenRead(Application.ExecutablePath))
+                using (FileStream stream = File.OpenRead(Environment.ProcessPath ?? System.Reflection.Assembly.GetExecutingAssembly().Location))
                     sum = md5.ComputeHash(stream);
 
                 p.VersionHash = sum;

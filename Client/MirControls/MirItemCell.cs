@@ -189,7 +189,7 @@ namespace Client.MirControls
 
             BorderColour = Color.Lime;
 
-            BackColour = Color.FromArgb(255, 255, 125, 125);
+            BackColour = new Color(255, 125, 125);
             Opacity = 0.5F;
             DrawControlTexture = true;
             Library = Libraries.Items;

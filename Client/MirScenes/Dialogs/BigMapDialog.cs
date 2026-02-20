@@ -3,8 +3,6 @@ using Client.MirGraphics;
 using Client.MirNetwork;
 using Client.MirObjects;
 using Client.MirSounds;
-using SlimDX;
-using Font = System.Drawing.Font;
 using C = ClientPackets;
 
 namespace Client.MirScenes.Dialogs
@@ -34,7 +32,7 @@ namespace Client.MirScenes.Dialogs
             }
         }
 
-        private Point mouseLocation = Point.Empty;
+        private Point mouseLocation = Point.Zero;
         public Point MouseLocation
         {
             get { return mouseLocation; }
@@ -673,7 +671,7 @@ namespace Client.MirScenes.Dialogs
             if (viewRect.X < 0) viewRect.X = 0;
             if (viewRect.Y < 0) viewRect.Y = 0;
 
-            Libraries.MiniMap.Draw(index, DisplayLocation, Size, Color.FromArgb(255, 255, 255));
+            Libraries.MiniMap.Draw(index, DisplayLocation, Size, new Color(255, 255, 255));
 
             int startPointX = (int)(viewRect.X / ScaleX);
             int startPointY = (int)(viewRect.Y / ScaleY);
@@ -692,14 +690,14 @@ namespace Client.MirScenes.Dialogs
                     Color colour;
 
                     if (GroupDialog.GroupList.Contains(ob.Name) || ob.Name.EndsWith(string.Format("({0})", MapObject.User.Name)))
-                        colour = Color.FromArgb(0, 0, 255);
+                        colour = new Color(0, 0, 255);
                     else
                         if (ob is PlayerObject)
-                        colour = Color.FromArgb(255, 255, 255);
+                        colour = new Color(255, 255, 255);
                     else if (ob is NPCObject || ob.AI == 6)
-                        colour = Color.FromArgb(0, 255, 50);
+                        colour = new Color(0, 255, 50);
                     else
-                        colour = Color.FromArgb(255, 0, 0);
+                        colour = new Color(255, 0, 0);
 
                     DXManager.Draw(DXManager.RadarTexture, new Rectangle(0, 0, 2, 2), new Vector3((float)(x - 0.5), (float)(y - 0.5), 0.0F), colour);
                 }

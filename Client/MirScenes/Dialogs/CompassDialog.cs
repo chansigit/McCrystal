@@ -5,7 +5,7 @@ namespace Client.MirScenes.Dialogs
 {
     public class CompassDialog : MirControl
     {
-        public Point Destination = Point.Empty;
+        public Point Destination = Point.Zero;
 
         private readonly MirImageControl _image;
 
@@ -31,7 +31,7 @@ namespace Client.MirScenes.Dialogs
 
         public void ClearPoint()
         {
-            Destination = Point.Empty;
+            Destination = Point.Zero;
         }
 
         public void SetPoint(Point point)
@@ -41,7 +41,7 @@ namespace Client.MirScenes.Dialogs
 
         public void Process()
         {
-            if (Destination == Point.Empty || (Destination.X == GameScene.User.CurrentLocation.X && Destination.Y == GameScene.User.CurrentLocation.Y))
+            if (Destination == Point.Zero || (Destination.X == GameScene.User.CurrentLocation.X && Destination.Y == GameScene.User.CurrentLocation.Y))
             {
                 Visible = false;
                 return;

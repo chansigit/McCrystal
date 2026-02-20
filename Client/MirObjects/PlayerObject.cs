@@ -114,7 +114,7 @@ namespace Client.MirObjects
         public void Load(S.ObjectPlayer info)
         {
             Name = info.Name;
-            NameColour = info.NameColour;
+            NameColour = info.NameColour.ToXnaColor();
             GuildName = info.GuildName;
             GuildRankName = info.GuildRankName;
             Class = info.Class;
@@ -778,7 +778,7 @@ namespace Client.MirObjects
                 case MirAction.DashAttack:
                     if (Frame == null)
                     {
-                        OffSetMove = Point.Empty;
+                        OffSetMove = Point.Zero;
                         Movement = CurrentLocation;
                         break;
                     }
@@ -834,7 +834,7 @@ namespace Client.MirObjects
                     OffSetMove = new Point(OffSetMove.X % 2 + OffSetMove.X, OffSetMove.Y % 2 + OffSetMove.Y);
                     break;
                 default:
-                    OffSetMove = Point.Empty;
+                    OffSetMove = Point.Zero;
                     Movement = CurrentLocation;
                     break;
             }

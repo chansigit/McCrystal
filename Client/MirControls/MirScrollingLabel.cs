@@ -90,7 +90,7 @@ namespace Client.MirControls
 
         private void NewColour(string text, string colour, Point p)
         {
-            Color textColour = Color.FromName(colour);
+            Color textColour = Colors.FromName(colour);
 
             MirLabel temp = new MirLabel
             {

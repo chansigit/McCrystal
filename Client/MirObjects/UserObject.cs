@@ -73,7 +73,7 @@ namespace Client.MirObjects
             Id = info.RealId;
             Name = info.Name;
             Settings.LoadTrackedQuests(info.Name);
-            NameColour = info.NameColour;
+            NameColour = info.NameColour.ToXnaColor();
             GuildName = info.GuildName;
             GuildRankName = info.GuildRank;
             Class = info.Class;
@@ -819,7 +819,7 @@ namespace Client.MirObjects
         {
             NextMagic = null;
             NextMagicDirection = 0;
-            NextMagicLocation = Point.Empty;
+            NextMagicLocation = Point.Zero;
             NextMagicObject = null;
         } 
     }

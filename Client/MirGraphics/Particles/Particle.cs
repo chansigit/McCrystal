@@ -1,12 +1,5 @@
 ﻿using Client.MirObjects;
 using Client.MirScenes;
-using SlimDX;
-using System;
-using System.Collections.Generic;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace Client.MirGraphics.Particles
 {

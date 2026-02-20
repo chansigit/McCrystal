@@ -214,7 +214,7 @@ namespace Client.MirScenes.Dialogs
             if (GameScene.SelectedCell != null &&
                 e is MouseEventArgs me &&
                 me.Button == MouseButtons.Left &&
-                (Control.ModifierKeys & Keys.Control) == Keys.Control)
+                CMain.Ctrl)
             {
                 if (sender == ItemButton)
                 {
