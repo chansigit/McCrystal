@@ -507,6 +507,10 @@ namespace Client.MirScenes
                 return;
             }
 
+            // Skip hotkey processing when a text box has focus (let it handle input)
+            if (MirControls.MirTextBox.AnyTextBoxFocused && e.KeyCode != Keys.Enter && e.KeyCode != Keys.Escape)
+                return;
+
             foreach (KeyBind KeyCheck in CMain.InputKeys.Keylist)
             {
                 if (KeyCheck.Key == Keys.None)

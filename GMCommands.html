@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystal - GM Commands Reference</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    line-height: 1.6;
+  }
+  .header {
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+    padding: 40px 20px;
+    text-align: center;
+    border-bottom: 2px solid #e6a817;
+  }
+  .header h1 {
+    color: #e6a817;
+    font-size: 2.2em;
+    margin-bottom: 8px;
+    text-shadow: 0 0 20px rgba(230, 168, 23, 0.3);
+  }
+  .header p { color: #8b949e; font-size: 1.1em; }
+  .header .stats {
+    margin-top: 12px;
+    color: #58a6ff;
+    font-size: 0.95em;
+  }
+  nav {
+    background: #161b22;
+    padding: 12px 20px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    border-bottom: 1px solid #30363d;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+  }
+  nav a {
+    color: #58a6ff;
+    text-decoration: none;
+    padding: 4px 12px;
+    border-radius: 6px;
+    font-size: 0.9em;
+    transition: background 0.2s;
+  }
+  nav a:hover { background: #21262d; }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+  .category {
+    margin-bottom: 40px;
+  }
+  .category h2 {
+    color: #e6a817;
+    font-size: 1.5em;
+    padding: 12px 0;
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 16px;
+  }
+  .category h2 span {
+    font-size: 0.7em;
+    color: #8b949e;
+    font-weight: normal;
+    margin-left: 8px;
+  }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 20px;
+    background: #161b22;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  thead th {
+    background: #21262d;
+    color: #e6a817;
+    padding: 10px 14px;
+    text-align: left;
+    font-size: 0.9em;
+    font-weight: 600;
+    border-bottom: 2px solid #30363d;
+  }
+  tbody td {
+    padding: 10px 14px;
+    border-bottom: 1px solid #21262d;
+    font-size: 0.9em;
+    vertical-align: top;
+  }
+  tbody tr:hover { background: #1c2333; }
+  .cmd {
+    color: #7ee787;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .params {
+    color: #d2a8ff;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.88em;
+  }
+  .access-gm {
+    color: #f85149;
+    font-weight: 600;
+    font-size: 0.85em;
+  }
+  .access-test {
+    color: #d29922;
+    font-weight: 600;
+    font-size: 0.85em;
+  }
+  .access-all {
+    color: #3fb950;
+    font-weight: 600;
+    font-size: 0.85em;
+  }
+  .legend {
+    display: flex;
+    gap: 24px;
+    padding: 16px 20px;
+    background: #161b22;
+    border-radius: 8px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+  }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 0.9em; }
+  .legend-dot {
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }
+  .dot-gm { background: #f85149; }
+  .dot-test { background: #d29922; }
+  .dot-all { background: #3fb950; }
+  .search-box {
+    width: 100%;
+    padding: 10px 16px;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #c9d1d9;
+    font-size: 1em;
+    margin-bottom: 20px;
+    outline: none;
+  }
+  .search-box:focus { border-color: #58a6ff; }
+  .search-box::placeholder { color: #484f58; }
+  .hidden { display: none; }
+  footer {
+    text-align: center;
+    padding: 30px;
+    color: #484f58;
+    font-size: 0.85em;
+    border-top: 1px solid #21262d;
+    margin-top: 40px;
+  }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <h1>Crystal GM Commands Reference</h1>
+  <p>Game Master / Admin Commands Complete Guide</p>
+  <div class="stats">73 Commands &bull; Source: Server/MirObjects/PlayerObject.cs</div>
+</div>
+
+<nav>
+  <a href="#gm-core">Core GM</a>
+  <a href="#player-mgmt">Player Management</a>
+  <a href="#teleport">Teleport</a>
+  <a href="#spawn">Spawn</a>
+  <a href="#give">Give/Create</a>
+  <a href="#combat">Combat</a>
+  <a href="#guild">Guild</a>
+  <a href="#quest-flag">Quest &amp; Flags</a>
+  <a href="#conquest">Conquest</a>
+  <a href="#server">Server</a>
+  <a href="#player-cmds">Player Commands</a>
+</nav>
+
+<div class="container">
+
+<input type="text" class="search-box" id="searchBox" placeholder="Search commands... (e.g. KILL, MAKE, LEVEL)" oninput="filterCommands()">
+
+<div class="legend">
+  <div class="legend-item"><span class="legend-dot dot-gm"></span> GM Only</div>
+  <div class="legend-item"><span class="legend-dot dot-test"></span> GM / Test Server</div>
+  <div class="legend-item"><span class="legend-dot dot-all"></span> All Players</div>
+</div>
+
+<!-- Core GM -->
+<div class="category" id="gm-core">
+<h2>Core GM Commands<span>Authentication &amp; Mode</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@LOGIN</td><td class="params">—</td><td class="access-gm">GM</td><td>Initiate GM password verification. Sets GMLogin flag and prompts for password.</td></tr>
+<tr><td class="cmd">@SUPERMAN</td><td class="params">—</td><td class="access-test">GM / Test</td><td>Toggle invincibility mode. When enabled, prevents the player from dying.</td></tr>
+<tr><td class="cmd">@GAMEMASTER</td><td class="params">—</td><td class="access-test">GM / Test</td><td>Toggle Game Master mode. Affects visual appearance and buff display.</td></tr>
+<tr><td class="cmd">@OBSERVER</td><td class="params">—</td><td class="access-gm">GM</td><td>Toggle observer mode. Allows watching other players invisibly.</td></tr>
+<tr><td class="cmd">@SETLIGHT</td><td class="params">[Level: 0-255]</td><td class="access-gm">GM</td><td>Set player light radius for night vision effects.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Player Management -->
+<div class="category" id="player-mgmt">
+<h2>Player Management<span>Character Modification &amp; Info</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@KILL</td><td class="params">[PlayerName] <i>or empty for area kill</i></td><td class="access-gm">GM</td><td>Kill a player by name, or kill all players/monsters in the cell in front if no name given.</td></tr>
+<tr><td class="cmd">@REVIVE</td><td class="params">[PlayerName] <i>optional</i></td><td class="access-gm">GM</td><td>Revive a player to full HP/MP. If no name given, revives self.</td></tr>
+<tr><td class="cmd">@LEVEL</td><td class="params">[Level] <i>or</i> [PlayerName] [Level]</td><td class="access-test">GM / Test</td><td>Set character level. Use <code>-1</code> for max level. Triggers LevelUp().</td></tr>
+<tr><td class="cmd">@LEVELHERO</td><td class="params">[Level] <i>or</i> [PlayerName] [Level]</td><td class="access-test">GM / Test</td><td>Set hero level. Use <code>-1</code> for max level.</td></tr>
+<tr><td class="cmd">@CHANGEGENDER</td><td class="params">[PlayerName] <i>optional</i></td><td class="access-test">GM / Test</td><td>Toggle player gender between Male/Female. Logs out the player.</td></tr>
+<tr><td class="cmd">@CHANGECLASS</td><td class="params">[PlayerName] [ClassName] <i>or</i> [ClassName]</td><td class="access-test">GM / Test</td><td>Change character class (Warrior, Wizard, Taoist, Assassin, Archer). Logs out player.</td></tr>
+<tr><td class="cmd">@HAIR</td><td class="params">[Style: 0-8] <i>optional, random if omitted</i></td><td class="access-test">GM / Test</td><td>Change player hair style.</td></tr>
+<tr><td class="cmd">@ADJUSTPKPOINT</td><td class="params">[Points] <i>or</i> [PlayerName] [Points]</td><td class="access-test">GM / Test</td><td>Set PK points to exact value.</td></tr>
+<tr><td class="cmd">@CLEARBAG</td><td class="params">[PlayerName] <i>optional</i></td><td class="access-test">GM / Test</td><td>Remove all items from inventory.</td></tr>
+<tr><td class="cmd">@CLEARBUFFS</td><td class="params">—</td><td class="access-all">All</td><td>Remove all active buffs from the player.</td></tr>
+<tr><td class="cmd">@INFO</td><td class="params">[PlayerName] <i>or target in front</i></td><td class="access-test">GM / Test</td><td>Show detailed info about player, monster, or NPC (name, level, location, stats, etc.).</td></tr>
+<tr><td class="cmd">@BACKUPPLAYER</td><td class="params">[PlayerName]</td><td class="access-gm">GM</td><td>Create a backup archive of a player's character data without removing from active list.</td></tr>
+<tr><td class="cmd">@ARCHIVEPLAYER</td><td class="params">[PlayerName]</td><td class="access-gm">GM</td><td>Remove player from active character list and archive their data.</td></tr>
+<tr><td class="cmd">@LOADPLAYER</td><td class="params">[PlayerName]</td><td class="access-gm">GM</td><td>Load a previously archived player character back from archive.</td></tr>
+<tr><td class="cmd">@RESTOREPLAYER</td><td class="params">[PlayerName] [AccountName]</td><td class="access-gm">GM</td><td>Restore a deleted/archived player to an account. AccountName optional.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Teleport -->
+<div class="category" id="teleport">
+<h2>Teleport Commands<span>Movement &amp; Recall</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@MOVE</td><td class="params">[X] [Y] <i>or empty for random nearby</i></td><td class="access-test">GM / Test</td><td>Teleport on current map. Empty = random nearby. Non-GM: 10s cooldown, requires Teleport mode.</td></tr>
+<tr><td class="cmd">@MAPMOVE</td><td class="params">[MapName] [InstanceID] [X] [Y]</td><td class="access-test">GM / Test</td><td>Teleport to another map with optional instance and coordinates.</td></tr>
+<tr><td class="cmd">@GOTO</td><td class="params">[PlayerName]</td><td class="access-gm">GM</td><td>Teleport to the specified player's location and map.</td></tr>
+<tr><td class="cmd">@RECALL</td><td class="params">[PlayerName]</td><td class="access-gm">GM</td><td>Teleport a player to the GM's current location.</td></tr>
+<tr><td class="cmd">@GROUPRECALL</td><td class="params">—</td><td class="access-all">All (Leader)</td><td>Recall all group members to leader's location. Requires Recall set item. 60s cooldown.</td></tr>
+<tr><td class="cmd">@RECALLMEMBER</td><td class="params">[PlayerName]</td><td class="access-all">All (Leader)</td><td>Recall a specific group member. Requires Recall set item. 60s cooldown per member.</td></tr>
+<tr><td class="cmd">@RECALLLOVER</td><td class="params">—</td><td class="access-all">All (Married)</td><td>Recall spouse to your location. Requires wedding ring. 60s cooldown.</td></tr>
+<tr><td class="cmd">@ENABLEGROUPRECALL</td><td class="params">—</td><td class="access-all">All</td><td>Toggle whether group members can recall you.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Spawn -->
+<div class="category" id="spawn">
+<h2>Spawn Commands<span>Monsters &amp; Decorations</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@MOB</td><td class="params">[MonsterID/Name] [Count] [Spread]</td><td class="access-test">GM / Test</td><td>Spawn monster(s) in front. Count/Spread are GM-only. Cannot spawn conquest monsters.</td></tr>
+<tr><td class="cmd">@RECALLMOB</td><td class="params">[MonsterID/Name] [Count≤50] [PetLevel: 0-7]</td><td class="access-test">GM / Test</td><td>Summon monsters as permanent pets. Respects pet limits unless GM.</td></tr>
+<tr><td class="cmd">@CLEARMOB</td><td class="params">[MapName] <i>optional, default=current map</i></td><td class="access-gm">GM</td><td>Kill all live monsters on specified or current map.</td></tr>
+<tr><td class="cmd">@DECO</td><td class="params">[ImageID]</td><td class="access-test">GM / Test</td><td>Create a decoration object at player's current location.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Give/Create -->
+<div class="category" id="give">
+<h2>Give / Create<span>Items, Gold, Skills</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@MAKE</td><td class="params">[ItemID/Name] [Count]</td><td class="access-test">GM / Test</td><td>Create item(s) in inventory. Can use item index or name. Count defaults to 1. Marked as GMMade.</td></tr>
+<tr><td class="cmd">@GIVEGOLD</td><td class="params">[Amount] <i>or</i> [PlayerName] [Amount]</td><td class="access-test">GM / Test</td><td>Give gold currency. Caps at uint.MaxValue.</td></tr>
+<tr><td class="cmd">@GIVECREDIT</td><td class="params">[Amount] <i>or</i> [PlayerName] [Amount]</td><td class="access-test">GM / Test</td><td>Give credit currency. Caps at uint.MaxValue.</td></tr>
+<tr><td class="cmd">@GIVEPEARLS</td><td class="params">[Amount] <i>or</i> [PlayerName] [Amount]</td><td class="access-test">GM / Test</td><td>Give Intelligent Creature pearls. Caps at int.MaxValue.</td></tr>
+<tr><td class="cmd">@GIVESKILL</td><td class="params">[SpellName] [Level: 0-3] <i>or</i> [PlayerName] [SpellName] [Level]</td><td class="access-test">GM / Test</td><td>Give or upgrade a spell/skill to specified level.</td></tr>
+<tr><td class="cmd">@DELETESKILL</td><td class="params">[SpellName] <i>or</i> [PlayerName] [SpellName]</td><td class="access-gm">GM</td><td>Remove a spell/skill from player's magic list.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Combat & Awakening -->
+<div class="category" id="combat">
+<h2>Combat &amp; Equipment<span>Awakening, PK, Death</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@DIE</td><td class="params">—</td><td class="access-all">All</td><td>Kill yourself immediately.</td></tr>
+<tr><td class="cmd">@AWAKENING</td><td class="params">[ItemType] [AwakeType]</td><td class="access-test">GM / Test</td><td>Upgrade awakening on equipped items of specified type.</td></tr>
+<tr><td class="cmd">@REMOVEAWAKENING</td><td class="params">[ItemType]</td><td class="access-test">GM / Test</td><td>Remove one level of awakening from equipped items.</td></tr>
+<tr><td class="cmd">@TOGGLETRANSFORM</td><td class="params">—</td><td class="access-all">All</td><td>Pause or unpause active transform buff.</td></tr>
+<tr><td class="cmd">@RIDE</td><td class="params">—</td><td class="access-all">All</td><td>Toggle mount riding.</td></tr>
+<tr><td class="cmd">@SUMMONHERO</td><td class="params">—</td><td class="access-all">All</td><td>Toggle hero spawn/despawn.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Guild -->
+<div class="category" id="guild">
+<h2>Guild Commands<span>Guild Management &amp; War</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@CREATEGUILD</td><td class="params">[GuildName] <i>or</i> [PlayerName] [GuildName]</td><td class="access-test">GM / Test</td><td>Create a new guild. Name must be 3-20 characters.</td></tr>
+<tr><td class="cmd">@LEAVEGUILD</td><td class="params">—</td><td class="access-all">All</td><td>Leave current guild. Cannot leave if guild is at war.</td></tr>
+<tr><td class="cmd">@STARTWAR</td><td class="params">[GuildName]</td><td class="access-gm">GM</td><td>Start guild war between your guild and the specified guild. Must be guild leader.</td></tr>
+<tr><td class="cmd">@ALLOWGUILD</td><td class="params">—</td><td class="access-all">All</td><td>Toggle whether you accept guild invitations.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Quest & Flags -->
+<div class="category" id="quest-flag">
+<h2>Quest &amp; Flags<span>Quest State &amp; Flag Management</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@SETFLAG</td><td class="params">[FlagIndex]</td><td class="access-test">GM / Test</td><td>Toggle a quest/event flag. Affects NPC visibility checks.</td></tr>
+<tr><td class="cmd">@LISTFLAGS</td><td class="params">—</td><td class="access-test">GM / Test</td><td>List all active (true) flags currently set on player.</td></tr>
+<tr><td class="cmd">@CLEARFLAGS</td><td class="params">[PlayerName] <i>optional</i></td><td class="access-test">GM / Test</td><td>Clear all quest/event flags. GM can clear for other players.</td></tr>
+<tr><td class="cmd">@SETQUEST</td><td class="params">[QuestID] [State: 0=cancel, 1=complete] [PlayerName]</td><td class="access-test">GM / Test</td><td>Set quest state for player. PlayerName optional (GM-only for others).</td></tr>
+<tr><td class="cmd">@CLEARQUESTS</td><td class="params">[PlayerName] <i>optional</i></td><td class="access-test">GM / Test</td><td>Remove all active and completed quests.</td></tr>
+<tr><td class="cmd">@SETTIMER</td><td class="params">[Key] [Seconds] [TimerType]</td><td class="access-all">All</td><td>Set a custom timer for the player.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Conquest -->
+<div class="category" id="conquest">
+<h2>Conquest Commands<span>Territory Wars &amp; Gates</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@STARTCONQUEST</td><td class="params">[ConquestID]</td><td class="access-test">GM / Test</td><td>Start/stop forced conquest war. Guild leader set as attacker.</td></tr>
+<tr><td class="cmd">@RESETCONQUEST</td><td class="params">[ConquestID]</td><td class="access-test">GM / Test</td><td>Reset conquest state. Only works when war is not active.</td></tr>
+<tr><td class="cmd">@GATES</td><td class="params">[OPEN|CLOSE] <i>optional, toggles if omitted</i></td><td class="access-all">All (Rank)</td><td>Open/close conquest gates. Only during non-war times. Requires guild rank permission.</td></tr>
+<tr><td class="cmd">@CHANGEFLAG</td><td class="params">[FlagNumber: 0-11] <i>optional, random if omitted</i></td><td class="access-all">All (Rank)</td><td>Change guild conquest flag image.</td></tr>
+<tr><td class="cmd">@CHANGEFLAGCOLOUR</td><td class="params">[R] [G] [B] <i>optional, random if omitted</i></td><td class="access-all">All (Rank)</td><td>Change guild conquest flag color (RGB 0-255).</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Server Admin -->
+<div class="category" id="server">
+<h2>Server Administration<span>Reload, Broadcast, IP</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@! [Message]</td><td class="params">[Message]</td><td class="access-gm">GM</td><td>Server-wide announcement. Broadcast to all players as <code>(*)[GMName]:[Message]</code>.</td></tr>
+<tr><td class="cmd">@RELOADDROPS</td><td class="params">—</td><td class="access-gm">GM</td><td>Reload drop table from database.</td></tr>
+<tr><td class="cmd">@RELOADNPCS</td><td class="params">—</td><td class="access-gm">GM</td><td>Reload NPC scripts from database.</td></tr>
+<tr><td class="cmd">@CLEARIPBLOCKS</td><td class="params">—</td><td class="access-gm">GM</td><td>Clear all IP-based bans/blocks.</td></tr>
+<tr><td class="cmd">@TRIGGER</td><td class="params">[TriggerName] [PlayerName] <i>optional</i></td><td class="access-gm">GM</td><td>Call default NPC trigger. If player specified, triggers for that player only; otherwise for all online.</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- Player Commands -->
+<div class="category" id="player-cmds">
+<h2>Player Commands<span>Available to All Players</span></h2>
+<table>
+<thead><tr><th>Command</th><th>Parameters</th><th>Access</th><th>Description</th></tr></thead>
+<tbody>
+<tr><td class="cmd">@TIME</td><td class="params">—</td><td class="access-all">All</td><td>Show current server time (HH:MM AM/PM).</td></tr>
+<tr><td class="cmd">@MAP</td><td class="params">—</td><td class="access-all">All</td><td>Show current map ID and title.</td></tr>
+<tr><td class="cmd">@ROLL</td><td class="params">—</td><td class="access-all">All</td><td>Roll a dice (1-5), broadcast result to group members.</td></tr>
+<tr><td class="cmd">@OBSERVE</td><td class="params">[PlayerName]</td><td class="access-all">All</td><td>Observe another player. Respects AllowObserve setting.</td></tr>
+<tr><td class="cmd">@ALLOWOBSERVE</td><td class="params">—</td><td class="access-all">All</td><td>Toggle whether other players can observe you.</td></tr>
+<tr><td class="cmd">@ALLOWTRADE</td><td class="params">—</td><td class="access-all">All</td><td>Toggle whether you accept trade requests.</td></tr>
+<tr><td class="cmd">@FIND</td><td class="params">[PlayerName]</td><td class="access-all">All / GM</td><td>Show online player's location. Non-GM: 3 min cooldown, requires Probe mode.</td></tr>
+<tr><td class="cmd">@ADDINVENTORY</td><td class="params">—</td><td class="access-all">All</td><td>Expand inventory by 4 slots (costs increasing gold).</td></tr>
+<tr><td class="cmd">@ADDSTORAGE</td><td class="params">—</td><td class="access-all">All</td><td>Expand storage capacity with 10-day expiry (costs gold).</td></tr>
+</tbody>
+</table>
+</div>
+
+</div>
+
+<footer>
+  Crystal GM Commands Reference &bull; Auto-generated from <code>Server/MirObjects/PlayerObject.cs</code>
+</footer>
+
+<script>
+function filterCommands() {
+  const query = document.getElementById('searchBox').value.toUpperCase().trim();
+  const rows = document.querySelectorAll('tbody tr');
+  rows.forEach(row => {
+    const text = row.textContent.toUpperCase();
+    row.classList.toggle('hidden', query && !text.includes(query));
+  });
+}
+</script>
+
+</body>
+</html>

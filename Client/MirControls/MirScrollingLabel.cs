@@ -1,4 +1,5 @@
 ﻿using System.Text.RegularExpressions;
+using Client.MirScenes.Dialogs;
 
 namespace Client.MirControls
 {
@@ -73,14 +74,14 @@ namespace Client.MirControls
                     Capture capture = match.Groups[1].Captures[0];
                     string[] values = capture.Value.Split('/');
                     currentLine = currentLine.Remove(capture.Index - 1 - offSet, capture.Length + 2).Insert(capture.Index - 1 - offSet, values[0]);
-                    string text = currentLine.Substring(0, capture.Index - 1 - offSet) + " ";
-                    Size size = TextRenderer.MeasureText(CMain.Graphics, text, _textLabel[i - Index].Font, _textLabel[i - Index].Size, TextFormatFlags.TextBoxControl);
+                    string textBefore = currentLine.Substring(0, capture.Index - 1 - offSet);
+                    Point linkOffset = NPCDialog.CalculateLinkOffset(textBefore, _textLabel[i - Index]);
 
                     //if (R.Match(match.Value).Success)
-                    //    NewButton(values[0], values[1], TextLabel[i].Location.Add(new Point(size.Width - 10, 0)));
+                    //    NewButton(values[0], values[1], TextLabel[i].Location.Add(linkOffset));
 
                     if (C.Match(match.Value).Success)
-                        NewColour(values[0], values[1], _textLabel[i - Index].Location.Add(new Point(size.Width - 10, 0)));
+                        NewColour(values[0], values[1], _textLabel[i - Index].Location.Add(linkOffset));
                 }
 
                 _textLabel[i - Index].Text = currentLine;

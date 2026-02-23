@@ -438,6 +438,10 @@ namespace Client.MirScenes
                 AccountIDTextBox.TextBox.KeyPress += TextBox_KeyPress;
                 AccountIDTextBox.Text = Settings.AccountID;
 
+                // Tab navigation: AccountID -> Password -> AccountID
+                AccountIDTextBox.TabNextControl = PasswordTextBox;
+                PasswordTextBox.TabNextControl = AccountIDTextBox;
+
             }
 
             private void AccountIDTextBox_TextChanged(object sender, EventArgs e)
@@ -916,6 +920,16 @@ namespace Client.MirScenes
                 AccountIDTextBox.TextBox.MaxLength = Globals.MaxAccountIDLength;
                 AccountIDTextBox.TextBox.TextChanged += AccountIDTextBox_TextChanged;
                 AccountIDTextBox.TextBox.GotFocus += AccountIDTextBox_GotFocus;
+
+                // Tab navigation chain
+                AccountIDTextBox.TabNextControl = Password1TextBox;
+                Password1TextBox.TabNextControl = Password2TextBox;
+                Password2TextBox.TabNextControl = UserNameTextBox;
+                UserNameTextBox.TabNextControl = BirthDateTextBox;
+                BirthDateTextBox.TabNextControl = QuestionTextBox;
+                QuestionTextBox.TabNextControl = AnswerTextBox;
+                AnswerTextBox.TabNextControl = EMailTextBox;
+                EMailTextBox.TabNextControl = AccountIDTextBox;
             }
 
 
@@ -1256,6 +1270,11 @@ namespace Client.MirScenes
                 };
                 NewPassword2TextBox.TextBox.TextChanged += NewPassword2TextBox_TextChanged;
 
+                // Tab navigation chain
+                AccountIDTextBox.TabNextControl = CurrentPasswordTextBox;
+                CurrentPasswordTextBox.TabNextControl = NewPassword1TextBox;
+                NewPassword1TextBox.TabNextControl = NewPassword2TextBox;
+                NewPassword2TextBox.TabNextControl = AccountIDTextBox;
             }
 
             void RefreshConfirmButton()

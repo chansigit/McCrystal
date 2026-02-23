@@ -1,0 +1,1 @@
+# No external dependencies — stdlib only (asyncio, struct, hashlib, gzip)

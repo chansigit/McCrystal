@@ -916,7 +916,7 @@ namespace Client.MirControls
         }
         public virtual void OnKeyPress(KeyPressEventArgs e)
         {
-            if (!_enabled)
+            if (!_enabled || !_visible)
                 return;
 
             if (Controls != null)
@@ -932,7 +932,7 @@ namespace Client.MirControls
         }
         public virtual void OnKeyDown(KeyEventArgs e)
         {
-            if (!_enabled)
+            if (!_enabled || !_visible)
                 return;
 
             if (Controls != null)
@@ -948,7 +948,7 @@ namespace Client.MirControls
         }
         public virtual void OnKeyUp(KeyEventArgs e)
         {
-            if (!_enabled)
+            if (!_enabled || !_visible)
                 return;
 
             if (Controls != null)
@@ -969,10 +969,11 @@ namespace Client.MirControls
         }
 
         #region Font
-        // Font scaling - returns a font size scaled for DPI
+        // Font scaling - returns a font size scaled for DPI, with global scale factor
+        public const float GlobalFontScale = 1.5f; // 50% larger for macOS readability
         public static float ScaleFontSize(float size)
         {
-            return size * 96f / CMain.DpiX;
+            return size * 96f / CMain.DpiX * GlobalFontScale;
         }
 
         // Compatibility method for ScaleFont(new Font(...)) calls

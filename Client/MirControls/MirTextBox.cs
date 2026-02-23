@@ -86,6 +86,15 @@ namespace Client.MirControls
 
         #endregion
 
+        #region Tab Navigation
+
+        /// <summary>
+        /// The next MirTextBox to focus when Tab is pressed.
+        /// </summary>
+        public MirTextBox TabNextControl { get; set; }
+
+        #endregion
+
         #region Font
 
         private float _fontSize;
@@ -133,6 +142,9 @@ namespace Client.MirControls
 
         /// <summary>Tracks the currently focused text box so only one has focus at a time.</summary>
         private static MirTextBox _currentFocused;
+
+        /// <summary>Returns true if any MirTextBox currently has focus.</summary>
+        public static bool AnyTextBoxFocused => _currentFocused != null && _currentFocused._focused && !_currentFocused.IsDisposed;
 
         #endregion
 
@@ -272,7 +284,8 @@ namespace Client.MirControls
             set
             {
                 base.Visible = value;
-                OnVisibleChanged();
+                // base.Visible setter already calls OnVisibleChanged() when value changes;
+                // no need to call it again here.
             }
         }
 
@@ -349,8 +362,11 @@ namespace Client.MirControls
                 if (_multiline)
                 {
                     InsertChar('\n');
+                    e.Handled = true;
+                    return;
                 }
-                e.Handled = true;
+                // For single-line, let Enter propagate to registered KeyPress handlers (e.g. chat send)
+                base.OnKeyPress(e);
                 return;
             }
 
@@ -445,6 +461,13 @@ namespace Client.MirControls
                     if (e.Control)
                     {
                         _cursorPosition = _text.Length;
+                        e.Handled = true;
+                    }
+                    break;
+                case Keys.Tab:
+                    if (TabNextControl != null)
+                    {
+                        TabNextControl.SetFocus();
                         e.Handled = true;
                     }
                     break;

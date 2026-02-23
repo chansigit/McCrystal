@@ -14,10 +14,10 @@ namespace Client.MirScenes.Dialogs
 {
     public sealed class NPCDialog : MirImageControl
     {
-        public static Regex R = new Regex(@"<((.*?)\/(\@.*?))>");
+        public static Regex R = new Regex(@"<((.*?)\/(.*?))>");
         public static Regex C = new Regex(@"{((.*?)\/(.*?))}");
         public static Regex L = new Regex(@"\(((.*?)\/(.*?))\)");
-        public static Regex B = new Regex(@"<<((.*?)\/(\@.*?))>>");
+        public static Regex B = new Regex(@"<<((.*?)\/(.*?))>>");
 
         // New regex patterns for NPC/Monster/Item linking (using IDX)
         public static Regex MonsterLink = new Regex(@"\[MONSTER:(?<idx>\d+)(\|(?<name>[^\]]+))?\]|<\$MONSTER:(?<idx>\d+)>", RegexOptions.IgnoreCase);
@@ -292,6 +292,16 @@ namespace Client.MirScenes.Dialogs
                 return;
             }
 
+            // Ensure action starts with @ (NPC scripts use [@action] format)
+            if (!action.StartsWith("@"))
+                action = "@" + action;
+
+            if (action == "@Exit")
+            {
+                Hide();
+                return;
+            }
+
             if (CMain.Time <= GameScene.NPCTime) return;
 
             GameScene.NPCTime = CMain.Time + 5000;
@@ -484,17 +494,17 @@ namespace Client.MirScenes.Dialogs
                         string action = match.Groups[3].Captures[0].Value;
 
                         currentLine = currentLine.Remove(capture.Index - 1 - offSet, capture.Length + 2).Insert(capture.Index - 1 - offSet, txt);
-                        string text2 = currentLine.Substring(0, capture.Index - 1 - offSet) + " ";
-                        Size size2 = TextRenderer.MeasureText(CMain.Graphics, text2, TextLabel[i].Font, TextLabel[i].Size, TextFormatFlags.TextBoxControl);
+                        string textBefore = currentLine.Substring(0, capture.Index - 1 - offSet);
+                        Point linkOffset = CalculateLinkOffset(textBefore, TextLabel[i]);
 
                         if (R.Match(match.Value).Success)
-                            NewButton(txt, action, TextLabel[i].Location.Add(new Point(size2.Width - 10, 0)));
+                            NewButton(txt, action, TextLabel[i].Location.Add(linkOffset));
 
                         if (C.Match(match.Value).Success)
-                            NewColour(txt, action, TextLabel[i].Location.Add(new Point(size2.Width - 10, 0)));
+                            NewColour(txt, action, TextLabel[i].Location.Add(linkOffset));
 
                         if (L.Match(match.Value).Success)
-                            NewButton(txt, null, TextLabel[i].Location.Add(new Point(size2.Width - 10, 0)), action);
+                            NewButton(txt, null, TextLabel[i].Location.Add(linkOffset), action);
                     }
                 }
                 TextLabel[i].Text = currentLine;
@@ -967,39 +977,39 @@ namespace Client.MirScenes.Dialogs
 
         private static readonly TextFormatFlags LinkMeasureFlags = TextFormatFlags.NoPadding | TextFormatFlags.NoPrefix;
 
-        internal static Point CalculateLinkOffset(string text, MirLabel label)
+        public static Point CalculateLinkOffset(string text, MirLabel label)
         {
             if (label == null || string.IsNullOrEmpty(text))
                 return Point.Zero;
 
             int maxWidth = Math.Max(1, label.Size.Width);
-            int x = 0;
-            int y = 0;
 
-            foreach (char ch in text)
+            string fontName = label.Font?.FontFamily ?? Settings.FontName;
+            float fontSize = label.Font?.Size > 0 ? label.Font.Size : 10f;
+
+            using (var paint = new SkiaSharp.SKPaint())
             {
-                if (ch == '\r') continue;
+                paint.TextSize = fontSize;
+                paint.IsAntialias = true;
+                paint.Typeface = SkiaSharp.SKTypeface.FromFamilyName(fontName);
 
-                if (ch == '\n')
+                // Handle newlines: measure each line separately
+                string[] lines = text.Split('\n');
+                int lineHeight = (int)Math.Ceiling(paint.FontSpacing);
+
+                if (lines.Length <= 1)
                 {
-                    x = 0;
-                    y += label.Font.Height;
-                    continue;
+                    // Single line: measure the whole string at once for accuracy
+                    float w = paint.MeasureText(text);
+                    return new Point((int)Math.Ceiling(w), 0);
                 }
 
-                string character = ch.ToString();
-                Size size = TextRenderer.MeasureText(CMain.Graphics, character, label.Font, new Size(int.MaxValue, int.MaxValue), LinkMeasureFlags);
-
-                if (x + size.Width > maxWidth && x > 0)
-                {
-                    x = 0;
-                    y += label.Font.Height;
-                }
-
-                x += size.Width;
+                // Multi-line: the offset is at the end of the last line
+                int y = (lines.Length - 1) * lineHeight;
+                string lastLine = lines[lines.Length - 1];
+                float lastW = paint.MeasureText(lastLine);
+                return new Point((int)Math.Ceiling(lastW), y);
             }
-
-            return new Point(x, y);
         }
 
         public void CheckQuestButtonDisplay()
