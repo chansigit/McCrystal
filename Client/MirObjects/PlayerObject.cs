@@ -1622,7 +1622,7 @@ namespace Client.MirObjects
                         if (this != User)
                         {
                             TargetID = (uint)action.Params[0];
-                            TargetPoint = (Point)action.Params[1];
+                            TargetPoint = (Point)(System.Drawing.Point)action.Params[1];
                             Spell = (Spell)action.Params[2];
                         }
                         break;
@@ -1632,7 +1632,7 @@ namespace Client.MirObjects
                         {
                             Spell = (Spell)action.Params[0];
                             TargetID = (uint)action.Params[1];
-                            TargetPoint = (Point)action.Params[2];
+                            TargetPoint = (Point)(System.Drawing.Point)action.Params[2];
                             Cast = (bool)action.Params[3];
                             SpellLevel = (byte)action.Params[4];
                             SecondaryTargetIDs = (List<uint>)action.Params[5];

@@ -1,0 +1,28 @@
+[2026/2/23 08:54:58] System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Client.MirObjects.MonsterObject.Load(ObjectMonster info, Boolean update) in /Users/chensijie/codes/Crystal/Client/MirObjects/MonsterObject.cs:line 208
+   at Client.MirScenes.GameScene.ObjectMonster(ObjectMonster p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 3332
+   at Client.MirScenes.GameScene.ProcessPacket(Packet p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 1497
+   at Client.MirNetwork.Network.Process() in /Users/chensijie/codes/Crystal/Client/MirNetwork/Network.cs:line 226
+   at Client.CMain.UpdateEnviroment() in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 536
+   at Client.CMain.Update(GameTime gameTime) in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 146
+[2026/2/23 08:54:59] System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Client.MirObjects.MonsterObject.Load(ObjectMonster info, Boolean update) in /Users/chensijie/codes/Crystal/Client/MirObjects/MonsterObject.cs:line 208
+   at Client.MirScenes.GameScene.ObjectMonster(ObjectMonster p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 3332
+   at Client.MirScenes.GameScene.ProcessPacket(Packet p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 1497
+   at Client.MirNetwork.Network.Process() in /Users/chensijie/codes/Crystal/Client/MirNetwork/Network.cs:line 226
+   at Client.CMain.UpdateEnviroment() in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 536
+   at Client.CMain.Update(GameTime gameTime) in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 146
+[2026/2/23 08:54:59] System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Client.MirObjects.MonsterObject.Load(ObjectMonster info, Boolean update) in /Users/chensijie/codes/Crystal/Client/MirObjects/MonsterObject.cs:line 208
+   at Client.MirScenes.GameScene.ObjectMonster(ObjectMonster p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 3332
+   at Client.MirScenes.GameScene.ProcessPacket(Packet p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 1497
+   at Client.MirNetwork.Network.Process() in /Users/chensijie/codes/Crystal/Client/MirNetwork/Network.cs:line 226
+   at Client.CMain.UpdateEnviroment() in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 536
+   at Client.CMain.Update(GameTime gameTime) in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 146
+[2026/2/23 08:54:59] System.IndexOutOfRangeException: Index was outside the bounds of the array.
+   at Client.MirObjects.MapObject.AddBuffEffect(BuffType type) in /Users/chensijie/codes/Crystal/Client/MirObjects/MapObject.cs:line 264
+   at Client.MirScenes.GameScene.AddBuff(AddBuff p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 5226
+   at Client.MirScenes.GameScene.ProcessPacket(Packet p) in /Users/chensijie/codes/Crystal/Client/MirScenes/GameScene.cs:line 1728
+   at Client.MirNetwork.Network.Process() in /Users/chensijie/codes/Crystal/Client/MirNetwork/Network.cs:line 226
+   at Client.CMain.UpdateEnviroment() in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 536
+   at Client.CMain.Update(GameTime gameTime) in /Users/chensijie/codes/Crystal/Client/Forms/CMain.cs:line 146

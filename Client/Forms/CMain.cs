@@ -297,26 +297,33 @@ namespace Client
             SpellTargetLock = false;
         }
 
+        private static bool _inKeyDown;
         public static void CMain_KeyDown(object sender, KeyEventArgs e)
         {
-            Shift = e.Shift;
-            Alt = e.Alt;
-            Ctrl = e.Control;
-
-            if (!String.IsNullOrEmpty(InputKeys.GetKey(KeybindOptions.TargetSpellLockOn)))
-            {
-                SpellTargetLock = e.KeyCode == (Keys)Enum.Parse(typeof(Keys), InputKeys.GetKey(KeybindOptions.TargetSpellLockOn), true);
-            }
-            else
-            {
-                SpellTargetLock = false;
-            }
-
-            if (e.KeyCode == Keys.OemTilde)
-                CMain.Tilde = true;
-
+            // Prevent re-entrant calls. In MonoGame, ProcessKeyboardInput already dispatches
+            // F1-F12 through here. ChatTextBox_KeyDown forwards F-keys back to CMain_KeyDown
+            // (needed in WinForms where the TextBox consumed key events), which would cause
+            // infinite recursion in MonoGame. The guard ensures the first call handles everything.
+            if (_inKeyDown) return;
+            _inKeyDown = true;
             try
             {
+                Shift = e.Shift;
+                Alt = e.Alt;
+                Ctrl = e.Control;
+
+                if (!String.IsNullOrEmpty(InputKeys.GetKey(KeybindOptions.TargetSpellLockOn)))
+                {
+                    SpellTargetLock = e.KeyCode == (Keys)Enum.Parse(typeof(Keys), InputKeys.GetKey(KeybindOptions.TargetSpellLockOn), true);
+                }
+                else
+                {
+                    SpellTargetLock = false;
+                }
+
+                if (e.KeyCode == Keys.OemTilde)
+                    CMain.Tilde = true;
+
                 if (e.Alt && e.KeyCode == Keys.Enter)
                 {
                     ToggleFullScreen();
@@ -329,6 +336,10 @@ namespace Client
             catch (Exception ex)
             {
                 SaveError(ex.ToString());
+            }
+            finally
+            {
+                _inKeyDown = false;
             }
         }
 
@@ -347,49 +358,56 @@ namespace Client
             }
         }
 
+        private static bool _inKeyUp;
         public static void CMain_KeyUp(object sender, KeyEventArgs e)
         {
-            Shift = e.Shift;
-            Alt = e.Alt;
-            Ctrl = e.Control;
-
-            if (!String.IsNullOrEmpty(InputKeys.GetKey(KeybindOptions.TargetSpellLockOn)))
-            {
-                SpellTargetLock = e.KeyCode == (Keys)Enum.Parse(typeof(Keys), InputKeys.GetKey(KeybindOptions.TargetSpellLockOn), true);
-            }
-            else
-            {
-                SpellTargetLock = false;
-            }
-
-            if (e.KeyCode == Keys.OemTilde)
-                CMain.Tilde = false;
-
-            foreach (KeyBind KeyCheck in CMain.InputKeys.Keylist)
-            {
-                if (KeyCheck.function != KeybindOptions.Screenshot) continue;
-                if (KeyCheck.Key != e.KeyCode)
-                    continue;
-                if ((KeyCheck.RequireAlt != 2) && (KeyCheck.RequireAlt != (Alt ? 1 : 0)))
-                    continue;
-                if ((KeyCheck.RequireShift != 2) && (KeyCheck.RequireShift != (Shift ? 1 : 0)))
-                    continue;
-                if ((KeyCheck.RequireCtrl != 2) && (KeyCheck.RequireCtrl != (Ctrl ? 1 : 0)))
-                    continue;
-                if ((KeyCheck.RequireTilde != 2) && (KeyCheck.RequireTilde != (Tilde ? 1 : 0)))
-                    continue;
-                Program.Form.CreateScreenShot();
-                break;
-            }
-
+            if (_inKeyUp) return;
+            _inKeyUp = true;
             try
             {
+                Shift = e.Shift;
+                Alt = e.Alt;
+                Ctrl = e.Control;
+
+                if (!String.IsNullOrEmpty(InputKeys.GetKey(KeybindOptions.TargetSpellLockOn)))
+                {
+                    SpellTargetLock = e.KeyCode == (Keys)Enum.Parse(typeof(Keys), InputKeys.GetKey(KeybindOptions.TargetSpellLockOn), true);
+                }
+                else
+                {
+                    SpellTargetLock = false;
+                }
+
+                if (e.KeyCode == Keys.OemTilde)
+                    CMain.Tilde = false;
+
+                foreach (KeyBind KeyCheck in CMain.InputKeys.Keylist)
+                {
+                    if (KeyCheck.function != KeybindOptions.Screenshot) continue;
+                    if (KeyCheck.Key != e.KeyCode)
+                        continue;
+                    if ((KeyCheck.RequireAlt != 2) && (KeyCheck.RequireAlt != (Alt ? 1 : 0)))
+                        continue;
+                    if ((KeyCheck.RequireShift != 2) && (KeyCheck.RequireShift != (Shift ? 1 : 0)))
+                        continue;
+                    if ((KeyCheck.RequireCtrl != 2) && (KeyCheck.RequireCtrl != (Ctrl ? 1 : 0)))
+                        continue;
+                    if ((KeyCheck.RequireTilde != 2) && (KeyCheck.RequireTilde != (Tilde ? 1 : 0)))
+                        continue;
+                    Program.Form.CreateScreenShot();
+                    break;
+                }
+
                 if (MirScene.ActiveScene != null)
                     MirScene.ActiveScene.OnKeyUp(e);
             }
             catch (Exception ex)
             {
                 SaveError(ex.ToString());
+            }
+            finally
+            {
+                _inKeyUp = false;
             }
         }
 
