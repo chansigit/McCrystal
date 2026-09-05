@@ -415,10 +415,11 @@ namespace Client.MirScenes
 
                 PasswordTextBox = new MirTextBox
                 {
-                    Location = new Point(85, 108),
+                    Font = new Font("Helvetica", 9F),
+                    Location = new Point(85, 106),
                     Parent = this,
                     Password = true,
-                    Size = new Size(136, 15),
+                    Size = new Size(136, 18),
                     MaxLength = Globals.MaxPasswordLength
                 };
 
@@ -428,9 +429,10 @@ namespace Client.MirScenes
 
                 AccountIDTextBox = new MirTextBox
                 {
-                    Location = new Point(85, 85),
+                    Font = new Font("Helvetica", 9F),
+                    Location = new Point(85, 83),
                     Parent = this,
-                    Size = new Size(136, 15),
+                    Size = new Size(136, 18),
                     MaxLength = Globals.MaxAccountIDLength
                 };
 

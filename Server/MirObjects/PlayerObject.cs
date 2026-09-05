@@ -10531,6 +10531,12 @@ namespace Server.MirObjects
         {
             S.DepositTradeItem p = new S.DepositTradeItem { From = from, To = to, Success = false };
 
+            if (TradePartner == null || TradePartner.TradePartner != this)
+            {
+                Enqueue(p);
+                return;
+            }
+
             if (from < 0 || from >= Info.Inventory.Length)
             {
                 Enqueue(p);
@@ -10747,7 +10753,7 @@ namespace Server.MirObjects
 
             if (TradePartner == null) return;
 
-            if (amount < 1 || Account.Gold < amount)
+            if (amount < 1 || Account.Gold < amount || amount > uint.MaxValue - TradeGoldAmount)
             {
                 return;
             }

@@ -1,0 +1,17 @@
+{
+  "name": "crystal-web-client",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "esbuild src/main.js --bundle --format=esm --minify --outfile=wwwroot/client.js",
+    "test": "node --test src/*.test.js && dotnet run --project ../Tests/WebRegression/WebRegression.csproj"
+  },
+  "dependencies": {
+    "pixi.js": "^8.0.0",
+    "pathfinding": "^0.4.18",
+    "lucide": "^0.577.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.0"
+  }
+}

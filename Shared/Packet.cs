@@ -19,7 +19,8 @@ public abstract class Packet
         var length = BitConverter.ToUInt16(rawBytes, 0);
         var id = BitConverter.ToInt16(rawBytes, 2);
 
-        if (length > rawBytes.Length || length < 2) return null;
+        if (length < 4) throw new InvalidDataException("Packet length is smaller than its header.");
+        if (length > rawBytes.Length) return null;
 
         try
         {
@@ -33,7 +34,7 @@ public abstract class Packet
             }
 
             using var ms = p.Compressed ?
-                new MemoryStream(p.DecompressPacket(rawBytes[4..(length - 4)])) :
+                new MemoryStream(p.DecompressPacket(rawBytes[4..length])) :
                 new MemoryStream(rawBytes, 4, length - 4);
             using var reader = new BinaryReader(ms);
 

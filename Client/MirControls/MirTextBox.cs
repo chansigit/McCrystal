@@ -567,14 +567,17 @@ namespace Client.MirControls
 
                     using (var paint = new SKPaint())
                     {
-                        paint.TextSize = _fontSize > 0 ? _fontSize : 12;
+                        paint.TextSize = MathF.Round(_fontSize > 0 ? _fontSize : 12);
                         paint.IsAntialias = true;
+                        paint.HintingLevel = SKPaintHinting.Full;
+                        paint.SubpixelText = false;
                         paint.Typeface = SKTypeface.FromFamilyName(_fontName ?? Settings.FontName);
                         paint.Color = new SKColor(ForeColour.R, ForeColour.G, ForeColour.B, ForeColour.A);
 
                         string displayText = _password ? new string('*', _text.Length) : _text;
 
-                        float y = paint.FontSpacing;
+                        var metrics = paint.FontMetrics;
+                        float y = MathF.Round((Size.Height - (metrics.Descent - metrics.Ascent)) / 2f - metrics.Ascent);
                         canvas.DrawText(displayText, 2, y, paint);
 
                         // Draw cursor
