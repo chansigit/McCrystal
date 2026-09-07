@@ -28,12 +28,16 @@ namespace Server.Admin
 
         public AdminActionResult Run(Func<string> action)
         {
+            // Intentionally not disposed: a late Set() firing after a timeout must not throw.
             var done = new ManualResetEventSlim(false);
             string message = null;
             Exception error = null;
+            bool abandoned = false;
 
             envir.AdminActions.Enqueue(() =>
             {
+                if (Volatile.Read(ref abandoned)) return;
+
                 try
                 {
                     message = action();
@@ -49,10 +53,19 @@ namespace Server.Admin
             });
 
             if (!done.Wait(timeout))
+            {
+                Volatile.Write(ref abandoned, true);
                 return new AdminActionResult { Ok = false, Message = "Timed out waiting for the game loop. Is the server running?" };
+            }
 
             if (error != null)
-                return new AdminActionResult { Ok = false, Message = error.Message };
+            {
+                if (error is AdminException)
+                    return new AdminActionResult { Ok = false, Message = error.Message };
+
+                MessageQueue.Instance.Enqueue(error);
+                return new AdminActionResult { Ok = false, Message = "Internal error; see server log." };
+            }
 
             return new AdminActionResult { Ok = true, Message = message ?? "OK" };
         }

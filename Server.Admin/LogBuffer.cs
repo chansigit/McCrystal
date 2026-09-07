@@ -34,7 +34,7 @@ namespace Server.Admin
                 {
                     Sequence = ++lastSequence,
                     Kind = kind,
-                    Text = text.TrimEnd('\r', '\n'),
+                    Text = (text ?? string.Empty).TrimEnd('\r', '\n'),
                     Time = DateTime.Now
                 };
                 entries.AddLast(entry);

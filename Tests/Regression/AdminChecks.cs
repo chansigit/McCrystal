@@ -28,7 +28,7 @@ static class AdminChecks
 
         var drain = new Thread(() =>
         {
-            Thread.Sleep(50);
+            while (envir.AdminActions.IsEmpty) Thread.Yield();
             envir.ProcessAdminActions();
         });
         drain.Start();
@@ -38,7 +38,7 @@ static class AdminChecks
 
         drain = new Thread(() =>
         {
-            Thread.Sleep(50);
+            while (envir.AdminActions.IsEmpty) Thread.Yield();
             envir.ProcessAdminActions();
         });
         drain.Start();
@@ -51,10 +51,31 @@ static class AdminChecks
     {
         var envir = new Envir();
         var runner = new Server.Admin.AdminActionRunner(envir, TimeSpan.FromMilliseconds(100));
-        var result = runner.Run(() => "never");
+        var ran = false;
+        var result = runner.Run(() => { ran = true; return "never"; });
         Check(!result.Ok, "timeout reported as success");
         Check(result.Message.Contains("game loop"), "timeout message missing");
         envir.ProcessAdminActions(); // late execution must not throw
+        Check(!ran, "abandoned action ran after timeout");
+    }
+
+    public static void ActionRunnerLogsInternalErrors()
+    {
+        var envir = new Envir();
+        var runner = new Server.Admin.AdminActionRunner(envir, TimeSpan.FromSeconds(2));
+
+        var drain = new Thread(() =>
+        {
+            while (envir.AdminActions.IsEmpty) Thread.Yield();
+            envir.ProcessAdminActions();
+        });
+        drain.Start();
+        var result = runner.Run(() => throw new InvalidOperationException("secret detail"));
+        drain.Join();
+
+        Check(!result.Ok, "internal error reported as success");
+        Check(result.Message == "Internal error; see server log.", "internal error message not sanitized");
+        Check(!result.Message.Contains("secret"), "internal error leaked detail to caller");
     }
 
     public static void LogBufferKeepsLastLines()
