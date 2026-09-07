@@ -7,6 +7,7 @@ var tests = new (string Name, Action Run)[]
 {
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
+    ("Content pack reports serialize stable JSON", ContentPackReportJson),
     ("Windows drop paths and nested inserts resolve on the host platform", DropPaths),
     ("Compressed goods round trip and following packet", CompressedRoundTrip),
     ("Compressed goods validates the complete gzip trailer", CompressedTrailer),
@@ -102,6 +103,33 @@ static void ContentPackSchema()
     finally
     {
         Directory.Delete(root, true);
+    }
+}
+
+static void ContentPackReportJson()
+{
+    string path = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"), "report.json");
+    try
+    {
+        var report = new ContentPackReport { PackId = "test", PackVersion = "1" };
+        report.Inventory["database.items"] = 2;
+        report.Issues.Add(new ContentPackIssue
+        {
+            Severity = ContentIssueSeverity.Error,
+            Code = "TEST_ERROR",
+            Message = "Test"
+        });
+        report.WriteJson(path);
+        var json = File.ReadAllText(path);
+        Check(json.Contains("\"packId\": \"test\""));
+        Check(json.Contains("\"severity\": \"Error\""));
+        Check(json.Contains("\"errorCount\": 1"));
+    }
+    finally
+    {
+        if (File.Exists(path)) File.Delete(path);
+        var directory = Path.GetDirectoryName(path);
+        if (Directory.Exists(directory)) Directory.Delete(directory);
     }
 }
 

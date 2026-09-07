@@ -22,6 +22,7 @@ Run from the built server directory:
 dotnet Server.Console.dll --pack classic
 dotnet Server.Console.dll --pack /path/to/custom/pack.yaml --state /path/to/instance
 dotnet Server.Console.dll --pack classic --validate-pack
+dotnet Server.Console.dll --pack classic --validate-pack --report pack-report.json
 ```
 
 The corresponding environment variables are `MCCRYSTAL_PACK` and
@@ -48,4 +49,6 @@ paths:
 
 Startup validation rejects missing content directories, unreadable databases,
 manifest/header schema mismatches, and database schemas unsupported by the
-engine.
+engine. Deep validation inventories the pack and checks map, movement, respawn,
+NPC, quest, route, drop item, drop include, duplicate index, and portable path
+references. `--report` writes every finding as JSON for CI and migration work.

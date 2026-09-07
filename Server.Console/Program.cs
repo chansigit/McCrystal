@@ -20,10 +20,17 @@ namespace Server.Console
                 var contentPack = ContentPack.Configure(args);
                 contentPack.ValidateOrThrow(Envir.MinVersion, Envir.Version);
 
-                if (args.Contains("--validate-pack", StringComparer.Ordinal))
+                var reportPath = ContentPack.GetOption(args, "--report");
+                if (args.Contains("--validate-pack", StringComparer.Ordinal) || reportPath != null)
                 {
-                    System.Console.WriteLine($"Content pack is valid: {contentPack.Describe()}.");
-                    return 0;
+                    var report = ContentPackInspector.Inspect(contentPack);
+                    PrintReport(contentPack, report);
+                    if (reportPath != null)
+                    {
+                        report.WriteJson(reportPath);
+                        System.Console.WriteLine($"Full report written to {Path.GetFullPath(reportPath)}");
+                    }
+                    return report.ErrorCount == 0 ? 0 : 1;
                 }
 
                 Settings.Load();
@@ -76,6 +83,19 @@ namespace Server.Console
                 Logger.GetLogger(LogType.Server).Error(ex);
                 return 1;
             }
+        }
+
+        private static void PrintReport(ContentPack contentPack, ContentPackReport report)
+        {
+            System.Console.WriteLine($"Content pack: {contentPack.Describe()}");
+            foreach (var entry in report.Inventory.OrderBy(entry => entry.Key))
+                System.Console.WriteLine($"  {entry.Key}: {entry.Value}");
+            System.Console.WriteLine($"Validation: {report.ErrorCount} errors, {report.WarningCount} warnings");
+
+            foreach (var issue in report.Issues.Take(50))
+                System.Console.WriteLine($"{issue.Severity.ToString().ToUpperInvariant(),-7} {issue.Code}: {issue.Message}{(issue.Path == null ? string.Empty : $" [{issue.Path}]")}");
+            if (report.Issues.Count > 50)
+                System.Console.WriteLine($"... {report.Issues.Count - 50} more issues; use --report to save all details.");
         }
     }
 }

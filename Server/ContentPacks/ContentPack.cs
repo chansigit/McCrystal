@@ -44,8 +44,8 @@ namespace Server.ContentPacks
         public static ContentPack Configure(string[] args)
         {
             var workingDirectory = Environment.CurrentDirectory;
-            var packSelection = ReadOption(args, "--pack") ?? Environment.GetEnvironmentVariable(PackEnvironmentVariable);
-            var stateSelection = ReadOption(args, "--state") ?? Environment.GetEnvironmentVariable(StateEnvironmentVariable);
+            var packSelection = GetOption(args, "--pack") ?? Environment.GetEnvironmentVariable(PackEnvironmentVariable);
+            var stateSelection = GetOption(args, "--state") ?? Environment.GetEnvironmentVariable(StateEnvironmentVariable);
 
             if (string.IsNullOrWhiteSpace(packSelection))
             {
@@ -195,7 +195,7 @@ namespace Server.ContentPacks
             return Path.GetFullPath(Path.IsPathRooted(value) ? value : Path.Combine(root, value));
         }
 
-        private static string ReadOption(string[] args, string name)
+        public static string GetOption(string[] args, string name)
         {
             for (var i = 0; i < args.Length; i++)
             {
