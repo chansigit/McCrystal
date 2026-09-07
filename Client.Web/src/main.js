@@ -64,6 +64,10 @@ const state = {
   characters: [],
   mapReady: false,
 };
+// Diagnostic: server packet types with no case in the receive() switch below,
+// tracked so each type is only logged once per session instead of once per packet.
+const unhandledPackets = new Set();
+window.__unhandledPackets = unhandledPackets;
 const inventory = new InventoryUI(() => state.user, (index) => state.items.get(index), send);
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
@@ -576,6 +580,12 @@ function receive(type, p) {
       break;
     case "Disconnect":
       status("服务端断开了连接");
+      break;
+    default:
+      if (!unhandledPackets.has(type)) {
+        unhandledPackets.add(type);
+        console.log(`[unhandled] ${type}`);
+      }
       break;
   }
 }
