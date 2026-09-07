@@ -25,6 +25,7 @@ import { GameAudio } from "./audio.js";
 import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
+import { NPCTrade } from "./npc-trade.js";
 import { ReviveOverlay } from "./revive.js";
 import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
@@ -75,9 +76,10 @@ window.__unhandledPackets = unhandledPackets;
 const inventory = new InventoryUI(() => state.user, (index) => state.items.get(index), send);
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
+const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
-npc.onChange = () => shop.close();
+npc.onChange = () => { shop.close(); trade.close(); };
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
   const pointer = world.attackInput.pointer;
@@ -253,10 +255,11 @@ function receive(type, p) {
       }
       break;
     case "NPCSell":
-      clearTimeout(npc.timer);
-      if (!shop.goods) $("npc-status").textContent = "出售窗口暂不可用";
-      break;
     case "NPCRepair":
+      if (!npc.objectID) break;
+      clearTimeout(npc.timer); $("npc-status").textContent = "";
+      trade.open(type === "NPCSell" ? "sell" : "repair", p.Rate);
+      break;
     case "NPCStorage":
       clearTimeout(npc.timer);
       $("npc-status").textContent = "此交易窗口尚未接入网页客户端";
@@ -581,13 +584,17 @@ function receive(type, p) {
     case "DropItem":
     case "SplitItem":
     case "SplitItem1":
+    case "SellItem":
     case "ItemRepaired": {
       const used = type === "UseItem" ? state.user?.Inventory?.find((item) => item?.UniqueID === p.UniqueID) : null;
       const sound = used ? itemUseSound(p, state.items.get(used.ItemIndex)) : null;
       inventory.receive(type, p);
+      trade.receive(type, p);
       if (sound !== null) gameAudio.play(sound);
       break;
     }
+    // S.RepairItem only unlocks the request; S.ItemRepaired carries the restored durability.
+    case "RepairItem": trade.receive(type, p); break;
     case "GainedGold":
       if (state.user) {
         state.user.Gold += p.Gold;
@@ -702,6 +709,7 @@ function gainItem(item) {
 }
 function updateInventory() {
   if (shop.goods) shop.details();
+  trade.refresh();
   inventory.render();
 }
 function cancelAttack() {

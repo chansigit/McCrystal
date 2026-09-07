@@ -71,8 +71,9 @@ export function applyInventoryPacket(user, type, p) {
     }
     return true;
   }
-  // The server drops from the bag only; the hero inventory is not part of this client.
-  if (type === "DropItem" || type === "SplitItem1") {
+  // The server drops, splits and sells out of the bag only; the hero inventory is not
+  // part of this client, and a sale answers with the count the server actually took.
+  if (type === "DropItem" || type === "SplitItem1" || type === "SellItem") {
     if (!p.Success || p.HeroItem || (type === "SplitItem1" && p.Grid !== 1)) return false;
     const index = bag.findIndex((item) => item?.UniqueID === p.UniqueID);
     if (index < 0) throw new Error("物品身份同步异常，请重新登录");

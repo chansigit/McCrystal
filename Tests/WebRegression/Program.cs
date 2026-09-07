@@ -185,4 +185,16 @@ Check(decodedSplit.Grid == MirGridType.Inventory && decodedSplit.UniqueID == ulo
 Reject("""{"type":"SplitItem","data":{"Grid":4,"UniqueID":"1","Count":1}}""", "Storage split rejected");
 Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"0","Count":1}}""", "Split without an item ID rejected");
 Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"1","Count":0}}""", "Split of nothing rejected");
+var sale = Parse("""{"type":"SellItem","data":{"UniqueID":"18446744073709551615","Count":65535}}""");
+var decodedSale = (ClientPackets.SellItem)Packet.ReceivePacket(sale.GetPacketBytes().ToArray(), out var saleExtra);
+Check(decodedSale.UniqueID == ulong.MaxValue && decodedSale.Count == ushort.MaxValue && saleExtra.Length == 0,
+    "Item sale carries the 64-bit item ID and the full stack count to the server");
+Reject("""{"type":"SellItem","data":{"UniqueID":"0","Count":1}}""", "Sale without an item ID rejected");
+Reject("""{"type":"SellItem","data":{"UniqueID":"1","Count":0}}""", "Sale of nothing rejected");
+var repair = Parse("""{"type":"RepairItem","data":{"UniqueID":"18446744073709551615"}}""");
+var decodedRepair = (ClientPackets.RepairItem)Packet.ReceivePacket(repair.GetPacketBytes().ToArray(), out var repairExtra);
+Check(decodedRepair.UniqueID == ulong.MaxValue && repairExtra.Length == 0,
+    "Item repair carries the 64-bit item ID to the server");
+Reject("""{"type":"RepairItem","data":{"UniqueID":"0"}}""", "Repair without an item ID rejected");
+Reject("""{"type":"SRepairItem","data":{"UniqueID":"1"}}""", "Special repair is not offered by this client");
 Console.WriteLine($"{count}/{count} passed");

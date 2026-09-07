@@ -172,6 +172,7 @@ public static class GameSession
             "CallNPC" => typeof(C.CallNPC),
             "NPCConfirmInput" => typeof(C.NPCConfirmInput),
             "BuyItem" => typeof(C.BuyItem), "ChangeAMode" => typeof(C.ChangeAMode),
+            "SellItem" => typeof(C.SellItem), "RepairItem" => typeof(C.RepairItem),
             "RequestMapInfo" => typeof(C.RequestMapInfo),
             "Chat" => typeof(C.Chat), "KeepAlive" => typeof(C.KeepAlive),
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
@@ -183,6 +184,13 @@ public static class GameSession
         if (packet is C.RequestMapInfo map && map.MapIndex < 0) throw new InvalidDataException("Invalid map index");
         if (packet is C.BuyItem buy && (buy.ItemIndex == 0 || buy.Count == 0 || buy.Type != PanelType.Buy))
             throw new InvalidDataException("Invalid purchase");
+        // The server sells whole or partial stacks out of the bag; a count of zero is answered
+        // with a bare failure, so refuse it here rather than spending a round trip on it.
+        if (packet is C.SellItem sale && (sale.UniqueID == 0 || sale.Count == 0))
+            throw new InvalidDataException("Invalid sale");
+        // Special repair (C.SRepairItem) is a separate NPC service this client does not offer.
+        if (packet is C.RepairItem repair && repair.UniqueID == 0)
+            throw new InvalidDataException("Invalid repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
         if (packet is C.NPCConfirmInput input && (input.NPCID == 0 || string.IsNullOrEmpty(input.PageName) ||
             input.PageName.Length > 200 || input.PageName.Any(char.IsControl) || input.Value is null ||

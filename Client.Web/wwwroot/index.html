@@ -125,6 +125,11 @@
         <div class="shop-actions"><label for="shop-count">数量</label><input id="shop-count" type="number" min="1" max="1" step="1" value="1" /><button id="shop-buy" type="button">购买</button></div>
         <p id="shop-total"></p><p id="shop-status" role="status"></p>
       </div>
+      <div id="npc-trade" hidden>
+        <h3 id="trade-title">出售</h3>
+        <div id="trade-list" aria-label="可交易物品"></div>
+        <p id="trade-hint"></p><p id="trade-total"></p><p id="trade-status" role="status"></p>
+      </div>
       <form id="npc-input-form" hidden>
         <label for="npc-input-value">请输入内容</label>
         <input id="npc-input-value" type="text" maxlength="200" autocomplete="off" />

@@ -802,6 +802,12 @@ progress::-moz-progress-bar {
 #shop-count, #shop-search { font: inherit; min-height: 38px; padding: 6px; color: #fff; background: #101917; border: 1px solid #849d977a; border-radius: 4px; }
 #shop-buy { margin-left: auto; min-height: 40px; padding: 6px 18px; color: #10241c; background: #76d1b6; border: 1px solid #829879; border-radius: 4px; }
 #shop-total, #shop-status { font-size: 13px; overflow-wrap: anywhere; }
+#trade-title { font-size: 15px; margin: 12px 0 4px; }
+#trade-list { max-height: 240px; overflow: auto; margin: 8px 0; }
+#trade-list p { font-size: 13px; color: #cfd8d4; margin: 8px 2px; }
+.shop-row:disabled { opacity: 0.55; }
+#trade-hint, #trade-total, #trade-status { font-size: 13px; overflow-wrap: anywhere; margin: 2px 0; }
+#trade-hint { color: #cfd8d4; }
 @media (max-width: 650px) { #world-header { gap: 6px; padding: 0 8px; } #map-title { max-width: 90px; overflow: hidden; text-overflow: ellipsis; } #attack-mode { width: 94px; flex-basis: 94px; font-size: 13px; } #latency { display: none; } }
 #npc-input-form { display: grid; gap: 10px; }
 #npc-input-form[hidden] { display: none; }
