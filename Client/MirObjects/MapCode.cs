@@ -1,5 +1,10 @@
 ﻿namespace Client.MirObjects
 {
+#if WEB_CLIENT
+    using Settings = Crystal.Web.WebMapDiagnostics;
+    using CMain = Crystal.Web.WebMapDiagnostics;
+#endif
+
     public class CellInfo
     {
         public short BackIndex;
@@ -24,9 +29,10 @@
 
         public byte Light;
         public byte Unknown;
-        public List<MapObject> CellObjects;
-
         public bool FishingCell;
+
+#if !WEB_CLIENT
+        public List<MapObject> CellObjects;
 
         public void AddObject(MapObject ob)
         {
@@ -127,6 +133,7 @@
                 return i == 0 ? ob1.ObjectID.CompareTo(ob2.ObjectID) : i;
             });
         }
+#endif
     }
 
     class MapReader

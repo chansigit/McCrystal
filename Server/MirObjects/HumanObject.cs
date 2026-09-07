@@ -7628,33 +7628,37 @@ namespace Server.MirObjects
         }
         public bool CanGainItems(UserItem[] items)
         {
-            int itemCount = items.Count(e => e != null);
-            ushort stackOffset = 0;
+            int freeSlots = FreeSpace(Info.Inventory);
+            var stackSpace = new Dictionary<ItemInfo, int>();
 
-            if (itemCount < 1) return true;
-
-            for (int i = 0; i < items.Length; i++)
+            foreach (UserItem bagItem in Info.Inventory)
             {
-                if (items[i] == null) continue;
-
-                if (items[i].Info.StackSize > 1)
-                {
-                    ushort count = items[i].Count;
-
-                    for (int u = 0; u < Info.Inventory.Length; u++)
-                    {
-                        UserItem bagItem = Info.Inventory[u];
-
-                        if (bagItem == null || bagItem.Info != items[i].Info) continue;
-
-                        if (bagItem.Count + count > bagItem.Info.StackSize) stackOffset++;
-
-                        break;
-                    }
-                }
+                if (bagItem == null || bagItem.Info.StackSize <= 1) continue;
+                stackSpace.TryGetValue(bagItem.Info, out int space);
+                stackSpace[bagItem.Info] = space + Math.Max(0, bagItem.Info.StackSize - bagItem.Count);
             }
 
-            if (FreeSpace(Info.Inventory) < itemCount + stackOffset) return false;
+            // Reserve space in AddItem order, including stacks created by earlier incoming items.
+            foreach (UserItem item in items)
+            {
+                if (item == null) continue;
+
+                int count = item.Count;
+                if (item.Info.StackSize > 1)
+                {
+                    stackSpace.TryGetValue(item.Info, out int space);
+                    int merged = Math.Min(space, count);
+                    count -= merged;
+                    stackSpace[item.Info] = space - merged;
+                    if (count == 0) continue;
+                }
+
+                if (freeSlots == 0) return false;
+                freeSlots--;
+
+                if (item.Info.StackSize > 1)
+                    stackSpace[item.Info] += Math.Max(0, item.Info.StackSize - count);
+            }
 
             return true;
         }

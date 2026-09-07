@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="Crystal 传奇浏览器客户端" />
+    <title>Crystal · 传奇</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <main id="game" aria-label="游戏地图"></main>
+    <section id="account-screen" class="account-screen">
+      <img id="door-frame" src="/assets/frame?library=ChrSel&amp;index=0" alt="" />
+      <form id="login-form" class="account-form">
+        <h2>登录</h2>
+        <label for="account">账号</label>
+        <input
+          id="account"
+          name="username"
+          autocomplete="username"
+          maxlength="15"
+          required
+          spellcheck="false"
+        />
+        <label for="password">密码</label>
+        <div class="password-field">
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            maxlength="15"
+            required
+          /><button
+            id="show-password"
+            type="button"
+            class="icon"
+            title="显示密码"
+            aria-label="显示密码"
+          >
+            <i data-lucide="eye"></i>
+          </button>
+        </div>
+        <button id="login" type="submit" class="primary" disabled>
+          连接中…
+        </button>
+        <button id="open-register" type="button" class="secondary">注册账号</button>
+        <p id="login-status" role="status"></p>
+      </form>
+      <form id="register-form" class="account-form" hidden>
+        <h2>注册账号</h2>
+        <label for="register-account">账号</label><input id="register-account" minlength="3" maxlength="15" required spellcheck="false" />
+        <label for="register-password">密码</label><input id="register-password" type="password" minlength="5" maxlength="15" required autocomplete="new-password" />
+        <label for="register-confirm">确认密码</label><input id="register-confirm" type="password" minlength="5" maxlength="15" required autocomplete="new-password" />
+        <label for="register-email">邮箱</label><input id="register-email" type="email" maxlength="50" required />
+        <label for="register-name">姓名</label><input id="register-name" maxlength="20" required />
+        <label for="register-birth">出生日期</label><input id="register-birth" type="date" required />
+        <label for="register-question">密保问题</label><input id="register-question" maxlength="30" required />
+        <label for="register-answer">密保答案</label><input id="register-answer" maxlength="30" required />
+        <button id="register" type="submit" class="primary">创建账号</button>
+        <button id="cancel-register" type="button" class="secondary">返回登录</button>
+        <p id="register-status" role="status"></p>
+      </form>
+      <section id="characters" class="account-form" hidden>
+        <h2>选择角色</h2>
+        <div id="character-list"></div>
+        <button id="back-login" class="secondary">返回登录</button>
+      </section>
+      <footer>
+        <span id="connection">正在连接</span><span>CRYSTAL / WEB</span>
+      </footer>
+    </section>
+    <header id="world-header" hidden>
+      <strong id="map-title"></strong><span id="coordinates"></span
+      ><span class="spacer"></span><span id="latency"></span>
+      <select id="attack-mode" aria-label="攻击模式" title="攻击模式" disabled>
+        <option value="0">和平</option><option value="1">组队</option><option value="2">行会</option>
+        <option value="3">敌对行会</option><option value="4">红灰名</option><option value="5">全体</option>
+      </select>
+      <button id="name-toggle" class="icon" title="常驻名字" aria-label="常驻名字" aria-pressed="true"><i data-lucide="eye"></i></button>
+      <button id="sound-toggle" class="icon" title="静音" aria-label="静音" aria-pressed="true"><i data-lucide="volume-2"></i></button>
+      <input id="sound-volume" type="range" min="0" max="100" value="35" aria-label="音量" title="音量" />
+      <button id="logout" class="icon" title="小退到角色选择" aria-label="小退到角色选择">
+        <i data-lucide="log-out"></i>
+      </button>
+      <button id="exit-account" class="icon" title="大退到登录" aria-label="大退到登录"><i data-lucide="door-open"></i></button>
+    </header>
+    <div id="world-status" role="status" hidden></div>
+    <div id="skill-status" role="status"></div>
+    <aside id="minimap" hidden aria-label="小地图">
+      <header><span id="radar-title"></span><button id="radar-toggle" class="icon" title="收起或展开局部地图" aria-label="收起或展开局部地图" aria-expanded="true"><i data-lucide="chevron-up"></i></button></header>
+      <canvas id="minimap-canvas" width="192" height="174" aria-label="局部地图"></canvas>
+      <footer><button id="open-map" class="icon" title="全局地图" aria-label="全局地图"><i data-lucide="map"></i></button><button id="radar-opacity" class="icon" title="半透明小地图" aria-label="半透明小地图" aria-pressed="false"><i data-lucide="blend"></i></button></footer>
+    </aside>
+    <section id="map-panel" hidden aria-label="地图">
+      <header><strong id="large-map-title"></strong><div role="tablist" aria-label="地图视图"><button id="map-area" role="tab" aria-selected="true">当前地图</button><button id="map-world" role="tab" aria-selected="false" disabled>世界地图</button></div><button id="close-map" class="icon" title="关闭地图" aria-label="关闭地图"><i data-lucide="x"></i></button></header>
+      <canvas id="large-map" width="740" height="500" aria-label="全局地图"></canvas>
+      <footer><span id="map-location"></span><span id="map-error" role="status"></span><label for="map-opacity">不透明度</label><input id="map-opacity" type="range" min="25" max="100" value="100" /></footer>
+    </section>
+    <section id="npc-panel" hidden aria-label="NPC 对话">
+      <header><h2 id="npc-title">NPC</h2><button id="close-npc" class="icon" title="关闭对话" aria-label="关闭对话"><i data-lucide="x"></i></button></header>
+      <div id="npc-page"></div><p id="npc-status" role="status"></p>
+      <div id="npc-shop" hidden>
+        <input id="shop-search" type="search" placeholder="搜索商品" aria-label="搜索商品" />
+        <div id="shop-list" aria-label="商品列表"></div>
+        <div class="shop-actions"><label for="shop-count">数量</label><input id="shop-count" type="number" min="1" max="1" step="1" value="1" /><button id="shop-buy" type="button">购买</button></div>
+        <p id="shop-total"></p><p id="shop-status" role="status"></p>
+      </div>
+      <form id="npc-input-form" hidden>
+        <label for="npc-input-value">请输入内容</label>
+        <input id="npc-input-value" type="text" maxlength="200" autocomplete="off" />
+        <div class="npc-input-actions"><button type="button" id="npc-input-cancel">取消</button><button type="submit">确认</button></div>
+      </form>
+    </section>
+    <section id="chat-panel" hidden>
+      <div id="messages" role="log" aria-label="聊天消息"></div>
+      <form id="chat-form">
+        <input
+          id="chat"
+          placeholder="聊天…"
+          aria-label="聊天"
+          maxlength="80"
+          autocomplete="off"
+        /><button class="icon" title="发送" aria-label="发送">
+          <i data-lucide="send"></i>
+        </button>
+      </form>
+      <p id="chat-status" role="status"></p>
+    </section>
+    <aside id="inventory" hidden>
+      <header>
+        <h2>背包</h2>
+        <button
+          id="close-inventory"
+          class="icon"
+          title="关闭"
+          aria-label="关闭背包"
+        >
+          <i data-lucide="x"></i>
+        </button>
+      </header>
+      <div id="inventory-grid"></div>
+      <p id="inventory-status" role="status"></p>
+      <p id="gold"></p>
+    </aside>
+    <aside id="equipment" hidden>
+      <header><h2>装备</h2><button id="close-equipment" class="icon" title="关闭" aria-label="关闭装备"><i data-lucide="x"></i></button></header>
+      <div id="equipment-grid"></div>
+    </aside>
+    <aside id="skills-panel" hidden>
+      <header><h2>技能</h2><button id="close-skills" class="icon" title="关闭技能" aria-label="关闭技能"><i data-lucide="x"></i></button></header>
+      <div id="skill-list"></div>
+    </aside>
+    <aside id="item-details" hidden>
+      <strong id="item-name"></strong>
+      <p id="item-stats"></p>
+      <button id="item-action" type="button"></button>
+    </aside>
+    <footer id="hud" hidden>
+      <div class="identity">
+        <strong id="player-name"></strong><span id="player-level"></span>
+      </div>
+      <div class="vitals">
+        <canvas id="vitals-orb" width="104" height="120" role="img" aria-label="HP / MP"></canvas>
+      </div>
+      <div id="belt" aria-label="快捷栏"></div>
+      <div class="actions">
+        <button id="open-equipment" class="icon" title="装备" aria-label="装备"><i data-lucide="shirt"></i></button>
+        <button id="open-skills" class="icon" title="技能" aria-label="技能"><i data-lucide="wand-sparkles"></i></button>
+        <button
+          id="open-inventory"
+          class="icon"
+          title="背包"
+          aria-label="背包"
+        >
+          <i data-lucide="backpack"></i></button
+        ><button id="toggle-chat" class="icon" title="聊天" aria-label="聊天">
+          <i data-lucide="messages-square"></i>
+        </button>
+      </div>
+    </footer>
+    <script type="module" src="client.js"></script>
+  </body>
+</html>
