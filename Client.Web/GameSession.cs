@@ -173,6 +173,7 @@ public static class GameSession
             "RequestMapInfo" => typeof(C.RequestMapInfo),
             "Chat" => typeof(C.Chat), "KeepAlive" => typeof(C.KeepAlive),
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
+            "DeleteCharacter" => typeof(C.DeleteCharacter),
             "TownRevive" => typeof(C.TownRevive),
             _ => throw new InvalidDataException("Unsupported command")
         };
@@ -199,6 +200,13 @@ public static class GameSession
             account.SecretQuestion is null || account.SecretQuestion.Length > 30 ||
             account.SecretAnswer is null || account.SecretAnswer.Length > 30 ||
             account.BirthDate == DateTime.MinValue)) throw new InvalidDataException("Invalid registration");
+        if (packet is C.NewCharacter creation && (string.IsNullOrEmpty(creation.Name) ||
+            creation.Name.Length is < Globals.MinCharacterNameLength or > Globals.MaxCharacterNameLength ||
+            creation.Name.Any(char.IsControl) || !Enum.IsDefined(creation.Gender) || !Enum.IsDefined(creation.Class)))
+            throw new InvalidDataException("Invalid character creation");
+        // Character indexes are assigned from 1 upwards; 0 means "no character".
+        if (packet is C.DeleteCharacter deletion && deletion.CharacterIndex <= 0)
+            throw new InvalidDataException("Invalid character index");
         if (packet is C.Chat chat && (string.IsNullOrEmpty(chat.Message) || chat.Message.Length > Globals.MaxChatLength || chat.LinkedItems is null))
             throw new InvalidDataException("Invalid chat");
         if (packet is C.Walk walk && (byte)walk.Direction > 7) throw new InvalidDataException("Invalid direction");

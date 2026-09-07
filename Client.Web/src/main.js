@@ -26,6 +26,7 @@ import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
 import { ReviveOverlay } from "./revive.js";
+import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
@@ -75,6 +76,7 @@ const inventory = new InventoryUI(() => state.user, (index) => state.items.get(i
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
+const characterScreen = new CharacterScreen(send);
 npc.onChange = () => shop.close();
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
@@ -300,6 +302,24 @@ function receive(type, p) {
       if (p.Result === 8) { $("register-form").hidden = true; $("login-form").hidden = false; }
       break;
     }
+    // The native client inserts a new character at the top of the list, so the
+    // one just created is the first thing the player sees.
+    case "NewCharacterSuccess":
+      state.characters.unshift(p.CharInfo);
+      showCharacters();
+      characterScreen.message("您的角色已成功创建。");
+      break;
+    case "NewCharacter":
+      characterScreen.createFailed(p.Result);
+      break;
+    case "DeleteCharacterSuccess":
+      state.characters = state.characters.filter((c) => c.Index !== p.CharacterIndex);
+      showCharacters();
+      characterScreen.message("您的角色已成功删除。");
+      break;
+    case "DeleteCharacter":
+      characterScreen.deleteFailed(p.Result);
+      break;
     case "StartGame":
       if (p.Result !== 4) {
         status(`进入游戏失败 (${p.Result})`);
@@ -619,15 +639,19 @@ function showCharacters() {
   $("register-form").hidden = true;
   $("login-form").hidden = true;
   $("characters").hidden = false;
+  characterScreen.reset(state.characters.length);
   $("character-list").replaceChildren();
   for (const character of state.characters) {
+    const row = document.createElement("div");
+    row.className = "character-row";
     const button = document.createElement("button");
+    button.type = "button";
     button.className = "character";
     const text = document.createElement("div"),
       name = document.createElement("strong"),
       detail = document.createElement("small");
     name.textContent = character.Name;
-    detail.textContent = `${["战士", "法师", "道士", "刺客", "弓手"][character.Class] || "角色"} · 等级 ${character.Level}`;
+    detail.textContent = `${CLASS_NAMES[character.Class] || "角色"} · 等级 ${character.Level}`;
     text.append(name, detail);
     button.append(text);
     button.onclick = () => {
@@ -636,7 +660,14 @@ function showCharacters() {
         .forEach((b) => (b.disabled = true));
       send("StartGame", { CharacterIndex: character.Index });
     };
-    $("character-list").append(button);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "character-delete";
+    remove.textContent = "删除";
+    remove.title = `删除 ${character.Name}`;
+    remove.onclick = () => characterScreen.openDelete(character);
+    row.append(button, remove);
+    $("character-list").append(row);
   }
   if (!state.characters.length) {
     const empty = document.createElement("p");
@@ -657,7 +688,7 @@ function updateHud() {
   if (!u) return;
   $("player-name").textContent = u.Name;
   $("player-level").textContent =
-    `${["战士", "法师", "道士", "刺客", "弓手"][u.Class] || ""} · ${u.Level}`;
+    `${CLASS_NAMES[u.Class] || ""} · ${u.Level}`;
   $("coordinates").textContent = `${u.Location.X}, ${u.Location.Y}`;
   state.maxHP = Math.max(state.maxHP || 1, u.HP);
   state.maxMP = Math.max(state.maxMP || 1, u.MP);

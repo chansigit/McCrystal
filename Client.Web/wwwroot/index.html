@@ -64,6 +64,25 @@
       <section id="characters" class="account-form" hidden>
         <h2>选择角色</h2>
         <div id="character-list"></div>
+        <p id="character-status" role="status"></p>
+        <button id="open-create" type="button" class="secondary">创建角色</button>
+        <form id="create-form" class="character-dialog" hidden>
+          <label for="create-name">角色名</label>
+          <input id="create-name" maxlength="15" autocomplete="off" spellcheck="false" />
+          <label for="create-gender">性别</label>
+          <select id="create-gender"></select>
+          <label for="create-class">职业</label>
+          <select id="create-class"></select>
+          <div class="dialog-actions"><button id="cancel-create" type="button">取消</button><button id="create-submit" type="submit">创建</button></div>
+          <p id="create-status" role="status"></p>
+        </form>
+        <form id="delete-form" class="character-dialog" hidden>
+          <p id="delete-prompt"></p>
+          <label for="delete-name">请输入角色名以确认删除</label>
+          <input id="delete-name" maxlength="15" autocomplete="off" spellcheck="false" />
+          <div class="dialog-actions"><button id="cancel-delete" type="button">取消</button><button id="delete-confirm" type="submit" class="danger">删除</button></div>
+          <p id="delete-status" role="status"></p>
+        </form>
         <button id="back-login" class="secondary">返回登录</button>
       </section>
       <footer>

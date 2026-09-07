@@ -148,4 +148,23 @@ Check(Parse("""{"type":"TownRevive","data":{"Effect":7}}""").GetPacketBytes().To
     Parse("""{"type":"TownRevive","data":{}}""").GetPacketBytes().ToArray().Length,
     "Extra fields on an empty command never reach the server");
 Reject("""{"type":"TownRevive","data":[]}""", "Non-object revive body rejected");
+var creation = Parse("""{"type":"NewCharacter","data":{"Name":"webtest1","Gender":1,"Class":4}}""");
+var decodedCreation = (ClientPackets.NewCharacter)Packet.ReceivePacket(creation.GetPacketBytes().ToArray(), out var creationExtra);
+Check(decodedCreation.Name == "webtest1" && decodedCreation.Gender == MirGender.Female &&
+    decodedCreation.Class == MirClass.Archer && creationExtra.Length == 0,
+    "Character creation uses the native name, gender and class protocol");
+Reject("""{"type":"NewCharacter","data":{"Name":"","Gender":0,"Class":0}}""", "Empty character name rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":null,"Gender":0,"Class":0}}""", "Null character name rejected");
+Reject(JsonSerializer.Serialize(new { type = "NewCharacter", data = new { Name = new string('x', Globals.MinCharacterNameLength - 1), Gender = 0, Class = 0 } }),
+    "Character name below the native minimum rejected");
+Reject(JsonSerializer.Serialize(new { type = "NewCharacter", data = new { Name = new string('x', Globals.MaxCharacterNameLength + 1), Gender = 0, Class = 0 } }),
+    "Character name beyond the native maximum rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"web\ntest","Gender":0,"Class":0}}""", "Control characters in a character name rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"webtest1","Gender":2,"Class":0}}""", "Unknown gender rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"webtest1","Gender":0,"Class":5}}""", "Unknown class rejected");
+var deletion = Parse("""{"type":"DeleteCharacter","data":{"CharacterIndex":7}}""");
+Check(((ClientPackets.DeleteCharacter)Packet.ReceivePacket(deletion.GetPacketBytes().ToArray(), out _)).CharacterIndex == 7,
+    "Character deletion uses the native binary protocol");
+Reject("""{"type":"DeleteCharacter","data":{"CharacterIndex":0}}""", "Deletion without a character rejected");
+Reject("""{"type":"DeleteCharacter","data":{"CharacterIndex":-1}}""", "Negative character index rejected");
 Console.WriteLine($"{count}/{count} passed");
