@@ -580,8 +580,9 @@ progress::-moz-progress-bar {
   #hud {
     left: 50%;
     right: auto;
-    width: 1024px;
-    height: 152px;
+    width: min(1280px, 100vw);
+    height: auto;
+    aspect-ratio: 1024 / 152;
     padding: 0;
     display: block;
     transform: translateX(-50%);
@@ -594,15 +595,16 @@ progress::-moz-progress-bar {
     position: absolute;
     left: 0;
     top: 0;
-    width: 104px;
-    height: 120px;
+    width: 10.15625%;
+    height: 78.947%;
     margin: 0;
   }
+  #hud #vitals-orb { width: 100%; height: 100%; }
   #hud .identity {
     position: absolute;
-    left: 5px;
-    top: 108px;
-    width: 92px;
+    left: 0.49%;
+    top: 71.05%;
+    width: 8.98%;
     min-width: 0;
     gap: 0;
     text-align: center;
@@ -612,39 +614,92 @@ progress::-moz-progress-bar {
   #hud .identity span { order: 1; font: 11px Arial, sans-serif; line-height: 12px; color: #ddd5b8; }
   #hud #belt {
     position: absolute;
-    left: 230px;
-    bottom: 4px;
-    gap: 2px;
+    left: 22.46%;
+    top: 1.32%;
+    width: 23.44%;
+    height: 25%;
+    margin: 0;
+    padding: 2px 0 2px 5%;
+    gap: 1.25%;
+    background: url("/assets/frame?library=Prguse&index=1932") 0 0 / 100% 100% no-repeat;
+    image-rendering: pixelated;
     pointer-events: auto;
   }
-  #hud #belt .slot { width: 38px; height: 38px; flex-basis: 38px; background: #050505b8; border: 1px solid #615331; }
+  #hud #belt .slot {
+    width: 13.33%;
+    height: 100%;
+    flex: 0 0 13.33%;
+    background: transparent;
+    border: 0;
+  }
+  #hud #chat-panel {
+    position: absolute;
+    left: 22.46%;
+    top: 36.18%;
+    bottom: auto;
+    width: 61.72%;
+    max-width: none;
+    height: 44.74%;
+    border: 0;
+    border-radius: 0;
+    background: url("/assets/frame?library=Prguse&index=2221") 0 0 / 100% 100% no-repeat;
+    image-rendering: pixelated;
+    pointer-events: auto;
+  }
+  #hud #messages {
+    position: absolute;
+    inset: 2px 2.3% 20% 2px;
+    height: auto;
+    padding: 1px 6px;
+    font-size: clamp(12px, 0.78vw, 14px);
+    line-height: 1.25;
+    background: transparent;
+  }
+  #hud #chat-form {
+    position: absolute;
+    left: 1px;
+    right: 2.3%;
+    bottom: 1px;
+    height: 19%;
+    min-height: 14px;
+    border: 0;
+  }
+  #hud #chat {
+    height: 100%;
+    padding: 0 6px;
+    background: #343434d9;
+    color: #f2f2f2;
+    font-size: 12px;
+  }
+  #hud #chat-form button { display: none; }
+  #hud #chat-status { position: absolute; left: 2px; bottom: 20%; padding: 0 6px; }
   #hud .actions { display: contents; }
   #hud .actions .icon {
     position: absolute;
-    top: 76px;
-    width: 20px;
-    min-width: 20px;
-    height: 20px;
+    top: 50%;
+    width: 1.953%;
+    min-width: 0;
+    height: 13.158%;
     margin: 0;
     padding: 0;
     border: 0;
     border-radius: 0;
     color: transparent;
     image-rendering: pixelated;
+    background-size: 100% 100%;
     pointer-events: auto;
   }
   #hud .actions .icon svg { display: none; }
-  #open-equipment { left: 905px; background: url("/assets/frame?library=Prguse&index=1900") no-repeat; }
+  #open-equipment { left: 88.379%; background: url("/assets/frame?library=Prguse&index=1900") no-repeat; }
   #open-equipment:hover { background-image: url("/assets/frame?library=Prguse&index=1901"); }
   #open-equipment:active { background-image: url("/assets/frame?library=Prguse&index=1902"); }
-  #open-inventory { left: 928px; background: url("/assets/frame?library=Prguse&index=1903") no-repeat; }
+  #open-inventory { left: 90.625%; background: url("/assets/frame?library=Prguse&index=1903") no-repeat; }
   #open-inventory:hover { background-image: url("/assets/frame?library=Prguse&index=1904"); }
   #open-inventory:active { background-image: url("/assets/frame?library=Prguse&index=1905"); }
-  #open-skills { left: 951px; background: url("/assets/frame?library=Prguse&index=1906") no-repeat; }
+  #open-skills { left: 92.871%; background: url("/assets/frame?library=Prguse&index=1906") no-repeat; }
   #open-skills:hover { background-image: url("/assets/frame?library=Prguse&index=1907"); }
   #open-skills:active { background-image: url("/assets/frame?library=Prguse&index=1908"); }
-  #toggle-chat { left: 974px; background: url("/assets/frame?library=Prguse&index=1909") no-repeat; }
-  #chat-panel { bottom: 158px; }
+  #toggle-chat { left: 95.117%; background: url("/assets/frame?library=Prguse&index=1909") no-repeat; }
 }
 @media (max-width: 1100px) { #skills-panel { max-height: calc(100% - 245px); } }
 @media (max-width: 650px) { #skills-panel { max-height: calc(100% - 290px); } }

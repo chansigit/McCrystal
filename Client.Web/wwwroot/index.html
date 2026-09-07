@@ -112,21 +112,6 @@
         <div class="npc-input-actions"><button type="button" id="npc-input-cancel">取消</button><button type="submit">确认</button></div>
       </form>
     </section>
-    <section id="chat-panel" hidden>
-      <div id="messages" role="log" aria-label="聊天消息"></div>
-      <form id="chat-form">
-        <input
-          id="chat"
-          placeholder="聊天…"
-          aria-label="聊天"
-          maxlength="80"
-          autocomplete="off"
-        /><button class="icon" title="发送" aria-label="发送">
-          <i data-lucide="send"></i>
-        </button>
-      </form>
-      <p id="chat-status" role="status"></p>
-    </section>
     <aside id="inventory" hidden>
       <header>
         <h2>背包</h2>
@@ -163,6 +148,21 @@
       <div class="vitals">
         <canvas id="vitals-orb" width="104" height="120" role="img" aria-label="HP / MP"></canvas>
       </div>
+      <section id="chat-panel" hidden>
+        <div id="messages" role="log" aria-label="聊天消息"></div>
+        <form id="chat-form">
+          <input
+            id="chat"
+            placeholder="聊天…"
+            aria-label="聊天"
+            maxlength="80"
+            autocomplete="off"
+          /><button class="icon" title="发送" aria-label="发送">
+            <i data-lucide="send"></i>
+          </button>
+        </form>
+        <p id="chat-status" role="status"></p>
+      </section>
       <div id="belt" aria-label="快捷栏"></div>
       <div class="actions">
         <button id="open-equipment" class="icon" title="装备" aria-label="装备"><i data-lucide="shirt"></i></button>
