@@ -1,12 +1,14 @@
 export class GameAudio {
   constructor() {
     this.buffers = new Map(); this.active = new Set(); this.volume = 0.35; this.muted = false;
+    this.epoch = 0;
+    this.music = new Audio(); this.music.loop = true; this.music.preload = "none";
     const unlock = () => this.unlock();
     window.addEventListener("pointerdown", unlock, { capture: true });
     window.addEventListener("keydown", unlock, { capture: true });
     document.getElementById("sound-toggle").onclick = () => {
       this.muted = !this.muted; this.update();
-      if (this.muted) for (const source of this.active) source.stop();
+      if (this.muted) this.clearEffects();
       else this.unlock();
     };
     document.getElementById("sound-volume").oninput = (event) => { this.volume = Number(event.target.value) / 100; this.update(); };
@@ -19,9 +21,29 @@ export class GameAudio {
       for (const id of [10001, 10002, 10003, 10004]) this.load(id);
     }
     if (this.context.state === "suspended") this.context.resume().then(() => this.update()).catch(() => {});
+    this.startMusic();
+  }
+  setMusic(id) {
+    const next = Number.isInteger(id) && id > 0 ? id : null;
+    if (next === this.musicID) return;
+    this.music.pause(); this.musicID = next;
+    if (next === null) { this.music.removeAttribute("src"); this.music.load(); return; }
+    this.music.src = `/assets/sound?id=${next}`;
+    this.startMusic();
+  }
+  clearEffects() {
+    this.epoch++;
+    for (const source of this.active) source.stop();
+  }
+  startMusic() {
+    if (this.musicID !== null && this.musicID !== undefined && !this.muted && this.volume > 0 && this.music.paused)
+      this.music.play().catch(() => {});
   }
   update() {
     if (this.gain) this.gain.gain.value = this.muted ? 0 : this.volume;
+    this.music.volume = this.volume; this.music.muted = this.muted;
+    if (this.muted || !this.volume) this.music.pause();
+    else this.startMusic();
     const button = document.getElementById("sound-toggle");
     button.setAttribute("aria-pressed", String(!this.muted));
     button.title = this.muted ? "开启声音" : "静音";
@@ -41,8 +63,9 @@ export class GameAudio {
   async play(id, maxDelay = 700) {
     if (this.muted || !this.volume || this.context?.state !== "running" || this.active.size >= 12) return;
     const requested = performance.now();
+    const epoch = this.epoch;
     const buffer = await this.load(id);
-    if (!buffer || this.muted || this.context.state !== "running" || this.active.size >= 12 || performance.now() - requested > maxDelay) return;
+    if (!buffer || epoch !== this.epoch || this.muted || this.context.state !== "running" || this.active.size >= 12 || performance.now() - requested > maxDelay) return;
     const source = this.context.createBufferSource(); source.buffer = buffer; source.connect(this.gain);
     this.active.add(source); source.onended = () => { this.active.delete(source); source.disconnect(); };
     source.start();

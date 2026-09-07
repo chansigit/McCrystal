@@ -371,6 +371,7 @@ namespace Server.MirDatabase
 
         public static void Load(List<DropInfo> list, string name, string path, byte type = 0, bool createIfNotExists = true)
         {
+            path = path.Replace('\\', Path.DirectorySeparatorChar);
             if (!File.Exists(path))
             {
                 if (createIfNotExists)
@@ -495,7 +496,7 @@ namespace Server.MirDatabase
 
                 var subPath = match.Groups[1].Value;
 
-                string path = Path.Combine(Settings.DropPath, subPath);
+                string path = Path.Combine(Settings.DropPath, subPath.Replace('\\', Path.DirectorySeparatorChar));
 
                 newLines = File.ReadAllLines(path).ToList();
 

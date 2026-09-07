@@ -11,10 +11,8 @@ npm ci
 npm run build
 dotnet build Client.Web.csproj
 
-if curl -fsS http://127.0.0.1:5080/health >/dev/null 2>&1; then
-    echo "Crystal Web is already running: http://127.0.0.1:5080"
-    exit 0
-fi
+web_running=false
+if curl -fsS http://127.0.0.1:5080/health >/dev/null 2>&1; then web_running=true; fi
 
 # Only start the game server when this checkout has no listener of its own.
 SERVER_ROOT="$(cd ../Build/Server/Debug && pwd)"
@@ -43,4 +41,9 @@ if [[ "$server_running" != true ]]; then
     done
 fi
 echo "Open http://127.0.0.1:5080 in your browser. Press Ctrl+C to stop."
+if [[ "$web_running" == true ]]; then
+    echo "Reusing the existing Crystal Web gateway."
+    if [[ -n "$server_pid" ]]; then wait "$server_pid"; fi
+    exit 0
+fi
 dotnet run --no-build --project Client.Web.csproj

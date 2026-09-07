@@ -4,6 +4,7 @@ using S = ServerPackets;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Windows drop paths and nested inserts resolve on the host platform", DropPaths),
     ("Compressed goods round trip and following packet", CompressedRoundTrip),
     ("Compressed goods validates the complete gzip trailer", CompressedTrailer),
     ("Invalid frame lengths are rejected", InvalidLengths),
@@ -38,6 +39,27 @@ return failed == 0 ? 0 : 1;
 static void Check(bool condition)
 {
     if (!condition) throw new Exception("Assertion failed");
+}
+
+static void DropPaths()
+{
+    string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Provinces"));
+        Directory.CreateDirectory(Path.Combine(root, "Shared"));
+        string insert = Path.Combine(root, "Shared", "Bonus.txt").Replace(Path.DirectorySeparatorChar, '\\');
+        File.WriteAllText(Path.Combine(root, "Provinces", "Oma.txt"), $"1/1 Gold 100\n#INSERT [{insert}]\n");
+        File.WriteAllText(Path.Combine(root, "Shared", "Bonus.txt"), "1/2 Gold 200\n");
+        var drops = new List<DropInfo>();
+        DropInfo.Load(drops, "Oma", Path.Combine(root, "Provinces\\Oma.txt"), createIfNotExists: false);
+        Check(drops.Count == 2 && drops[0].Gold == 100 && drops[1].Gold == 200);
+        if (Path.DirectorySeparatorChar != '\\') Check(!File.Exists(Path.Combine(root, "Provinces\\Oma.txt")));
+    }
+    finally
+    {
+        Directory.Delete(root, true);
+    }
 }
 
 static void InvalidData(Action action)

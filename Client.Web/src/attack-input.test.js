@@ -20,3 +20,19 @@ test("Holding left then pressing Shift and aiming updates the force-attack targe
   input.update({ buttons: 1, shiftKey: true, clientX: 9, clientY: 10 });
   assert.equal(input.target.clientX, 9);
 });
+test("Alt-left harvests instead of force-attacking and stops on release or reset", () => {
+  const input = new AttackInput();
+  input.update({ buttons: 1, altKey: true, shiftKey: true, clientX: 42, clientY: 70 });
+  assert.deepEqual(input.harvestTarget, { clientX: 42, clientY: 70 });
+  assert.equal(input.target, null);
+  input.alt = false;
+  assert.equal(input.harvestTarget, null);
+  assert.ok(input.target);
+  for (const buttons of [0, 2, 3]) {
+    input.update({ buttons, altKey: true, clientX: 42, clientY: 70 });
+    assert.equal(input.harvestTarget, null);
+  }
+  input.update({ buttons: 1, altKey: true, clientX: 42, clientY: 70 });
+  input.reset();
+  assert.equal(input.harvestTarget, null);
+});

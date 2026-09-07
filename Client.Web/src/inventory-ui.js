@@ -8,16 +8,13 @@ export class InventoryUI {
   constructor(getUser, getInfo, send) {
     this.getUser = getUser; this.getInfo = getInfo; this.send = send;
     this.reset();
-    for (const tab of document.querySelectorAll("[data-inventory-tab]")) tab.onclick = () => {
-      this.tab = tab.dataset.inventoryTab; this.selected = null; this.render();
-    };
     $("item-action").onclick = () => this.selected && this.activate(this.selected);
   }
   reset() {
     clearTimeout(this.timer);
     this.pending = null; this.uncertain = false; this.selected = null; this.dragged = null;
-    this.tab = "bag";
     $("inventory-status").textContent = "";
+    $("item-details").hidden = true;
   }
   item(ref) {
     return this.getUser()?.[ref.grid === "equipment" ? "Equipment" : "Inventory"]?.[ref.index];
@@ -129,10 +126,6 @@ export class InventoryUI {
   render() {
     const user = this.getUser();
     if (!user) return;
-    for (const tab of document.querySelectorAll("[data-inventory-tab]"))
-      tab.setAttribute("aria-selected", String(tab.dataset.inventoryTab === this.tab));
-    $("inventory-grid").hidden = this.tab !== "bag";
-    $("equipment-grid").hidden = this.tab !== "equipment";
     const bag = document.createDocumentFragment();
     for (let i = BELT_SIZE; i < user.Inventory.length; i++) bag.append(this.slot({ grid: "bag", index: i }, `背包 ${i - BELT_SIZE + 1}`));
     $("inventory-grid").replaceChildren(bag);
@@ -176,6 +169,11 @@ export class InventoryUI {
     const text = document.createElement("span"); text.textContent = removing ? "卸下" : equipping ? "装备" : "使用";
     action.append(icon, text);
     createIcons({ icons: { Shirt, PackageOpen, FlaskConical }, root: action });
+  }
+  hideDetails() {
+    this.selected = null;
+    $("item-details").hidden = true;
+    document.querySelectorAll(".slot.selected").forEach((slot) => slot.classList.remove("selected"));
   }
   updateAppearance(user) {
     user.Armour = this.getInfo(user.Equipment[1]?.ItemIndex)?.Shape || 0;

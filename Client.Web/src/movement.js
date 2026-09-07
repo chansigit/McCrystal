@@ -1,4 +1,17 @@
 export const MOVE_INTERVAL = 630;
+export function blockedTurn(direction, currentDirection, path) {
+  return !path.length && Number.isInteger(direction) && direction >= 0 && direction < 8 &&
+    direction !== currentDirection ? direction : null;
+}
+export function walkingPath(direction, pathInDirection) {
+  if (!Number.isInteger(direction) || direction < 0 || direction > 7) return [];
+  // Native CanWalk tries the facing cell, then its two adjacent directions.
+  for (const candidate of [direction, (direction + 1) % 8, (direction + 7) % 8]) {
+    const path = pathInDirection(candidate);
+    if (path.length) return path.slice(0, 1);
+  }
+  return [];
+}
 export function resetMotion(object, location, direction) {
   object.Location = { ...location };
   object.Direction = direction;
@@ -7,6 +20,7 @@ export function resetMotion(object, location, direction) {
   object.running = false;
   object.attackUntil = 0;
   object.castUntil = 0;
+  object.harvestUntil = 0;
 }
 export function canPath(grid, from, to) {
   return !!grid && [from, to].every((point) => point && Number.isInteger(point.X) && Number.isInteger(point.Y) && grid.isInside(point.X, point.Y));

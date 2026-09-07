@@ -18,9 +18,47 @@ export class NPCDialog {
   constructor(send) {
     this.send = send;
     this.panel = document.getElementById("npc-panel");
+    this.inputForm = document.getElementById("npc-input-form");
+    this.input = document.getElementById("npc-input-value");
+    this.input.onkeydown = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); this.cancelInput(); }
+    };
+    this.inputForm.onsubmit = (event) => {
+      event.preventDefault();
+      if (!this.inputRequest) return;
+      const { NPCID, PageName } = this.inputRequest;
+      if (!this.send("NPCConfirmInput", { NPCID, PageName, Value: this.input.value })) {
+        document.getElementById("npc-status").textContent = "连接已断开";
+        return;
+      }
+      this.cancelInput();
+      this.waitForResponse();
+    };
+    document.getElementById("npc-input-cancel").onclick = () => this.cancelInput();
     document.getElementById("close-npc").onclick = () => this.close();
   }
-  close() { this.panel.hidden = true; this.objectID = null; clearTimeout(this.timer); }
+  cancelInput() {
+    if (this.inputForm.contains(document.activeElement)) document.activeElement.blur();
+    this.inputRequest = null;
+    this.inputForm.hidden = true;
+    this.input.value = "";
+  }
+  requestInput(request) {
+    clearTimeout(this.timer);
+    this.cancelInput();
+    this.inputRequest = { NPCID: request.NPCID, PageName: request.PageName };
+    this.objectID = request.NPCID;
+    this.panel.hidden = false;
+    this.inputForm.hidden = false;
+    document.getElementById("npc-status").textContent = "";
+    this.input.focus();
+  }
+  close() { this.onChange?.(); this.cancelInput(); this.panel.hidden = true; this.objectID = null; clearTimeout(this.timer); }
+  remove(objectID) { if (this.objectID === objectID) this.close(); }
+  checkRange(user, entity) {
+    if (entity?.Location && user?.Location && Math.max(Math.abs(entity.Location.X - user.Location.X),
+      Math.abs(entity.Location.Y - user.Location.Y)) > 16) this.close();
+  }
   open(entity) {
     this.objectID = entity.ObjectID;
     document.getElementById("npc-title").textContent = entity.Name?.split("_")[0] || "NPC";
@@ -29,15 +67,22 @@ export class NPCDialog {
     this.call("[@Main]");
   }
   call(key) {
+    this.onChange?.();
+    this.cancelInput();
     if (key.toLowerCase() === "[@exit]") { this.close(); return; }
     if (!this.objectID) return;
     const status = document.getElementById("npc-status");
     if (!this.send("CallNPC", { ObjectID: this.objectID, Key: key })) { status.textContent = "连接已断开"; return; }
+    this.waitForResponse();
+  }
+  waitForResponse() {
+    const status = document.getElementById("npc-status");
     status.textContent = "等待回应…";
     clearTimeout(this.timer);
     this.timer = setTimeout(() => { status.textContent = "NPC 未回应，请靠近后重试"; }, 5000);
   }
   page(lines) {
+    this.cancelInput();
     clearTimeout(this.timer);
     document.getElementById("npc-status").textContent = "";
     this.panel.hidden = !lines?.length;

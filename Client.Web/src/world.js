@@ -1,13 +1,14 @@
 import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js";
 import PF from "pathfinding";
-import { motionPosition, worldScale, canPath } from "./movement.js";
+import { motionPosition, worldScale, canPath, walkingPath } from "./movement.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
 import { weaponLayer } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
-import { Footsteps, locomotionFrame, footstepFrame } from "./footsteps.js";
+import { Footsteps, locomotionFrame } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement } from "./map-effects.js";
+import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay } from "./entity-presentation.js";
 
 export const directions = [
   [0, -1],
@@ -31,6 +32,7 @@ export class World {
     this.host = host;
     this.onClick = onClick;
     this.entities = new Map();
+    this.nameView = localStorage.getItem("crystal-name-view") !== "false";
     this.manifests = new Map();
     this.manifestLoads = new Map();
     this.textures = new Map();
@@ -64,20 +66,26 @@ export class World {
     this.app.stage.addChild(this.floor, this.objects);
     this.app.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     this.app.canvas.addEventListener("pointermove", (e) => {
+      this.hoverPointer = { clientX: e.clientX, clientY: e.clientY };
       this.attackInput.update(e);
       if (this.runPointer && (e.buttons & 2))
         this.runPointer = { clientX: e.clientX, clientY: e.clientY };
+      if (this.walkPointer && (e.buttons & 1))
+        this.walkPointer = { clientX: e.clientX, clientY: e.clientY };
     });
-    const releasePointer = () => { this.runPointer = null; this.attackInput.reset(); };
+    const releasePointer = () => { this.walkPointer = null; this.runPointer = null; this.attackInput.reset(); };
     window.addEventListener("pointerup", releasePointer);
     window.addEventListener("pointercancel", releasePointer);
     window.addEventListener("blur", releasePointer);
     this.app.canvas.addEventListener("pointerleave", releasePointer);
+    this.app.canvas.addEventListener("pointerleave", () => { this.hoverPointer = null; });
+    window.addEventListener("blur", () => { this.hoverPointer = null; });
     this.app.canvas.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.button !== 2) return;
       if (!this.user || !this.map) return;
       e.preventDefault();
       this.attackInput.update(e);
+      this.walkPointer = null;
       this.runPointer = e.button === 2
         ? { clientX: e.clientX, clientY: e.clientY } : null;
       const point = this.pointerCell(e);
@@ -100,7 +108,7 @@ export class World {
           o.Location?.Y === point.Y &&
           o.ObjectID !== this.user.ObjectID,
       );
-      this.onClick(point, entity, e.button === 2, e.button === 0 && e.shiftKey);
+      this.onClick(point, entity, e.button === 2, e.button === 0 && e.shiftKey, e.button === 0 && e.altKey);
       this.attackInput.update(e);
     });
     this.app.ticker.add(() => this.draw());
@@ -176,7 +184,7 @@ export class World {
     for (const e of this.entities.values())
       if (
         e.kind !== "item" &&
-        !e.Dead &&
+        !e.Dead && !e.Hidden && e.visibilityAction !== "Hide" &&
         e.ObjectID !== this.user.ObjectID &&
         grid.isInside(e.Location.X, e.Location.Y)
       )
@@ -194,11 +202,15 @@ export class World {
     for (let step = 1; step <= distance; step++) {
       const point = { X: this.user.Location.X + dx * step, Y: this.user.Location.Y + dy * step };
       if (!this.grid.isInside(point.X, point.Y) || !this.grid.isWalkableAt(point.X, point.Y)) break;
-      if ([...this.entities.values()].some((e) => e.kind !== "item" && !e.Dead &&
+      if ([...this.entities.values()].some((e) => e.kind !== "item" && !e.Dead && !e.Hidden && e.visibilityAction !== "Hide" &&
           e.ObjectID !== this.user.ObjectID && e.Location?.X === point.X && e.Location?.Y === point.Y)) break;
       path.push(point);
     }
     return path;
+  }
+  walkPath(point) {
+    if (!this.user) return [];
+    return walkingPath(directionTo(this.user.Location, point), direction => this.straightPath(direction, 1));
   }
   pathToMelee(target) {
     if (!this.map || !this.user || !canPath(this.grid, this.user.Location, target)) return [];
@@ -336,6 +348,7 @@ export class World {
     if (library.startsWith("CArmour/")) {
       defaults.Running = { start: 80, count: 6, skip: 0, interval: 100 };
       defaults.Spell = { start: 296, count: 6, skip: 0, interval: 100 };
+      defaults.Harvest = { start: 344, count: 2, skip: 0, interval: 300 };
       defaults.Attack1 = { start: 136, count: 6, skip: 0, interval: 100 };
       defaults.Die = { start: 384, count: 4, skip: 0, interval: 100 };
       defaults.Dead = { start: 387, count: 1, skip: 3, interval: 1000 };
@@ -352,10 +365,35 @@ export class World {
     return (
       offset +
       f.start +
-      direction * (f.count + f.skip) +
+      direction * (f.count + f.skip) + (f.reverse ? -1 : 1) *
       (action === "Die" ? deathFrame(time, f.count, f.interval) :
         Math.floor(time / Math.max(50, f.interval)) % Math.max(1, f.count))
     );
+  }
+  visibilityFrame(entity, library, now) {
+    const manifest = this.manifest(library);
+    if (!manifest) return -1;
+    const f = manifest.animations[entity.visibilityAction];
+    if (!f) {
+      if (entity.visibilityAction === "Hide") this.entities.delete(entity.ObjectID);
+      entity.visibilityAction = null;
+      return -1;
+    }
+    let ready = true;
+    for (let i = 0; i < f.count; i++) {
+      const index = frameIndex(f, entity.Direction || 0, i);
+      const frames = entity.Image === 371 ? [index, hydraOverlay(index)] : [index];
+      for (const n of frames) {
+        if (n == null || !manifest.frames[n]) continue;
+        if (!this.texture(library, n, true) && !this.failedTextures.has(`${library}:${n}`)) ready = false;
+      }
+    }
+    const {step, done} = transitionFrame(entity, f, now, ready);
+    if (done) {
+      if (entity.visibilityAction === "Hide") this.entities.delete(entity.ObjectID);
+      entity.visibilityAction = null;
+    }
+    return frameIndex(f, entity.Direction || 0, step);
   }
   dyingFrame(entity, library, offset, now) {
     const f = this.animationDefinition(library, "Die");
@@ -387,6 +425,16 @@ export class World {
       Math.round(this.app.screen.height / 2 - (uy * 32 + 16) * scale),
     );
     this.objects.position.copyFrom(this.floor.position);
+    const rect = this.app.canvas.getBoundingClientRect();
+    const pointer = this.hoverPointer && { X: (this.hoverPointer.clientX - rect.left - this.objects.x) / scale,
+      Y: (this.hoverPointer.clientY - rect.top - this.objects.y) / scale };
+    const hoverCandidates = [];
+    for (const entity of [...this.entities.values(), u]) {
+      const body = this.nodes.get(`entity:${entity.ObjectID}`);
+      if (!body || entity.Hidden || entity.Dead) continue;
+      hoverCandidates.push({entity, z: body.zIndex, bounds: {x: body.x, y: body.y, width: body.width, height: body.height}});
+    }
+    const hoveredID = pointer ? hitSprite(pointer, hoverCandidates)?.ObjectID : null;
     const viewport = { x: -this.floor.x / scale, y: -this.floor.y / scale,
       width: this.app.screen.width / scale, height: this.app.screen.height / scale };
     this.minimap.draw(this.map, u, this.entities, viewport, now);
@@ -460,7 +508,9 @@ export class World {
       let library,
         index,
         action = e.Dead
-          ? "Dead"
+          ? (e.Harvested ? "Skeleton" : "Dead")
+          : now < (e.harvestUntil || 0)
+            ? "Harvest"
           : now < (e.castUntil || 0)
             ? "Spell"
           : now < (e.attackUntil || 0)
@@ -487,20 +537,25 @@ export class World {
           e.Gender === 1 ? 808 : 0,
         );
       }
-      if (e.Dead && e.diedAt != null && e.kind !== "item")
+      if (e.visibilityAction && e.kind === "monster") {
+        index = this.visibilityFrame(e, library, now);
+        if (!this.entities.has(e.ObjectID) || index < 0) continue;
+      }
+      else if ((e.Harvested || e.Skeleton) && e.kind === "monster")
+        index = this.animation(library, this.manifest(library)?.animations.Skeleton ? "Skeleton" : "Dead", e.Direction || 0, 0);
+      else if (e.Dead && e.diedAt != null && e.kind !== "item")
         index = this.dyingFrame(e, library, e.kind === "player" && e.Gender === 1 ? 808 : 0, now);
-      else if (e.kind === "player" && (position.moving || action === "Attack1" || action === "Spell")) {
+      else if (e.kind === "player" && (position.moving || ["Attack1", "Spell", "Harvest"].includes(action))) {
         const f = this.animationDefinition(library, action);
         if (f) {
-          const duration = action === "Attack1" || action === "Spell" ? 600 : e.moveDuration;
-          const started = action === "Spell" ? e.castStartedAt : action === "Attack1" ? e.attackStartedAt : e.movedAt;
+          const duration = ["Attack1", "Spell", "Harvest"].includes(action) ? 600 : e.moveDuration;
+          const started = action === "Harvest" ? e.harvestStartedAt : action === "Spell" ? e.castStartedAt : action === "Attack1" ? e.attackStartedAt : e.movedAt;
           const phase = Math.max(0, Math.min(0.999, (now - started) / duration));
           const movingAction = ["Walking", "Running"].includes(action);
           const frame = locomotionFrame(phase, f.count);
           if (e === u && position.moving && ["Walking", "Running"].includes(action) &&
               (e.from?.X !== e.Location.X || e.from?.Y !== e.Location.Y)) {
-            const step = footstepFrame(phase, f.count, e.running);
-            const sound = this.footsteps.sample(e.movedAt, step.frame, e.running, step.cycle);
+            const sound = this.footsteps.sample(e.movedAt, frame, e.running);
             if (sound !== null) this.onStep?.(sound);
           }
           index = this.animation(library, action, e.Direction || 0,
@@ -532,8 +587,24 @@ export class World {
       );
       const body = this.nodes.get(`entity:${e.ObjectID}`);
       if (body) body.tint = now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
+      if (body && !e.Dead && ["monster", "npc"].includes(e.kind) &&
+          (e.ObjectID === hoveredID || e.ObjectID === this.selectedID)) {
+        const key = `entity:highlight:${e.ObjectID}`;
+        this.sprite(key, library, body.assetIndex, x, y, y + 32.02, this.objects, true);
+        const highlight = this.nodes.get(key);
+        if (highlight) { highlight.blendMode = "add"; highlight.alpha = 0.3; highlight.tint = body.tint; }
+      }
+      if (e.kind === "monster" && e.Image === 371 && body) {
+        const overlay = hydraOverlay(body.assetIndex);
+        if (overlay != null) {
+          const key = `entity:overlay:${e.ObjectID}`;
+          this.sprite(key, library, overlay, x, y, y + 32.01, this.objects, true);
+          const sprite = this.nodes.get(key);
+          if (sprite) sprite.blendMode = "add";
+        }
+      }
       if (e.kind === "player" && body) {
-        const weapon = weaponLayer(e, body.assetIndex);
+        const weapon = weaponLayer(action === "Harvest" ? { ...e, Weapon: 1, WeaponEffect: 0 } : e, body.assetIndex);
         if (weapon) {
           const key = `entity:weapon:${e.ObjectID}:${e.Weapon}`;
           const z = y + (weapon.behind ? 31.75 : 32.25);
@@ -556,31 +627,37 @@ export class World {
           .rect(-20, 1, 40 * e.healthPercent / 100, 3).fill(0xc46c60);
         bar.position.set(x + 24, y - 58); bar.zIndex = y + 101; bar.seen = this.tick;
       }
-      let label = this.labels.get(e.ObjectID);
-      if (!label) {
-        label = new Text({
-          text: e.Name || "",
-          style: {
-            fontFamily: "system-ui",
-            fontSize: 13,
-            fill:
-              e.kind === "monster"
-                ? "#ffcf9c"
-                : e.kind === "npc"
-                  ? "#a5e7d0"
-                  : "#f1f3e1",
-            stroke: { color: "#101710", width: 3 },
-          },
-          resolution: 2,
-        });
-        label.anchor.set(0.5, 1);
-        this.objects.addChild(label);
-        this.labels.set(e.ObjectID, label);
+      const hovered = e.ObjectID === hoveredID;
+      const standing = this.animation(library, "Standing", e.Direction || 0, 0,
+        e.kind === "player" && e.Gender === 1 ? 808 : 0);
+      const top = this.manifests.get(library)?.frames[standing]?.y;
+      let actorTop = Math.min(y - 40, y + (top ?? -40));
+      if (showName(e, this.nameView, hovered)) {
+        let label = this.labels.get(e.ObjectID);
+        if (!label) {
+          label = new Text({text:e.kind === "monster" ? (e.Name || "").replaceAll("_", "\n") : e.Name || "",
+            style:{fontFamily:"Arial, sans-serif",fontSize:TEXT_SIZE,align:"center",
+              fill:e.kind === "monster" ? "#ffcf9c" : e.kind === "npc" ? "#a5e7d0" : "#f1f3e1",
+              stroke:{color:"#000000",width:2}},resolution:2});
+          label.anchor.set(0.5,0); this.objects.addChild(label); this.labels.set(e.ObjectID,label);
+        }
+        label.scale.set(1 / scale);
+        label.position.set(x + 25, e.kind === "item" ? y + 16 : nameTop(y, top, label.height, scale));
+        label.zIndex = y + 100; label.visible = true; label.seen = this.tick;
+        actorTop = label.y;
       }
-      label.position.set(x + 24, y + (e.kind === "item" ? 16 : -40));
-      label.zIndex = y + 100;
-      label.visible = true;
-      label.seen = this.tick;
+      if (e.chatText && now < (e.chatUntil || 0)) {
+        const key = `chat:${e.ObjectID}`;
+        let chat = this.nodes.get(key);
+        if (!chat) {
+          chat = new Text({text:e.chatText, style:{fontFamily:"Arial, sans-serif",fontSize:TEXT_SIZE,
+            fill:"#ffffff",stroke:{color:"#000000",width:2},wordWrap:true,wordWrapWidth:200,align:"center"},resolution:2});
+          chat.anchor.set(0.5,1); this.objects.addChild(chat); this.nodes.set(key,chat);
+        }
+        if (chat.text !== e.chatText) chat.text = e.chatText;
+        chat.scale.set(1 / scale); chat.position.set(x + 24, actorTop - 20 / scale);
+        chat.zIndex = y + 102; chat.visible = true; chat.seen = this.tick;
+      }
     }
     this.spellEffects = this.spellEffects.filter((effect) => now - effect.started < effect.effect[3]);
     for (const effect of this.spellEffects) {
@@ -597,13 +674,14 @@ export class World {
       let text = this.nodes.get(key);
       if (!text) {
         text = new Text({ text: event.Type === 1 ? "MISS" : String(Math.abs(event.Damage)),
-          style: { fontFamily: "system-ui", fontSize: event.Type === 2 ? 19 : 16,
+          style: { fontFamily: "Arial, sans-serif", fontSize: TEXT_SIZE,
             fontWeight: "bold", fill: event.Type === 2 ? "#ffe09b" : event.ObjectID === u.ObjectID ? "#ff9187" : "#fff1d5",
-            stroke: { color: "#182019", width: 3 } }, resolution: 2 });
+            stroke: { color: "#000000", width: 2 } }, resolution: 2 });
         text.anchor.set(0.5, 1); this.objects.addChild(text); this.nodes.set(key, text);
       }
       const elapsed = now - event.started;
-      text.position.set(event.location.X * 48 + 24, event.location.Y * 32 - 45 - elapsed * 0.035);
+      text.scale.set(1 / scale);
+      text.position.set(event.location.X * 48 + 15, event.location.Y * 32 - 75 - elapsed * (50 / 900));
       text.alpha = Math.min(1, (900 - elapsed) / 300); text.zIndex = 1000000; text.seen = this.tick;
     }
     for (const [key, node] of this.nodes)

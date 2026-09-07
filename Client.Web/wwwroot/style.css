@@ -53,12 +53,13 @@ canvas {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  background:
-    linear-gradient(90deg, #080e10a8, #080e1030, #080e10a8),
-    url("/assets/frame?library=ChrSel&index=0") center/cover no-repeat;
+  background: #050705;
   overflow: auto;
   padding: 32px 24px 72px;
 }
+#door-frame { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; pointer-events: none; }
+.account-screen > :not(img) { position: relative; z-index: 1; }
+.account-screen.opening .account-form, .account-screen.opening .brand { visibility: hidden; }
 .brand {
   text-align: center;
   text-shadow: 0 3px 12px #000;
@@ -81,6 +82,11 @@ canvas {
   max-width: 100%;
   text-shadow: 0 1px 3px #000;
 }
+#register-form { max-height: calc(100vh - 120px); overflow: auto; padding: 10px; background: #090b08c7; }
+#register-form label { margin-top: 7px; }
+#register-form input { height: 36px; font-size: 14px; }
+#register-form .primary, #register-form .secondary { height: 38px; margin-top: 10px; }
+#register-status { color: #ffd0b8; min-height: 20px; font-size: 13px; }
 .account-form h2 {
   font-size: 20px;
   margin: 0 0 20px;
@@ -141,8 +147,123 @@ canvas {
   min-height: 22px;
   color: #ffd0b8;
 }
-.account-screen > footer {
+#login-form {
+  position: relative;
+  width: 328px;
+  height: 220px;
+  flex: 0 0 220px;
+  background: url("/assets/frame?library=Prguse&index=1084") 0 0 / 328px 220px no-repeat;
+  image-rendering: pixelated;
+  text-shadow: 0 1px 2px #000;
+}
+#login-form h2 {
   position: absolute;
+  left: 113px;
+  top: 12px;
+  width: 102px;
+  height: 24px;
+  margin: 0;
+  overflow: hidden;
+  color: transparent;
+  background: url("/assets/frame?library=Title&index=30") no-repeat;
+}
+#login-form > label {
+  position: absolute;
+  width: 32px;
+  height: 20px;
+  margin: 0;
+  overflow: hidden;
+  color: transparent;
+  image-rendering: pixelated;
+}
+#login-form > label[for="account"] {
+  left: 52px;
+  top: 83px;
+  background: url("/assets/frame?library=Title&index=31") no-repeat;
+}
+#login-form > label[for="password"] {
+  left: 43px;
+  top: 105px;
+  background: url("/assets/frame?library=Title&index=32") no-repeat;
+}
+#login-form #account,
+#login-form .password-field {
+  position: absolute;
+  left: 85px;
+  width: 136px;
+  height: 18px;
+  margin: 0;
+}
+#login-form #account { top: 83px; }
+#login-form .password-field { top: 106px; }
+#login-form #account,
+#login-form #password {
+  min-width: 0;
+  height: 18px;
+  padding: 1px 4px;
+  border: 1px solid #554a3b;
+  border-radius: 0;
+  background: #070707d9;
+  color: #f1eee5;
+  font: 12px Helvetica, Arial, sans-serif;
+}
+#login-form #password { width: 117px; }
+#login-form #show-password {
+  width: 19px;
+  min-width: 19px;
+  height: 18px;
+  border: 1px solid #554a3b;
+  border-left: 0;
+  border-radius: 0;
+  background: #191610;
+}
+#login-form #show-password svg { width: 12px; height: 12px; }
+#login-form #login {
+  position: absolute;
+  left: 227px;
+  top: 81px;
+  width: 48px;
+  height: 48px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  color: transparent;
+  background: url("/assets/frame?library=Title&index=320") no-repeat;
+  image-rendering: pixelated;
+}
+#login-form #login:hover:not(:disabled) { background-image: url("/assets/frame?library=Title&index=321"); }
+#login-form #login:active:not(:disabled) { background-image: url("/assets/frame?library=Title&index=322"); }
+#login-form #open-register {
+  position: absolute;
+  left: 60px;
+  top: 163px;
+  width: 100px;
+  height: 25px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  overflow: hidden;
+  color: transparent;
+  background: url("/assets/frame?library=Title&index=323") no-repeat;
+  image-rendering: pixelated;
+}
+#login-form #open-register:hover { background-image: url("/assets/frame?library=Title&index=324"); }
+#login-form #open-register:active { background-image: url("/assets/frame?library=Title&index=325"); }
+#login-form #login-status {
+  position: absolute;
+  left: 35px;
+  right: 35px;
+  top: 132px;
+  min-height: 18px;
+  margin: 0;
+  text-align: center;
+  font-size: 12px;
+}
+#account-screen > footer {
+  position: absolute;
+  z-index: 1;
   bottom: 22px;
   left: 28px;
   right: 28px;
@@ -218,6 +339,7 @@ canvas {
 #world-header button {
   pointer-events: auto;
 }
+#attack-mode { pointer-events: auto; width: 100px; flex: 0 0 100px; font: inherit; color: #f1f4f3; background: #20362a; border: 1px solid #486553; border-radius: 4px; padding: 6px; }
 #map-title {
   font-size: 17px;
 }
@@ -358,39 +480,34 @@ progress::-moz-progress-bar {
   border: 0;
   border-radius: 0;
 }
-#inventory {
+#inventory, #equipment {
   position: fixed;
   right: 16px;
   top: 70px;
-  width: 400px;
-  max-width: calc(100% - 32px);
-  max-height: calc(100% - 185px);
-  overflow: auto;
-  background: #16261fed;
-  border: 1px solid #6c8a65;
-  border-radius: 4px;
-  padding: 14px;
+  image-rendering: pixelated;
+  color: #ded3ad;
 }
-#inventory header {
+#inventory { width:316px; height:236px; background:url("/assets/frame?library=Title&index=196") 0 0/100% 100% no-repeat; padding:35px 7px 5px; }
+#equipment { width:264px; height:378px; background:url("/assets/frame?library=Title&index=504") 0 0/100% 100% no-repeat; padding:90px 8px 8px; }
+#inventory header, #equipment header {
+  position:absolute; inset:0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
 }
-#inventory h2 {
-  font-size: 19px;
-  margin: 0;
-}
+#inventory h2, #equipment h2 { margin:5px 10px; font:12px serif; color:#d6c287; }
+#inventory header .icon, #equipment header .icon, #skills-panel header .icon { width:24px; min-width:24px; height:24px; margin:1px; background:#4f251c; border-color:#c69c59; }
+#inventory header svg, #equipment header svg, #skills-panel header svg { width:15px; height:15px; }
 #inventory-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(0, 1fr));
-  gap: 5px;
-  margin-top: 14px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 1px;
 }
 .slot {
-  height: 46px;
+  height: 33px;
   position: relative;
-  border: 1px solid #506549;
-  background: #0f1914;
+  border: 0;
+  background: #0507059c;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -401,13 +518,11 @@ progress::-moz-progress-bar {
 .slot.selected { border-color: #ead28d; background: #29372b; }
 .slot:disabled { cursor: default; opacity: 0.65; }
 .slot[draggable="true"] { cursor: grab; }
-.inventory-tabs { display: flex; gap: 20px; border-bottom: 1px solid #49644d; margin-top: 12px; }
-.inventory-tabs button { background: none; border: 0; border-bottom: 2px solid transparent; color: #bfcfc5; padding: 10px 4px; }
-.inventory-tabs button[aria-selected="true"] { color: #fff; border-bottom-color: #76d1b6; }
-#equipment-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin-top: 14px; }
-.equipment-entry { display: flex; align-items: center; gap: 8px; font-size: 13px; min-width: 0; }
-.equipment-entry .slot { width: 46px; flex: 0 0 46px; }
-#item-details { border-top: 1px solid #49644d; margin-top: 14px; padding-top: 12px; }
+#equipment-grid { position:absolute; inset:90px 8px 8px; background:url("/assets/frame?library=Prguse&index=340") 0 0/248px 280px no-repeat; }
+.equipment-entry { position:absolute; font-size:0; }
+.equipment-entry .slot { width:36px; height:32px; }
+.equipment-entry:nth-child(1){left:123px;top:7px}.equipment-entry:nth-child(2){left:163px;top:7px}.equipment-entry:nth-child(3){left:203px;top:7px}.equipment-entry:nth-child(4){left:203px;top:134px}.equipment-entry:nth-child(5){left:203px;top:98px}.equipment-entry:nth-child(6){left:8px;top:170px}.equipment-entry:nth-child(7){left:203px;top:170px}.equipment-entry:nth-child(8){left:8px;top:206px}.equipment-entry:nth-child(9){left:203px;top:206px}.equipment-entry:nth-child(10){left:8px;top:242px}.equipment-entry:nth-child(11){left:48px;top:242px}.equipment-entry:nth-child(12){left:88px;top:242px}.equipment-entry:nth-child(13){left:128px;top:242px}.equipment-entry:nth-child(14){left:203px;top:62px}
+#item-details { position:fixed; right:340px; top:70px; width:220px; background:#080b08ed; border:1px solid #a58a53; padding:10px; }
 #item-name { display: block; overflow-wrap: anywhere; font-size: 16px; color: #eadca9; }
 #item-stats, #inventory-status { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 #inventory-status { color: #f0c599; }
@@ -433,13 +548,13 @@ progress::-moz-progress-bar {
   color: #e7d396;
 }
 #game.aiming { cursor: crosshair; }
-#skills-panel { position: fixed; right: 16px; top: 70px; width: 370px; max-width: calc(100% - 32px); max-height: calc(100% - 185px); overflow: auto; background: #16261ff5; border: 1px solid #6c8a65; border-radius: 4px; padding: 14px; }
-#skills-panel header { display: flex; justify-content: space-between; align-items: center; }
-#skills-panel h2 { font-size: 19px; margin: 0; }
-#skill-list { display: grid; margin-top: 10px; }
-.skill-entry { display: flex; align-items: center; gap: 10px; min-height: 64px; padding: 8px; background: transparent; border: 0; border-bottom: 1px solid #405845; color: #eef3e9; text-align: left; }
+#skills-panel { position:fixed; right:16px; top:70px; width:264px; height:378px; overflow:hidden; background:url("/assets/frame?library=Title&index=504") 0 0/100% 100% no-repeat; padding:90px 8px 8px; color:#ded3ad; image-rendering:pixelated; }
+#skills-panel header { position:absolute; inset:0 0 auto; display:flex; justify-content:space-between; align-items:center; }
+#skills-panel h2 { font:12px serif; margin:5px 10px; }
+#skill-list { display:grid; height:280px; overflow:auto; background:url("/assets/frame?library=Title&index=508") 0 0/248px 280px no-repeat; padding:4px; }
+.skill-entry { display:flex; align-items:center; gap:8px; min-height:44px; padding:4px; background:#050705a8; border:0; border-bottom:1px solid #4e4936; color:#eee5c6; text-align:left; }
 .skill-entry[aria-pressed="true"] { background: #3b4b32; outline: 1px solid #d3c587; outline-offset: -1px; }
-.skill-entry img { width: 36px; height: 36px; object-fit: contain; image-rendering: pixelated; }
+.skill-entry img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 .skill-entry > span { min-width: 0; }
 .skill-entry strong { display: block; font-size: 14px; overflow-wrap: anywhere; }
 .skill-entry small { display: block; margin-top: 4px; font-size: 12px; color: #becbbf; }
@@ -447,6 +562,77 @@ progress::-moz-progress-bar {
 .skill-cooldown { margin-left: auto; min-width: 38px !important; text-align: right; font-size: 12px; color: #ebd599; }
 #skill-status { position: fixed; left: 50%; top: 68px; transform: translateX(-50%); max-width: 75%; padding: 8px 14px; background: #142017ed; color: #ecdba7; font-size: 14px; pointer-events: none; }
 #skill-status:empty { display: none; }
+@media (min-width: 1101px) {
+  #game { bottom: 0; }
+  #hud {
+    left: 50%;
+    right: auto;
+    width: 1024px;
+    height: 152px;
+    padding: 0;
+    display: block;
+    transform: translateX(-50%);
+    border: 0;
+    background: url("/assets/frame?library=Prguse&index=2") 0 0 / 1024px 152px no-repeat;
+    image-rendering: pixelated;
+    pointer-events: none;
+  }
+  #hud .vitals {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 104px;
+    height: 120px;
+    margin: 0;
+  }
+  #hud .identity {
+    position: absolute;
+    left: 5px;
+    top: 108px;
+    width: 92px;
+    min-width: 0;
+    gap: 0;
+    text-align: center;
+    pointer-events: auto;
+  }
+  #hud .identity strong { order: 2; font: 12px Arial, sans-serif; line-height: 16px; }
+  #hud .identity span { order: 1; font: 11px Arial, sans-serif; line-height: 12px; color: #ddd5b8; }
+  #hud #belt {
+    position: absolute;
+    left: 230px;
+    bottom: 4px;
+    gap: 2px;
+    pointer-events: auto;
+  }
+  #hud #belt .slot { width: 38px; height: 38px; flex-basis: 38px; background: #050505b8; border: 1px solid #615331; }
+  #hud .actions { display: contents; }
+  #hud .actions .icon {
+    position: absolute;
+    top: 76px;
+    width: 20px;
+    min-width: 20px;
+    height: 20px;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    border-radius: 0;
+    color: transparent;
+    image-rendering: pixelated;
+    pointer-events: auto;
+  }
+  #hud .actions .icon svg { display: none; }
+  #open-equipment { left: 905px; background: url("/assets/frame?library=Prguse&index=1900") no-repeat; }
+  #open-equipment:hover { background-image: url("/assets/frame?library=Prguse&index=1901"); }
+  #open-equipment:active { background-image: url("/assets/frame?library=Prguse&index=1902"); }
+  #open-inventory { left: 928px; background: url("/assets/frame?library=Prguse&index=1903") no-repeat; }
+  #open-inventory:hover { background-image: url("/assets/frame?library=Prguse&index=1904"); }
+  #open-inventory:active { background-image: url("/assets/frame?library=Prguse&index=1905"); }
+  #open-skills { left: 951px; background: url("/assets/frame?library=Prguse&index=1906") no-repeat; }
+  #open-skills:hover { background-image: url("/assets/frame?library=Prguse&index=1907"); }
+  #open-skills:active { background-image: url("/assets/frame?library=Prguse&index=1908"); }
+  #toggle-chat { left: 974px; background: url("/assets/frame?library=Prguse&index=1909") no-repeat; }
+  #chat-panel { bottom: 158px; }
+}
 @media (max-width: 1100px) { #skills-panel { max-height: calc(100% - 245px); } }
 @media (max-width: 650px) { #skills-panel { max-height: calc(100% - 290px); } }
 @media (min-width: 651px) and (max-width: 1100px) {
@@ -530,4 +716,23 @@ progress::-moz-progress-bar {
 #npc-page p { white-space: pre-wrap; overflow-wrap: anywhere; min-height: 20px; line-height: 1.7; margin: 8px 0; }
 .npc-choice { background: transparent; border: 0; padding: 2px 4px; color: #ffe091; font: inherit; text-decoration: underline; cursor: pointer; }
 #npc-status { font-size: 13px; color: #e2cc92; }
+#shop-search { width: 100%; }
+#shop-list { max-height: 240px; overflow: auto; margin: 8px 0; }
+.shop-row { display: grid; grid-template-columns: 36px minmax(0, 1fr) auto; gap: 8px; align-items: center; width: 100%; min-height: 48px; padding: 6px; text-align: left; color: #f1f4f3; border: 0; border-bottom: 1px solid #486553; background: transparent; }
+.shop-row[aria-pressed="true"] { background: #35482f; }
+.shop-row img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.shop-row span { overflow-wrap: anywhere; }
+.shop-row small { color: #ffe091; }
+.shop-actions { display: flex; gap: 8px; align-items: center; }
+#shop-count { width: 85px; }
+#shop-count, #shop-search { font: inherit; min-height: 38px; padding: 6px; color: #fff; background: #101917; border: 1px solid #849d977a; border-radius: 4px; }
+#shop-buy { margin-left: auto; min-height: 40px; padding: 6px 18px; color: #10241c; background: #76d1b6; border: 1px solid #829879; border-radius: 4px; }
+#shop-total, #shop-status { font-size: 13px; overflow-wrap: anywhere; }
+@media (max-width: 650px) { #world-header { gap: 6px; padding: 0 8px; } #map-title { max-width: 90px; overflow: hidden; text-overflow: ellipsis; } #attack-mode { width: 94px; flex-basis: 94px; font-size: 13px; } #latency { display: none; } }
+#npc-input-form { display: grid; gap: 10px; }
+#npc-input-form[hidden] { display: none; }
+#npc-input-value { width: 100%; min-width: 0; height: 42px; font: inherit; padding: 8px; color: #fff; background: #101917; border: 1px solid #849d977a; border-radius: 4px; }
+.npc-input-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.npc-input-actions button { min-height: 40px; padding: 6px 18px; color: #f1f4f3; background: #263c31; border: 1px solid #829879; border-radius: 4px; }
+.npc-input-actions button[type="submit"] { color: #10241c; background: #76d1b6; }
 @media (max-width: 650px) { #minimap { width: 112px; } #map-panel { top: 58px; width: calc(100% - 16px); max-height: calc(100dvh - 280px); overflow: auto; } }
