@@ -578,6 +578,9 @@ function receive(type, p) {
     case "UseItem":
     case "RefreshItem":
     case "DuraChanged":
+    case "DropItem":
+    case "SplitItem":
+    case "SplitItem1":
     case "ItemRepaired": {
       const used = type === "UseItem" ? state.user?.Inventory?.find((item) => item?.UniqueID === p.UniqueID) : null;
       const sound = used ? itemUseSound(p, state.items.get(used.ItemIndex)) : null;

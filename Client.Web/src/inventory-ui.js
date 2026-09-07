@@ -1,14 +1,27 @@
-import { createIcons, Shirt, PackageOpen, FlaskConical } from "lucide";
-import { BELT_SIZE, equipmentNames, usableTypes, equipSlot, canEquipAt, emptyBagSlot, applyInventoryPacket } from "./inventory.js";
+import { createIcons, Shirt, PackageOpen, FlaskConical, Trash2, Split } from "lucide";
+import { BELT_SIZE, equipmentNames, usableTypes, equipSlot, canEquipAt, emptyBagSlot, applyInventoryPacket, placeItem, clampCount } from "./inventory.js";
 import { equippedWeapon } from "./appearance.js";
 
 const $ = (id) => document.getElementById(id);
-const actions = new Set(["MoveItem", "EquipItem", "RemoveItem", "UseItem"]);
+// A command is settled by the packet the server answers it with; only a split is
+// acknowledged under a different name (S.SplitItem1 carries the result, S.SplitItem the new stack).
+const acks = {
+  MoveItem: "MoveItem", EquipItem: "EquipItem", RemoveItem: "RemoveItem",
+  UseItem: "UseItem", DropItem: "DropItem", SplitItem: "SplitItem1",
+};
+// The server refuses a drop or a split without saying why, so name the causes it actually checks.
+const failures = {
+  DropItem: "无法丢弃：物品已绑定，或此地图禁止丢弃",
+  SplitItem: "无法拆分：数量超出堆叠或背包已满",
+};
 export class InventoryUI {
   constructor(getUser, getInfo, send) {
     this.getUser = getUser; this.getInfo = getInfo; this.send = send;
     this.reset();
     $("item-action").onclick = () => this.selected && this.activate(this.selected);
+    $("item-drop").onclick = () => this.dropItem();
+    $("item-split").onclick = () => this.splitItem();
+    $("drop-gold").onclick = () => this.dropGold();
   }
   reset() {
     clearTimeout(this.timer);
@@ -25,22 +38,30 @@ export class InventoryUI {
     this.pending = { type, data };
     $("inventory-status").textContent = "等待服务器确认…";
     this.send(type, data);
+    // Nothing here is applied optimistically, so a late reply still lands correctly.
+    // An unanswered command therefore only has to release the UI lock; keeping it, as
+    // this timeout used to, stranded the whole bag until the player logged in again.
     this.timer = setTimeout(() => {
-      this.uncertain = true;
-      $("inventory-status").textContent = "操作确认超时，请重新登录后继续";
+      this.pending = null;
+      $("inventory-status").textContent = "服务器未回应，请重试";
       this.render();
     }, 8000);
     this.render();
   }
   receive(type, data) {
     if (!this.getUser()) return;
-    if (actions.has(type) && this.pending?.type === type &&
+    if (this.pending && acks[this.pending.type] === type &&
         (type === "MoveItem" ? this.pending.data.From === data.From && this.pending.data.To === data.To
           : this.pending.data.UniqueID === data.UniqueID)) {
+      const attempted = this.pending.type;
       clearTimeout(this.timer); this.pending = null;
-      $("inventory-status").textContent = data.Success ? "" : "服务器未允许此操作";
+      $("inventory-status").textContent = data.Success ? "" : failures[attempted] || "服务器未允许此操作";
     }
-    try { applyInventoryPacket(this.getUser(), type, data); }
+    try {
+      if (type === "SplitItem") {
+        if (data.Grid === 1 && data.Item) placeItem(this.getUser().Inventory, data.Item, this.getInfo(data.Item.ItemIndex));
+      } else applyInventoryPacket(this.getUser(), type, data);
+    }
     catch (error) { this.uncertain = true; $("inventory-status").textContent = error.message; }
     if (type === "DuraChanged" || type === "ItemRepaired") {
       this.updateAppearance(this.getUser()); this.renderDetails(this.getUser());
@@ -64,6 +85,46 @@ export class InventoryUI {
         this.request("UseItem", { Grid: 1, UniqueID: item.UniqueID });
       }
     }
+  }
+  // Native drop: a single item asks for confirmation, a stack asks for an amount instead.
+  dropItem() {
+    const ref = this.selected, item = ref?.grid === "bag" && this.item(ref);
+    if (!item || !this.available()) return;
+    const name = this.getInfo(item.ItemIndex)?.Name || "未知物品";
+    let Count = 1;
+    if (item.Count > 1) {
+      const answer = window.prompt(`丢弃 ${name} 的数量（1-${item.Count}）`, String(item.Count));
+      if (answer === null) return;
+      Count = clampCount(answer, item.Count);
+      if (!Count) { $("inventory-status").textContent = "丢弃数量无效"; return; }
+    } else if (!window.confirm(`丢弃 ${name}？`)) return;
+    this.request("DropItem", { UniqueID: item.UniqueID, Count, HeroInventory: false });
+  }
+  // The server rejects a split that fills the bag or takes the whole stack, so ask for
+  // an amount the server can actually honour rather than burning the lock on a refusal.
+  splitItem() {
+    const ref = this.selected, item = ref?.grid === "bag" && this.item(ref);
+    if (!item || item.Count < 2 || !this.available()) return;
+    if (emptyBagSlot(this.getUser().Inventory) < 0) { $("inventory-status").textContent = "背包已满"; return; }
+    const name = this.getInfo(item.ItemIndex)?.Name || "未知物品", max = item.Count - 1;
+    const answer = window.prompt(`拆分 ${name} 的数量（1-${max}）`, "1");
+    if (answer === null) return;
+    const Count = clampCount(answer, max);
+    if (!Count) { $("inventory-status").textContent = "拆分数量无效"; return; }
+    this.request("SplitItem", { Grid: 1, UniqueID: item.UniqueID, Count });
+  }
+  // Gold is never acknowledged: the server answers a successful drop with S.LoseGold and
+  // stays silent otherwise, so this must not take the inventory lock it could never release.
+  dropGold() {
+    const user = this.getUser();
+    if (!user || user.Dead) return;
+    const gold = Number(user.Gold || 0);
+    if (gold < 1) { $("inventory-status").textContent = "没有可丢弃的金币"; return; }
+    const answer = window.prompt(`丢弃金币的数量（1-${gold}）`, "1");
+    if (answer === null) return;
+    const Amount = clampCount(answer, gold);
+    if (!Amount) { $("inventory-status").textContent = "金币数量无效"; return; }
+    $("inventory-status").textContent = this.send("DropGold", { Amount }) ? `正在丢弃 ${Amount} 金币…` : "连接已断开";
   }
   drop(from, to) {
     const item = this.item(from);
@@ -140,6 +201,7 @@ export class InventoryUI {
     }
     $("equipment-grid").replaceChildren(equipment);
     $("gold").textContent = `金币 ${Number(user.Gold || 0).toLocaleString()} · 背包 ${user.Inventory.slice(BELT_SIZE).filter(Boolean).length}/${user.Inventory.length - BELT_SIZE}`;
+    $("drop-gold").disabled = !!user.Dead || Number(user.Gold || 0) < 1;
     this.updateAppearance(user);
     this.renderDetails(user);
   }
@@ -169,6 +231,21 @@ export class InventoryUI {
     const text = document.createElement("span"); text.textContent = removing ? "卸下" : equipping ? "装备" : "使用";
     action.append(icon, text);
     createIcons({ icons: { Shirt, PackageOpen, FlaskConical }, root: action });
+    // Only bag items can be thrown away or split; equipment has to be taken off first.
+    const bagged = this.selected?.grid === "bag" && !!item;
+    this.extraAction("item-drop", bagged, "trash-2", "丢弃");
+    this.extraAction("item-split", bagged && item.Count > 1, "split", "拆分");
+  }
+  extraAction(id, visible, lucide, label) {
+    const button = $(id);
+    button.hidden = !visible;
+    button.disabled = !this.available();
+    button.replaceChildren();
+    if (!visible) return;
+    const icon = document.createElement("i"); icon.dataset.lucide = lucide;
+    const text = document.createElement("span"); text.textContent = label;
+    button.append(icon, text);
+    createIcons({ icons: { Trash2, Split }, root: button });
   }
   hideDetails() {
     this.selected = null;

@@ -166,6 +166,8 @@ public static class GameSession
             "Harvest" => typeof(C.Harvest),
             "UseItem" => typeof(C.UseItem), "EquipItem" => typeof(C.EquipItem),
             "RemoveItem" => typeof(C.RemoveItem), "MoveItem" => typeof(C.MoveItem),
+            "DropItem" => typeof(C.DropItem), "DropGold" => typeof(C.DropGold),
+            "SplitItem" => typeof(C.SplitItem),
             "Magic" => typeof(C.Magic),
             "CallNPC" => typeof(C.CallNPC),
             "NPCConfirmInput" => typeof(C.NPCConfirmInput),
@@ -223,6 +225,12 @@ public static class GameSession
             throw new InvalidDataException("Invalid inventory slot");
         if (packet is C.MoveItem move && (move.Grid != MirGridType.Inventory || move.From is < 0 or > 255 || move.To is < 0 or > 255 || move.From == move.To))
             throw new InvalidDataException("Invalid inventory move");
+        // The hero inventory is not part of this client, so a hero drop could only come from a forged command.
+        if (packet is C.DropItem drop && (drop.UniqueID == 0 || drop.Count == 0 || drop.HeroInventory))
+            throw new InvalidDataException("Invalid item drop");
+        if (packet is C.DropGold gold && gold.Amount == 0) throw new InvalidDataException("Invalid gold drop");
+        if (packet is C.SplitItem split && (split.Grid != MirGridType.Inventory || split.UniqueID == 0 || split.Count == 0))
+            throw new InvalidDataException("Invalid item split");
         if (packet is C.Magic magic && (magic.ObjectID == 0 || magic.Spell == Spell.None || !Enum.IsDefined(magic.Spell) ||
             (byte)magic.Direction > 7 || magic.Location.X is < 0 or > 32767 || magic.Location.Y is < 0 or > 32767))
             throw new InvalidDataException("Invalid spell command");

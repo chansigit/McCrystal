@@ -150,7 +150,10 @@
       </header>
       <div id="inventory-grid"></div>
       <p id="inventory-status" role="status"></p>
-      <p id="gold"></p>
+      <div class="gold-row">
+        <p id="gold"></p>
+        <button id="drop-gold" type="button" title="丢弃金币">丢弃金币</button>
+      </div>
     </aside>
     <aside id="equipment" hidden>
       <header><h2>装备</h2><button id="close-equipment" class="icon" title="关闭" aria-label="关闭装备"><i data-lucide="x"></i></button></header>
@@ -164,6 +167,8 @@
       <strong id="item-name"></strong>
       <p id="item-stats"></p>
       <button id="item-action" type="button"></button>
+      <button id="item-drop" type="button" hidden></button>
+      <button id="item-split" type="button" hidden></button>
     </aside>
     <footer id="hud" hidden>
       <div class="identity">

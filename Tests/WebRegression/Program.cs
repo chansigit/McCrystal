@@ -167,4 +167,22 @@ Check(((ClientPackets.DeleteCharacter)Packet.ReceivePacket(deletion.GetPacketByt
     "Character deletion uses the native binary protocol");
 Reject("""{"type":"DeleteCharacter","data":{"CharacterIndex":0}}""", "Deletion without a character rejected");
 Reject("""{"type":"DeleteCharacter","data":{"CharacterIndex":-1}}""", "Negative character index rejected");
+var itemDrop = Parse("""{"type":"DropItem","data":{"UniqueID":"18446744073709551615","Count":65535,"HeroInventory":false}}""");
+var decodedDrop = (ClientPackets.DropItem)Packet.ReceivePacket(itemDrop.GetPacketBytes().ToArray(), out var dropExtra);
+Check(decodedDrop.UniqueID == ulong.MaxValue && decodedDrop.Count == ushort.MaxValue && !decodedDrop.HeroInventory && dropExtra.Length == 0,
+    "Item drop preserves 64-bit IDs and the full stack range through the binary protocol");
+Reject("""{"type":"DropItem","data":{"UniqueID":"0","Count":1,"HeroInventory":false}}""", "Drop without an item ID rejected");
+Reject("""{"type":"DropItem","data":{"UniqueID":"1","Count":0,"HeroInventory":false}}""", "Drop of nothing rejected");
+Reject("""{"type":"DropItem","data":{"UniqueID":"1","Count":1,"HeroInventory":true}}""", "Hero inventory drop rejected");
+var goldDrop = Parse("""{"type":"DropGold","data":{"Amount":4294967295}}""");
+Check(((ClientPackets.DropGold)Packet.ReceivePacket(goldDrop.GetPacketBytes().ToArray(), out var goldExtra)).Amount == uint.MaxValue && goldExtra.Length == 0,
+    "Gold drop uses the native 32-bit amount protocol");
+Reject("""{"type":"DropGold","data":{"Amount":0}}""", "Drop of no gold rejected");
+var itemSplit = Parse("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"18446744073709551615","Count":7}}""");
+var decodedSplit = (ClientPackets.SplitItem)Packet.ReceivePacket(itemSplit.GetPacketBytes().ToArray(), out var splitExtra);
+Check(decodedSplit.Grid == MirGridType.Inventory && decodedSplit.UniqueID == ulong.MaxValue && decodedSplit.Count == 7 && splitExtra.Length == 0,
+    "Item split carries the inventory grid, item ID and count to the server");
+Reject("""{"type":"SplitItem","data":{"Grid":4,"UniqueID":"1","Count":1}}""", "Storage split rejected");
+Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"0","Count":1}}""", "Split without an item ID rejected");
+Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"1","Count":0}}""", "Split of nothing rejected");
 Console.WriteLine($"{count}/{count} passed");

@@ -541,7 +541,13 @@ progress::-moz-progress-bar {
 #inventory-status { color: #f0c599; }
 #inventory-status:empty { display: none; }
 #item-action { display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border: 1px solid #71977c; border-radius: 4px; background: #294c3b; color: #fff; }
-#item-action svg { width: 18px; height: 18px; }
+#item-action svg, #item-drop svg, #item-split svg { width: 18px; height: 18px; }
+#item-drop, #item-split { display: inline-flex; align-items: center; gap: 8px; margin: 6px 6px 0 0; padding: 8px 14px; border: 1px solid #9b6f56; border-radius: 4px; background: #4c2f29; color: #fff; }
+#item-split { border-color: #71829b; background: #2c384c; }
+#item-drop[hidden], #item-split[hidden] { display: none; }
+.gold-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+#drop-gold { padding: 4px 10px; border: 1px solid #9b6f56; border-radius: 4px; background: #4c2f29; color: #f0dfae; font-size: 13px; }
+#drop-gold:disabled { opacity: 0.5; }
 #belt { display: flex; gap: 5px; margin-left: auto; }
 #belt .slot { width: 44px; height: 44px; flex: 0 0 44px; }
 .belt-key { position: absolute; top: 2px; left: 3px; font-size: 10px; color: #d8dac9; text-shadow: 0 1px 2px #000; }
