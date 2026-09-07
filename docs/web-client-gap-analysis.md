@@ -7,10 +7,10 @@ point at the evidence.
 
 ## Headline coverage
 
-| Direction | Native | Web |
-| --- | --- | --- |
-| Server packets handled | 279 / 279 | 73 / 279 (70 excluding stubs) |
-| Client packets sendable | 148 / 153 | 23 / 153 |
+| Direction | Native | Web at survey | Web after Tier 1 |
+| --- | --- | --- | --- |
+| Server packets handled | 279 / 279 | 73 / 279 (70 excluding stubs) | 87 / 279, no stubs |
+| Client packets sendable | 148 / 153 | 23 / 153 | 32 / 153 |
 
 The native dispatch is four chained `ProcessPacket` switches
 (`Client/MirScenes/GameScene.cs:1342`, `LoginScene.cs:98`, `SelectScene.cs:292`,
