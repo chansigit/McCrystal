@@ -127,7 +127,7 @@ function apiPost(path, body) {
   return fetch(path, {
     method: 'POST',
     credentials: 'same-origin',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', 'X-Admin-Console': '1' },
     body: JSON.stringify(body || {})
   }).then(handleResponse);
 }
@@ -171,7 +171,7 @@ document.getElementById('login-form').addEventListener('submit', async function 
     var res = await fetch('/api/login', {
       method: 'POST',
       credentials: 'same-origin',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', 'X-Admin-Console': '1' },
       body: JSON.stringify({ password: password })
     });
     if (res.status === 401) {

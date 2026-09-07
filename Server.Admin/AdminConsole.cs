@@ -32,10 +32,22 @@ namespace Server.Admin
         public void Start()
         {
             var service = new AdminService(envir);
-            var builder = WebApplication.CreateBuilder(new WebApplicationOptions { ContentRootPath = AppContext.BaseDirectory });
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                ContentRootPath = AppContext.BaseDirectory,
+                EnvironmentName = Environments.Production,
+            });
             builder.Logging.ClearProviders();
             builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
             app = builder.Build();
+
+            app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+            {
+                var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+                if (error != null && error.Error != null) MessageQueue.Instance.Enqueue(error.Error);
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { error = "Internal error; see server log." });
+            }));
 
             // Static page from the copied AdminConsole folder next to the binaries.
             var pageRoot = Path.Combine(AppContext.BaseDirectory, "AdminConsole");
@@ -52,13 +64,27 @@ namespace Server.Admin
 
             app.Use(async (context, next) =>
             {
-                var path = context.Request.Path.Value ?? string.Empty;
-                if (path.StartsWith("/api/", StringComparison.Ordinal) && path != "/api/login")
+                // Routing matches paths case-insensitively, so this guard must too.
+                if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase, out var rest)
+                    && !rest.Equals("/login", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || cookie != token)
+                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || !TokenMatches(cookie, token))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsJsonAsync(new { error = "login required" });
+                        return;
+                    }
+
+                    // CSRF guard: a browser cannot set a custom header on a cross-origin request
+                    // without a CORS preflight, and no CORS policy is configured, so the preflight
+                    // fails. Only state-changing methods need it - GET and HEAD are exempt because
+                    // EventSource cannot set headers, and they are guarded by SameSite cookies plus
+                    // having no side effects.
+                    if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
+                        && context.Request.Headers["X-Admin-Console"] != "1")
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsJsonAsync(new { error = "missing X-Admin-Console header" });
                         return;
                     }
                 }
@@ -93,22 +119,27 @@ namespace Server.Admin
             app.MapGet("/api/stats", () => service.GetStatistics());
 
             app.MapGet("/api/logs", (long? after) => Logs.After(after ?? 0));
-            app.MapGet("/api/logs/stream", async (HttpContext context, long? after) =>
+            app.MapGet("/api/logs/stream", async (HttpContext context, IHostApplicationLifetime lifetime, long? after) =>
             {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, lifetime.ApplicationStopping);
+                var cancellation = linked.Token;
                 context.Response.Headers.ContentType = "text/event-stream";
                 context.Response.Headers.CacheControl = "no-cache";
                 long cursor = after ?? Math.Max(0, Logs.LastSequence - 200);
-                while (!context.RequestAborted.IsCancellationRequested)
+                try
                 {
-                    foreach (var entry in Logs.After(cursor))
+                    while (!cancellation.IsCancellationRequested)
                     {
-                        cursor = entry.Sequence;
-                        var json = System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions);
-                        await context.Response.WriteAsync($"data: {json}\n\n", context.RequestAborted);
+                        foreach (var entry in Logs.After(cursor))
+                        {
+                            cursor = entry.Sequence;
+                            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions)}\n\n", cancellation);
+                        }
+                        await context.Response.Body.FlushAsync(cancellation);
+                        await Task.Delay(500, cancellation);
                     }
-                    await context.Response.Body.FlushAsync(context.RequestAborted);
-                    try { await Task.Delay(500, context.RequestAborted); } catch (TaskCanceledException) { }
                 }
+                catch (OperationCanceledException) { } // client left or the host is stopping
             });
 
             app.MapPost("/api/players/{name}/give-item", (string name, GiveItemRequest body) => Result(service.GiveItem(name, body.Item, body.Count)));
@@ -138,6 +169,14 @@ namespace Server.Admin
 
         private static readonly System.Text.Json.JsonSerializerOptions JsonOptions =
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
+
+        private static bool TokenMatches(string candidate, string expected)
+        {
+            if (candidate == null || expected == null) return false;
+            return CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(candidate),
+                System.Text.Encoding.ASCII.GetBytes(expected));
+        }
 
         private static IResult Result(AdminActionResult result)
         {

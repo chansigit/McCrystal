@@ -322,4 +322,46 @@ static class AdminChecks
         }
         finally { console.Stop(); }
     }
+
+    public static void HttpGuardIsCaseInsensitive()
+    {
+        var envir = SampleEnvir();
+        var console = new Server.Admin.AdminConsole(envir, "hunter2", port: 0);
+        console.Start();
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(console.BaseUrl) };
+
+            foreach (var path in new[] { "/API/overview", "/Api/Overview", "/%41PI/overview" })
+            {
+                var response = client.GetAsync(path).Result;
+                Check(response.StatusCode == System.Net.HttpStatusCode.Unauthorized, $"{path} must require login");
+            }
+
+            // A cross-origin form POST must not reach an action, even one that binds no body.
+            var form = client.PostAsync("/API/server/reload-drops",
+                new StringContent("a=b", System.Text.Encoding.UTF8, "application/x-www-form-urlencoded")).Result;
+            Check(form.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                  || form.StatusCode == System.Net.HttpStatusCode.Forbidden, "form POST must be rejected before the action runs");
+
+            // /apifoo must not be treated as an API path at all (it has no route, so 404).
+            var sibling = client.GetAsync("/apifoo").Result;
+            Check(sibling.StatusCode == System.Net.HttpStatusCode.NotFound, "unrelated path must not be guarded as /api");
+
+            // A valid session cookie is not enough on its own for a state-changing action: a
+            // cross-site form post carries the cookie (it's same-site on 127.0.0.1) but cannot
+            // set the X-Admin-Console header, so it must still be rejected - this is the case
+            // the header check actually defends against.
+            var login = client.PostAsync("/api/login",
+                new StringContent("{\"password\":\"hunter2\"}", System.Text.Encoding.UTF8, "application/json")).Result;
+            Check(login.IsSuccessStatusCode, "login failed");
+            var cookie = login.Headers.GetValues("Set-Cookie").First().Split(';')[0];
+
+            var request = new HttpRequestMessage(HttpMethod.Post, "/api/server/reload-drops");
+            request.Headers.Add("Cookie", cookie);
+            var csrf = client.SendAsync(request).Result;
+            Check(csrf.StatusCode == System.Net.HttpStatusCode.Forbidden, "valid cookie without the header must still be rejected");
+        }
+        finally { console.Stop(); }
+    }
 }

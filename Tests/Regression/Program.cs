@@ -20,6 +20,7 @@ var tests = new (string Name, Action Run)[]
     ("Admin online actions reject unknown players", AdminChecks.OnlineActionsRejectUnknownPlayer),
     ("Admin HTTP requires login", AdminChecks.HttpRequiresLogin),
     ("Admin HTTP rejects actions without login", AdminChecks.HttpRejectsActionsWithoutLogin),
+    ("Admin HTTP guard is case-insensitive", AdminChecks.HttpGuardIsCaseInsensitive),
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),
