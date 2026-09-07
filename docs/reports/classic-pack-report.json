@@ -1,0 +1,118 @@
+{
+  "packId": "crystal-classic",
+  "packVersion": "1.0.0",
+  "generatedAtUtc": "2026-09-07T03:09:58.220211Z",
+  "inventory": {
+    "files.configs": 37,
+    "files.maps": 1704,
+    "files.drops": 2088,
+    "files.npcs": 635,
+    "files.quests": 161,
+    "files.goods": 53,
+    "files.recipes": 79,
+    "files.routes": 25,
+    "files.nonPortable": 446,
+    "database.maps": 463,
+    "database.items": 1628,
+    "database.monsters": 555,
+    "database.npcs": 375,
+    "database.quests": 154,
+    "database.magic": 111,
+    "files.drops.active": 556
+  },
+  "issues": [
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_MAP_MISSING",
+      "message": "Map \u00274\u0027 movement at 70,191 targets unknown map index 388 at 77,74.",
+      "path": null,
+      "entity": "4"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_MAP_MISSING",
+      "message": "Map \u00274\u0027 movement at 71,190 targets unknown map index 388 at 77,74.",
+      "path": null,
+      "entity": "4"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027_Shinsu(Jude)\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/BichonProvince/HighPriestShinsu.txt",
+      "entity": "_Shinsu(Jude)"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Merchant_Jim\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/Castle-GI/1Gime.txt",
+      "entity": "Merchant_Jim"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Apprentice\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/Apprentice8.txt",
+      "entity": "Apprentice"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Apprentice\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/Apprentice9.txt",
+      "entity": "Apprentice"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Apprentice\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/Apprentice10.txt",
+      "entity": "Apprentice"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Apprentice\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/Apprentice11.txt",
+      "entity": "Apprentice"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Apprentice\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/Apprentice12.txt",
+      "entity": "Apprentice"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027TrainerTaoist\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/WoomyonWoods/TaoistVillage/TrainerTaoist2.txt",
+      "entity": "TrainerTaoist"
+    },
+    {
+      "severity": "Warning",
+      "code": "NPC_MAIN_MISSING",
+      "message": "NPC \u0027Merchant_Harry\u0027 script has no [@MAIN] page.",
+      "path": "Envir/NPCs/MongchonProvince/SabukWall/Potion.txt",
+      "entity": "Merchant_Harry"
+    },
+    {
+      "severity": "Warning",
+      "code": "ITEM_NAME_DUPLICATE",
+      "message": "Multiple items resolve from the normalized name \u0027ToughHoaSword\u0027.",
+      "path": null,
+      "entity": "ToughHoaSword"
+    },
+    {
+      "severity": "Warning",
+      "code": "ITEM_NAME_DUPLICATE",
+      "message": "Multiple items resolve from the normalized name \u0027Formal2(M)\u0027.",
+      "path": null,
+      "entity": "Formal2(M)"
+    }
+  ],
+  "errorCount": 2,
+  "warningCount": 11
+}
