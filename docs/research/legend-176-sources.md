@@ -16,11 +16,45 @@ license as research material only, and do not redistribute their contents.
 | `mir2-geem2` | <https://github.com/cjlaaa/Mir2-GeeM2> | `9981a8d7aeccadd4a7fb786055ff612ceccda035` | 304 MB | 605 | GPL-3.0 GeeM2 configuration derived from a 1.76 base. Includes post-1.76 maps, heroes, skills, and systems. |
 | `buyi-legend` | <https://gitee.com/mylgd/mir2server> | `3952c536c6de04cae12b0c8ce42a6f53ec08d428` | 335 MB | 373 | GEE 1.76 retro gameplay pack with no new skills, small random item bonuses, sets, and Fire Dragon content. Research-only copyright notice. |
 | `buyi-classic` | <https://gitee.com/robin.wu/mir2_server_cloth_legend> | `1ecf8a225d7191a91556379b49e356a271e75a23` | 818 MB | 981 | GEE 1.76-derived pack with inscriptions, heroes, combo skills, and later equipment. Research-only copyright notice. |
+| `mir2-english-original` | <https://gitee.com/mylgd/mir2_server_origin> | `e8acd1e9e03f0341908a41c8c0854ad423da6065` | 186 MB | 641 | English original server and client distribution. Useful as an independent classic map and configuration baseline. No explicit license found. |
 | `classic-drop-rates` | <https://github.com/zxz88601151/mir2-drop-rates> | `1da72077f789bc698f27d657b2fb93515e00ae05` | 2.5 MB | 0 | Supplemental Chinese and English classic monster drop tables. Its license restricts redistribution and commercial use. |
 
-The four map-bearing packs contain 3,808 `.map` files in total, counting files
-inside the Crystal pack's `Maps.zip`. This is a raw count and includes duplicate
-maps and post-1.76 additions.
+The five map-bearing repository heads contain 4,449 `.map` files in total,
+counting files inside the Crystal pack's `Maps.zip`. This is a raw count and
+includes duplicate maps and post-1.76 additions.
+
+## Recovered GPL 1.76 baseline
+
+The complete 232-commit history of `mir2-geem2` is available locally. Its early
+history provides a much cleaner boundary than the current expanded tree:
+
+| Revision | Commit description | Content state |
+| --- | --- | --- |
+| `1d19c07` | `官方原版配置文件` | Raw official configuration with 564 maps. |
+| `750abd8` | `适配GeeM2` | Initial GeeM2 adaptation. |
+| `48bfebd` | `1.76原版数据库` | Adapted configuration plus the 1.76 database; 1,388 files and 564 maps. |
+| `a474c9a` | `GeeM2默认配置文件` | Starts replacing defaults after the recovered baseline. |
+| `470015a` | Adds merchants and heroes | First explicit hero-system expansion. |
+| `c8ed908` | Adds later maps and equipment | First explicit Dragon, Thunder, Fire Dragon, and Fox Mountain expansion. |
+
+Revision `48bfebd` has been exported to
+`ThirdParty/legend-176/snapshots/geem2-official-176/`. It is the recommended raw
+source for building a strict pack because it combines the recovered 1.76
+configuration and database while retaining the repository's GPL-3.0 license.
+
+The Crystal map archive has also been extracted with CP936 filename handling to
+`ThirdParty/legend-176/extracted/crystalm2-maps/` for comparison.
+
+## Map comparison
+
+- The four unpacked current trees contain 2,600 map files but only 651 distinct
+  SHA-256 contents, showing extensive duplication within and across packs.
+- The English original contains 229 distinct map contents. Exact matches include
+  216 in current GeeM2, 195 in Buyi Legend, and 212 in Buyi Classic.
+- The Crystal archive contains 1,849 maps and 1,538 distinct contents. It shares
+  339 basenames with the English original, but only 20 of those names have exact
+  content matches. Crystal maps therefore require format and semantic validation,
+  not filename-only replacement.
 
 ## Indexed but not useful as gameplay packs
 
@@ -43,6 +77,10 @@ access currently fails. They were not downloaded:
 - <https://gitee.com/mrzhqiang/GameM2_PanGu1.76> - Pangu retro 1.76 pack.
 - <https://gitee.com/mrzhqiang/mirclient-1.76> - indexed matching client; the Git repository reports no refs.
 - <https://gitee.com/CrystalMir2/CrystalM2> - original Crystal pack; the public fork above supplies revision `afb7fd3`.
+- <https://gitee.com/mylgd/mir2> - indexed Mir2 client/server source; anonymous Git access currently fails.
+- <https://gitee.com/little_without/legend> - indexed server scripts; anonymous Git access currently fails.
+- <https://gitee.com/mrzhqiang/mir-server> - indexed AppleM2 engine repository; anonymous Git access currently fails.
+- <https://gitee.com/dsdds/MIR2-delphi> - indexed Delphi source; anonymous Git access currently fails.
 
 ## Import policy
 

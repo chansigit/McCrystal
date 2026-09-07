@@ -368,3 +368,5 @@ FodyWeavers.xsd
 # Locally archived third-party Mir 1.76 research packs. These repositories may
 # contain large proprietary assets and untrusted Windows executables.
 /ThirdParty/legend-176/repos/
+/ThirdParty/legend-176/extracted/
+/ThirdParty/legend-176/snapshots/
