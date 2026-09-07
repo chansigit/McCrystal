@@ -12,6 +12,17 @@ export function emptyBagSlot(bag) {
   const regular = bag.findIndex((item, index) => index >= BELT_SIZE && !item);
   return regular >= 0 ? regular : bag.findIndex((item) => !item);
 }
+// A split never merges: the server already created a second stack, so the new item
+// only ever needs the native free-slot preference the belt relies on.
+export function placeItem(bag, item, info) {
+  if (!info) throw new Error("物品资料尚未同步，请重新登录");
+  const preferred = info.Type === 13 || info.Type === 17 || (info.Type === 21 && info.Effect === 1)
+    ? [0, 1, 2, 3] : info.Type === 8 ? [4, 5] : bag.map((_, i) => i).slice(BELT_SIZE);
+  const slot = preferred.find((i) => i < bag.length && !bag[i]) ?? bag.findIndex((i) => !i);
+  if (slot < 0) throw new Error("背包同步异常，请重新登录");
+  bag[slot] = item;
+  return slot;
+}
 export function addInventoryItem(bag, item, info) {
   if (!info) throw new Error("物品资料尚未同步，请重新登录");
   let count = item.Count;
@@ -22,11 +33,14 @@ export function addInventoryItem(bag, item, info) {
     count -= amount;
     if (!count) return;
   }
-  const preferred = info.Type === 13 || info.Type === 17 || (info.Type === 21 && info.Effect === 1)
-    ? [0, 1, 2, 3] : info.Type === 8 ? [4, 5] : bag.map((_, i) => i).slice(BELT_SIZE);
-  const slot = preferred.find((i) => i < bag.length && !bag[i]) ?? bag.findIndex((i) => !i);
-  if (slot < 0) throw new Error("背包同步异常，请重新登录");
-  bag[slot] = { ...item, Count: count };
+  placeItem(bag, { ...item, Count: count }, info);
+}
+// Amount prompts are free text: anything that is not a whole number of at least one
+// is a cancelled operation, and the native amount box never offers more than the stack.
+export function clampCount(raw, max) {
+  const value = Math.floor(Number(raw));
+  if (!Number.isFinite(value) || value < 1 || max < 1) return 0;
+  return Math.min(value, max);
 }
 function requireSlot(array, slot) {
   if (!Number.isInteger(slot) || slot < 0 || slot >= array.length) throw new Error("物品位置同步异常，请重新登录");
@@ -55,6 +69,16 @@ export function applyInventoryPacket(user, type, p) {
       if (bag[p.To]) throw new Error("卸装位置已被占用，请重新登录");
       bag[p.To] = equipment[index]; equipment[index] = null;
     }
+    return true;
+  }
+  // The server drops, splits and sells out of the bag only; the hero inventory is not
+  // part of this client, and a sale answers with the count the server actually took.
+  if (type === "DropItem" || type === "SplitItem1" || type === "SellItem") {
+    if (!p.Success || p.HeroItem || (type === "SplitItem1" && p.Grid !== 1)) return false;
+    const index = bag.findIndex((item) => item?.UniqueID === p.UniqueID);
+    if (index < 0) throw new Error("物品身份同步异常，请重新登录");
+    bag[index].Count -= p.Count;
+    if (bag[index].Count <= 0) bag[index] = null;
     return true;
   }
   for (const array of arrays) {

@@ -1,15 +1,16 @@
 # Web client gap analysis
 
 Date: 2026-09-07. Compares `Client.Web/` against the native `Client/` at commit
-`98e39322`. Every claim below was read out of the source; file:line references
+`98e39322`. **Tier 1 was closed on branch `feature/web-client-tier1`; see the
+status note under that heading.** Every claim below was read out of the source; file:line references
 point at the evidence.
 
 ## Headline coverage
 
-| Direction | Native | Web |
-| --- | --- | --- |
-| Server packets handled | 279 / 279 | 73 / 279 (70 excluding stubs) |
-| Client packets sendable | 148 / 153 | 23 / 153 |
+| Direction | Native | Web at survey | Web after Tier 1 |
+| --- | --- | --- | --- |
+| Server packets handled | 279 / 279 | 73 / 279 (70 excluding stubs) | 87 / 279, no stubs |
+| Client packets sendable | 148 / 153 | 23 / 153 | 32 / 153 |
 
 The native dispatch is four chained `ProcessPacket` switches
 (`Client/MirScenes/GameScene.cs:1342`, `LoginScene.cs:98`, `SelectScene.cs:292`,
@@ -31,6 +32,12 @@ them at `:179-219`. Every missing system therefore needs a gateway edit as well
 as a UI, so none of them is a pure frontend task.
 
 ## Tier 1 — blocks ordinary play
+
+**Status: closed.** All ten items below were fixed by
+`docs/superpowers/plans/2026-09-07-web-client-tier1.md`, except items 6-9 which
+were reclassified as the next tier of work rather than quick fixes. Items 1-5
+and 10 are done and verified against the live server. The original text is kept
+for the record.
 
 These stop a player from doing something normal. Roughly in order of severity.
 
@@ -164,16 +171,60 @@ implemented (`:270-312`).
 Neither client has zoom, music crossfade, an ambient sound bed, or audio
 distance falloff in native.
 
-## Suggested order
+## Progress
 
-1. The Tier 1 blockers, cheapest first: revive, character creation, drop and
-   split, sell, repair, storage. Each is one gateway allowlist entry plus a small
-   UI.
-2. A `default:` branch in the packet switch that logs unhandled types, so the
-   rest of the gaps stop being invisible.
-3. Buffs and the character stat panel, which are read-only and unblock informed
-   play.
-4. Quests and groups, the two Tier 1 systems that are real feature work.
-5. Presentation, in the order players notice it: lighting and day/night, the
-   missing character layers, occlusion, weather.
-6. Tier 2 systems as needed.
+Done on `feature/web-client-tier1`:
+
+| Item | Commit |
+| --- | --- |
+| Unhandled packets reported instead of dropped | `a7c17553` |
+| Town revive | `ea4b7c43` |
+| Character creation and deletion | `7331dee2` |
+| Item drop, split and drop gold; inventory dead-lock fixed | `980bc8d1` |
+| NPC sell and repair | `9e4218aa` |
+| Gateway validator hardening | `8d00588a` |
+| NPC storage | `e4cabead` |
+
+### What a live session actually drops
+
+With the `default:` branch in place, one minute of ordinary play produced these
+unhandled packet types. The server is already sending this data; only the
+browser side is missing.
+
+`GainExperience`, `BaseStatsInfo`, `AddBuff`, `SpellToggle`, `TimeOfDay`,
+`ChangePMode`, `ObjectRangeAttack`, `InTrapRock`, `NewQuestInfo`,
+`NewRecipeInfo`, `CompleteQuest`, `ReceiveMail`, `FriendUpdate`, `LoverUpdate`,
+`MentorUpdate`, `SwitchGroup`, `GuildBuffList`, `DefaultNPC`, `Connected`.
+
+That makes the experience bar, the character stat panel and the buff display
+cheaper than the original estimate: the data arrives already, so they are
+render-only work with no gateway change.
+
+## Suggested order for what remains
+
+1. The read-only displays whose data already arrives: experience bar, character
+   stat panel (`BaseStatsInfo`), buff and poison icons (`AddBuff`), day and night
+   (`TimeOfDay`).
+2. Quests and groups, the two remaining Tier 1 systems that are real feature
+   work.
+3. Presentation, in the order players notice it: lighting, the missing character
+   layers, occlusion behind scenery, weather.
+4. Tier 2 systems as needed.
+
+## Prices in the sell and repair panels
+
+The panels quote real prices. `S.NPCSell` carries no fields and the native client
+computes `Price() / 2` locally, which was first read as unreachable from the
+browser because the gateway's `StatsConverter` flattens `Stats` to a name-value
+map and appears to lose `AddedStats.Count`. It does not: `Stats.Count` is
+`Values.Sum(pair => Math.Abs(pair.Value))`, a sum of magnitudes rather than a key
+count, and the converter writes every stat, absent ones as `0`, so summing the
+flattened object reproduces it exactly. `Client.Web/src/item-price.js` therefore
+ports `UserItem.Price()` and `UserItem.RepairPrice()` directly, single-precision
+intermediates included, and needs nothing new from the gateway. That also keeps
+the quote fresh across `S.DuraChanged` and `S.ItemRepaired`, which a projection
+computed once per forwarded packet would not. `Tests/WebRegression` pins both the
+`AddedStats.Count` invariant and the price values the JS tests assert.
+
+The remaining gap on the sell path is the NPC buy-back list, which has no web UI:
+the panel says so before it confirms a sale.

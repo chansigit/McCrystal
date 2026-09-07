@@ -25,6 +25,10 @@ import { GameAudio } from "./audio.js";
 import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
+import { NPCTrade } from "./npc-trade.js";
+import { StorageUI } from "./storage.js";
+import { ReviveOverlay } from "./revive.js";
+import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
@@ -64,10 +68,20 @@ const state = {
   characters: [],
   mapReady: false,
 };
+// Diagnostic: server packet types with no case in the receive() switch below,
+// tracked so each type is only logged once per session instead of once per packet.
+const unhandledPackets = new Set();
+// SoundList.Revive in the native client (Client/MirSounds/SoundList.cs).
+const REVIVE_SOUND = 20791;
+window.__unhandledPackets = unhandledPackets;
 const inventory = new InventoryUI(() => state.user, (index) => state.items.get(index), send);
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
-npc.onChange = () => shop.close();
+const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), send);
+const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
+const revive = new ReviveOverlay(send);
+const characterScreen = new CharacterScreen(send);
+npc.onChange = () => { shop.close(); trade.close(); storage.close(); };
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
   const pointer = world.attackInput.pointer;
@@ -140,6 +154,8 @@ function setBusy(busy) {
 }
 function connect() {
   world.minimap.reset(true);
+  // A new socket is a new server connection, and only a new connection resends the vault.
+  storage.reset();
   state.ready = false;
   setBusy(false);
   $("connection").textContent = "正在连接";
@@ -184,12 +200,17 @@ function leaveWorld() {
   $("skills-panel").hidden = true;
   $("equipment").hidden = true;
   inventory.reset();
+  // The vault belongs to the account, not to the character, and the server sends it once
+  // per connection (PlayerObject.SendStorage), so only close the window here: dropping the
+  // copy would leave the vault blank for the rest of a session that logs back in.
+  storage.close();
   cancelAttack();
   world.runPointer = null;
   state.lastMovedAt = 0;
   state.inWorld = false;
   state.mapReady = false;
   state.user = null;
+  revive.update(null);
   world.user = null;
   world.map = null;
   world.mapToken = null;
@@ -242,13 +263,28 @@ function receive(type, p) {
       }
       break;
     case "NPCSell":
-      clearTimeout(npc.timer);
-      if (!shop.goods) $("npc-status").textContent = "出售窗口暂不可用";
-      break;
     case "NPCRepair":
+      if (!npc.objectID) break;
+      clearTimeout(npc.timer); $("npc-status").textContent = "";
+      trade.open(type === "NPCSell" ? "sell" : "repair", p.Rate);
+      break;
+    // AccountInfo.ExpandStorage doubles the vault and the server announces the new length
+    // here, so a rental bought mid-session grows the grid instead of waiting for a reload.
+    case "ResizeStorage":
+      storage.resize(p);
+      break;
     case "NPCStorage":
-      clearTimeout(npc.timer);
-      $("npc-status").textContent = "此交易窗口尚未接入网页客户端";
+      if (!npc.objectID) break;
+      clearTimeout(npc.timer); $("npc-status").textContent = "";
+      storage.open();
+      break;
+    // The account vault only ever changes through these two acknowledgements, so the copy
+    // the server sends once per connection stays correct without being resent.
+    case "UserStorage":
+    case "StoreItem":
+    case "TakeBackItem":
+      storage.receive(type, p);
+      updateInventory();
       break;
     case "ClientVersion":
       state.ready = p.Result === 1;
@@ -291,6 +327,24 @@ function receive(type, p) {
       if (p.Result === 8) { $("register-form").hidden = true; $("login-form").hidden = false; }
       break;
     }
+    // The native client inserts a new character at the top of the list, so the
+    // one just created is the first thing the player sees.
+    case "NewCharacterSuccess":
+      state.characters.unshift(p.CharInfo);
+      showCharacters();
+      characterScreen.message("您的角色已成功创建。");
+      break;
+    case "NewCharacter":
+      characterScreen.createFailed(p.Result);
+      break;
+    case "DeleteCharacterSuccess":
+      state.characters = state.characters.filter((c) => c.Index !== p.CharacterIndex);
+      showCharacters();
+      characterScreen.message("您的角色已成功删除。");
+      break;
+    case "DeleteCharacter":
+      characterScreen.deleteFailed(p.Result);
+      break;
     case "StartGame":
       if (p.Result !== 4) {
         status(`进入游戏失败 (${p.Result})`);
@@ -445,9 +499,28 @@ function receive(type, p) {
       }
       break;
     }
+    case "Death": {
+      skills.cancel();
+      cancelAttack();
+      if (state.user) {
+        if (!state.user.Dead) {
+          playActorSound(state.user, "die");
+          state.user.diedAt = performance.now();
+          state.user.deathPlaybackAt = null;
+        }
+        state.user.Dead = true;
+        state.user.Location = p.Location || state.user.Location;
+      }
+      break;
+    }
+    case "Revived":
+      if (state.user) { state.user.Dead = false; state.user.diedAt = null; state.user.deathPlaybackAt = null; }
+      gameAudio.play(REVIVE_SOUND);
+      break;
     case "ObjectRevived": {
-      const o = world.entities.get(p.ObjectID);
+      const o = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
       if (o) { o.Dead = false; o.diedAt = null; o.deathPlaybackAt = null; }
+      if (p.Effect && audible(o, state.user)) gameAudio.play(REVIVE_SOUND);
       break;
     }
     case "ObjectAttack": {
@@ -530,13 +603,24 @@ function receive(type, p) {
     case "UseItem":
     case "RefreshItem":
     case "DuraChanged":
+    case "DropItem":
+    case "SplitItem":
+    case "SplitItem1":
+    case "SellItem":
     case "ItemRepaired": {
       const used = type === "UseItem" ? state.user?.Inventory?.find((item) => item?.UniqueID === p.UniqueID) : null;
       const sound = used ? itemUseSound(p, state.items.get(used.ItemIndex)) : null;
       inventory.receive(type, p);
+      trade.receive(type, p);
+      // HumanObject.ProcessItems empties an expired vault slot and announces it with nothing
+      // but S.DeleteItem, so the vault copy has to see it too or it keeps offering an item
+      // that no longer exists. The other packets here never touch the vault.
+      storage.receive(type, p);
       if (sound !== null) gameAudio.play(sound);
       break;
     }
+    // S.RepairItem only unlocks the request; S.ItemRepaired carries the restored durability.
+    case "RepairItem": trade.receive(type, p); break;
     case "GainedGold":
       if (state.user) {
         state.user.Gold += p.Gold;
@@ -577,22 +661,33 @@ function receive(type, p) {
     case "Disconnect":
       status("服务端断开了连接");
       break;
+    default:
+      if (!unhandledPackets.has(type)) {
+        unhandledPackets.add(type);
+        console.log(`[unhandled] ${type}`);
+      }
+      break;
   }
+  revive.update(state.user);
 }
 function showCharacters() {
   gameAudio.setMusic(SELECT_MUSIC);
   $("register-form").hidden = true;
   $("login-form").hidden = true;
   $("characters").hidden = false;
+  characterScreen.reset(state.characters.length);
   $("character-list").replaceChildren();
   for (const character of state.characters) {
+    const row = document.createElement("div");
+    row.className = "character-row";
     const button = document.createElement("button");
+    button.type = "button";
     button.className = "character";
     const text = document.createElement("div"),
       name = document.createElement("strong"),
       detail = document.createElement("small");
     name.textContent = character.Name;
-    detail.textContent = `${["战士", "法师", "道士", "刺客", "弓手"][character.Class] || "角色"} · 等级 ${character.Level}`;
+    detail.textContent = `${CLASS_NAMES[character.Class] || "角色"} · 等级 ${character.Level}`;
     text.append(name, detail);
     button.append(text);
     button.onclick = () => {
@@ -601,7 +696,14 @@ function showCharacters() {
         .forEach((b) => (b.disabled = true));
       send("StartGame", { CharacterIndex: character.Index });
     };
-    $("character-list").append(button);
+    const remove = document.createElement("button");
+    remove.type = "button";
+    remove.className = "character-delete";
+    remove.textContent = "删除";
+    remove.title = `删除 ${character.Name}`;
+    remove.onclick = () => characterScreen.openDelete(character);
+    row.append(button, remove);
+    $("character-list").append(row);
   }
   if (!state.characters.length) {
     const empty = document.createElement("p");
@@ -622,7 +724,7 @@ function updateHud() {
   if (!u) return;
   $("player-name").textContent = u.Name;
   $("player-level").textContent =
-    `${["战士", "法师", "道士", "刺客", "弓手"][u.Class] || ""} · ${u.Level}`;
+    `${CLASS_NAMES[u.Class] || ""} · ${u.Level}`;
   $("coordinates").textContent = `${u.Location.X}, ${u.Location.Y}`;
   state.maxHP = Math.max(state.maxHP || 1, u.HP);
   state.maxMP = Math.max(state.maxMP || 1, u.MP);
@@ -633,6 +735,8 @@ function gainItem(item) {
 }
 function updateInventory() {
   if (shop.goods) shop.details();
+  trade.refresh();
+  storage.refresh();
   inventory.render();
 }
 function cancelAttack() {

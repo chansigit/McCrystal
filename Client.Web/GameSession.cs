@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
 using C = ClientPackets;
 using S = ServerPackets;
 
@@ -14,6 +15,12 @@ namespace Crystal.Web;
 public static class GameSession
 {
     public static readonly JsonSerializerOptions Json = CreateJson();
+
+    // Mirrors Envir.CharacterReg. char.IsControl misses format characters such as
+    // U+200B and U+202E, which allow visually identical character names.
+    private static readonly Regex CharacterName = new(
+        $"^[\\u4e00-\\u9fa5_A-Za-z0-9]{{{Globals.MinCharacterNameLength},{Globals.MaxCharacterNameLength}}}$",
+        RegexOptions.Compiled);
 
     private static JsonSerializerOptions CreateJson()
     {
@@ -133,9 +140,9 @@ public static class GameSession
             stop.Cancel();
             tcp.Close();
             try { await Task.WhenAll(tasks); }
-            catch (Exception e) when (e is OperationCanceledException or IOException or WebSocketException or SocketException) { }
+            catch (Exception e) when (e is OperationCanceledException or IOException or InvalidDataException or WebSocketException or SocketException) { }
         }
-        catch (Exception e) when (e is SocketException or IOException or JsonException or InvalidOperationException or WebSocketException or OperationCanceledException)
+        catch (Exception e) when (e is SocketException or IOException or InvalidDataException or JsonException or InvalidOperationException or WebSocketException or OperationCanceledException)
         {
             // Credentials and gameplay command bodies must never reach application logs.
         }
@@ -166,19 +173,32 @@ public static class GameSession
             "Harvest" => typeof(C.Harvest),
             "UseItem" => typeof(C.UseItem), "EquipItem" => typeof(C.EquipItem),
             "RemoveItem" => typeof(C.RemoveItem), "MoveItem" => typeof(C.MoveItem),
+            "DropItem" => typeof(C.DropItem), "DropGold" => typeof(C.DropGold),
+            "SplitItem" => typeof(C.SplitItem),
             "Magic" => typeof(C.Magic),
             "CallNPC" => typeof(C.CallNPC),
             "NPCConfirmInput" => typeof(C.NPCConfirmInput),
             "BuyItem" => typeof(C.BuyItem), "ChangeAMode" => typeof(C.ChangeAMode),
+            "SellItem" => typeof(C.SellItem), "RepairItem" => typeof(C.RepairItem),
             "RequestMapInfo" => typeof(C.RequestMapInfo),
             "Chat" => typeof(C.Chat), "KeepAlive" => typeof(C.KeepAlive),
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
+            "DeleteCharacter" => typeof(C.DeleteCharacter),
+            "TownRevive" => typeof(C.TownRevive),
+            "StoreItem" => typeof(C.StoreItem), "TakeBackItem" => typeof(C.TakeBackItem),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
         if (packet is C.RequestMapInfo map && map.MapIndex < 0) throw new InvalidDataException("Invalid map index");
         if (packet is C.BuyItem buy && (buy.ItemIndex == 0 || buy.Count == 0 || buy.Type != PanelType.Buy))
             throw new InvalidDataException("Invalid purchase");
+        // The server sells whole or partial stacks out of the bag; a count of zero is answered
+        // with a bare failure, so refuse it here rather than spending a round trip on it.
+        if (packet is C.SellItem sale && (sale.UniqueID == 0 || sale.Count == 0))
+            throw new InvalidDataException("Invalid sale");
+        // Special repair (C.SRepairItem) is a separate NPC service this client does not offer.
+        if (packet is C.RepairItem repair && repair.UniqueID == 0)
+            throw new InvalidDataException("Invalid repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
         if (packet is C.NPCConfirmInput input && (input.NPCID == 0 || string.IsNullOrEmpty(input.PageName) ||
             input.PageName.Length > 200 || input.PageName.Any(char.IsControl) || input.Value is null ||
@@ -198,6 +218,12 @@ public static class GameSession
             account.SecretQuestion is null || account.SecretQuestion.Length > 30 ||
             account.SecretAnswer is null || account.SecretAnswer.Length > 30 ||
             account.BirthDate == DateTime.MinValue)) throw new InvalidDataException("Invalid registration");
+        if (packet is C.NewCharacter creation && (creation.Name is null || !CharacterName.IsMatch(creation.Name) ||
+            !Enum.IsDefined(creation.Gender) || !Enum.IsDefined(creation.Class)))
+            throw new InvalidDataException("Invalid character creation");
+        // Character indexes are assigned from 1 upwards; 0 means "no character".
+        if (packet is C.DeleteCharacter deletion && deletion.CharacterIndex <= 0)
+            throw new InvalidDataException("Invalid character index");
         if (packet is C.Chat chat && (string.IsNullOrEmpty(chat.Message) || chat.Message.Length > Globals.MaxChatLength || chat.LinkedItems is null))
             throw new InvalidDataException("Invalid chat");
         if (packet is C.Walk walk && (byte)walk.Direction > 7) throw new InvalidDataException("Invalid direction");
@@ -214,6 +240,25 @@ public static class GameSession
             throw new InvalidDataException("Invalid inventory slot");
         if (packet is C.MoveItem move && (move.Grid != MirGridType.Inventory || move.From is < 0 or > 255 || move.To is < 0 or > 255 || move.From == move.To))
             throw new InvalidDataException("Invalid inventory move");
+        // The hero inventory is not part of this client, so a hero drop could only come from a forged command.
+        if (packet is C.DropItem drop && (drop.UniqueID == 0 || drop.Count == 0 || drop.HeroInventory))
+            throw new InvalidDataException("Invalid item drop");
+        if (packet is C.DropGold gold && gold.Amount == 0) throw new InvalidDataException("Invalid gold drop");
+        if (packet is C.SplitItem split && (split.Grid != MirGridType.Inventory || split.UniqueID == 0 || split.Count == 0))
+            throw new InvalidDataException("Invalid item split");
+        // Globals.StorageGridSize is one vault PAGE, not the size of AccountInfo.Storage:
+        // AccountInfo.ExpandStorage doubles the array to two pages and persists that, so a rented
+        // vault addresses indexes up to 2 * Globals.StorageGridSize - 1. Bound the wire here at
+        // the server's own maximum and leave the per-account limit to AccountInfo.IsValidStorageIndex,
+        // because rejecting a command tears the whole browser session down: a player with expanded
+        // storage would be disconnected by every click on the second page. Both halves of a
+        // transfer address a bag slot on one side and a vault slot on the other, and
+        // PlayerObject.StoreItem / TakeBackItem answer an out-of-range index with a bare failure.
+        const int storageSlots = 2 * Globals.StorageGridSize;
+        if (packet is C.StoreItem store && (store.From is < 0 or > 255 || store.To < 0 || store.To >= storageSlots))
+            throw new InvalidDataException("Invalid storage deposit");
+        if (packet is C.TakeBackItem takeBack && (takeBack.From < 0 || takeBack.From >= storageSlots || takeBack.To is < 0 or > 255))
+            throw new InvalidDataException("Invalid storage withdrawal");
         if (packet is C.Magic magic && (magic.ObjectID == 0 || magic.Spell == Spell.None || !Enum.IsDefined(magic.Spell) ||
             (byte)magic.Direction > 7 || magic.Location.X is < 0 or > 32767 || magic.Location.Y is < 0 or > 32767))
             throw new InvalidDataException("Invalid spell command");
@@ -233,7 +278,9 @@ public static class GameSession
     private sealed class UInt64Converter : JsonConverter<ulong>
     {
         public override ulong Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
-            reader.TokenType == JsonTokenType.String ? ulong.Parse(reader.GetString()!) : reader.GetUInt64();
+            reader.TokenType == JsonTokenType.String
+                ? (ulong.TryParse(reader.GetString(), out var parsed) ? parsed : throw new JsonException())
+                : reader.GetUInt64();
         public override void Write(Utf8JsonWriter writer, ulong value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
     }
 }
