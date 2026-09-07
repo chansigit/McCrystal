@@ -48,12 +48,13 @@ export class NPCDialog {
     this.cancelInput();
     this.inputRequest = { NPCID: request.NPCID, PageName: request.PageName };
     this.objectID = request.NPCID;
+    this.interactive = true;
     this.panel.hidden = false;
     this.inputForm.hidden = false;
     document.getElementById("npc-status").textContent = "";
     this.input.focus();
   }
-  close() { this.onChange?.(); this.cancelInput(); this.panel.hidden = true; this.objectID = null; clearTimeout(this.timer); }
+  close() { this.onChange?.(); this.cancelInput(); this.panel.hidden = true; this.objectID = null; this.interactive = false; clearTimeout(this.timer); }
   remove(objectID) { if (this.objectID === objectID) this.close(); }
   checkRange(user, entity) {
     if (entity?.Location && user?.Location && Math.max(Math.abs(entity.Location.X - user.Location.X),
@@ -61,6 +62,7 @@ export class NPCDialog {
   }
   open(entity) {
     this.objectID = entity.ObjectID;
+    this.interactive = true;
     document.getElementById("npc-title").textContent = entity.Name?.split("_")[0] || "NPC";
     document.getElementById("npc-page").replaceChildren();
     this.panel.hidden = false;
@@ -86,14 +88,19 @@ export class NPCDialog {
     clearTimeout(this.timer);
     document.getElementById("npc-status").textContent = "";
     const hasLines = Array.isArray(lines) && lines.length > 0;
-    this.panel.hidden = false;
     const body = document.getElementById("npc-page"); body.replaceChildren();
     if (!hasLines) {
+      if (!this.interactive) {
+        this.panel.hidden = true;
+        return;
+      }
+      this.panel.hidden = false;
       const empty = document.createElement("p");
       empty.textContent = "这个 NPC 暂时没有可用的对话。";
       body.append(empty);
       return;
     }
+    this.panel.hidden = false;
     for (const line of lines) {
       const row = document.createElement("p");
       for (const token of npcTokens(line)) {

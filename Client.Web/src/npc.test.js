@@ -73,6 +73,11 @@ test("NPC input submits once, preserves text and clears on close or page change"
     assert.equal(dialog.inputRequest, null);
     assert.equal(dialog.panel.hidden, false);
     assert.equal(nodes.get("npc-page").children[0].textContent, "这个 NPC 暂时没有可用的对话。");
+    dialog.close();
+    dialog.objectID = 999;
+    dialog.page([]);
+    assert.equal(dialog.panel.hidden, true);
+    assert.equal(nodes.get("npc-page").children.length, 0);
     dialog.requestInput(request);
     let closed = 0;
     dialog.onChange = () => closed++;

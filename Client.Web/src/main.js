@@ -340,6 +340,7 @@ function receive(type, p) {
         .catch((error) => worldStatus(error.message));
       break;
     case "UserInformation":
+      npc.close();
       skills.reset();
       inventory.reset();
       state.user = { ...p, kind: "player", Armour: 0 };
