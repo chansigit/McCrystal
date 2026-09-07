@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay } from "./entity-presentation.js";
+import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation } from "./entity-presentation.js";
 
 test("names clear tall sprites and keep a screen-space gap", () => {
   assert.equal(nameTop(100, -120, 11, 1), -35);
@@ -15,7 +15,17 @@ test("native name defaults exclude corpses; hover works with names disabled", ()
   assert.equal(showName({kind: "monster"}, false, false), false);
   assert.equal(showName({kind: "monster"}, false, true), true);
   assert.equal(showName({kind: "monster", Hidden: true}, true, true), false);
-  assert.equal(showName({kind: "item"}, false, false), true);
+  assert.equal(showName({kind: "item"}, false, false), false);
+  assert.equal(showName({kind: "item"}, false, true), false);
+});
+
+test("Guard attack animation includes the native standing recovery", () => {
+  const guard = {kind: "monster", Image: 1};
+  assert.equal(beginAttackAnimation(guard, 1000), true);
+  assert.equal(guard.attackUntil, 1600);
+  assert.equal(beginAttackAnimation(guard, 2000), false);
+  assert.equal(beginAttackAnimation(guard, 3600), true);
+  assert.equal(beginAttackAnimation({kind: "monster", Image: 20}, 2000), true);
 });
 
 test("Hydra emergence waits for textures, plays eight frames once, and hides in reverse", () => {
@@ -28,4 +38,16 @@ test("Hydra emergence waits for textures, plays eight frames once, and hides in 
   assert.equal(frameIndex({...frame, start: 7, reverse: true}, 3, 7), 24);
   assert.equal(hydraOverlay(31), 431);
   assert.equal(hydraOverlay(294), 694);
+});
+test("Gold drops use the same five floor sprites as the native client", () => {
+  assert.deepEqual([1, 99, 100, 199, 200, 499, 500, 999, 1000].map(goldImage),
+    [112, 112, 113, 113, 114, 114, 115, 115, 116]);
+});
+test("NPCs alternate complete standing and harvest idle cycles", () => {
+  const npc = {};
+  const animations = { Standing: { count: 4, interval: 450 }, Harvest: { count: 10, interval: 200 } };
+  assert.equal(npcIdleAction(npc, animations, 1000, () => 0.9), "Harvest");
+  assert.equal(npcIdleAction(npc, animations, 2999, () => 0), "Harvest");
+  assert.equal(npcIdleAction(npc, animations, 3000, () => 0), "Standing");
+  assert.equal(npcIdleAction({}, { Standing: animations.Standing }, 0, () => 0.9), "Standing");
 });

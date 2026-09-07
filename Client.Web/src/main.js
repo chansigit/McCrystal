@@ -29,6 +29,7 @@ import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
+import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -108,7 +109,9 @@ const world = new World($("game"), (point, entity, running, forced, harvesting) 
     state.destination = point;
   }
   state.running = running;
-  state.pickupTarget = entity?.kind === "item";
+  // Walking onto loot only positions the player. A second click on the occupied
+  // cell performs the native PickUp action.
+  state.pickupTarget = false;
 });
 const skills = new Skills(() => state.user, send, world, () => {
   cancelAttack(); state.path = []; world.runPointer = null;
@@ -385,6 +388,10 @@ function receive(type, p) {
       });
       world.preloadEntity(world.entities.get(p.ObjectID));
       break;
+    case "ObjectGold":
+      world.entities.set(p.ObjectID, { ...p, kind: "item", Name: `金币 (${p.Gold})`, Image: goldImage(p.Gold) });
+      world.preloadEntity(world.entities.get(p.ObjectID));
+      break;
     case "ObjectWalk":
     case "ObjectRun":
     case "ObjectTurn": {
@@ -396,6 +403,7 @@ function receive(type, p) {
     case "ObjectHide": {
       const entity = world.entities.get(p.ObjectID);
       if (entity?.kind === "monster" && entity.Image === 371) {
+        if (type === "ObjectShow") playActorSound(entity, "show");
         entity.Hidden = false;
         entity.visibilityAction = type === "ObjectShow" ? "Show" : "Hide";
         entity.visibilityStartedAt = null;
@@ -444,10 +452,8 @@ function receive(type, p) {
     case "ObjectAttack": {
       const o = world.entities.get(p.ObjectID);
       if (o) {
-        playActorSound(o, "attack");
         o.Direction = p.Direction;
-        o.attackStartedAt = performance.now();
-        o.attackUntil = performance.now() + 600;
+        if (beginAttackAnimation(o, performance.now())) playActorSound(o, "attack");
       }
       break;
     }
@@ -489,9 +495,9 @@ function receive(type, p) {
       break;
     case "ObjectMagic": {
       if (p.ObjectID === state.user?.ObjectID && !p.SelfBroadcast) break;
-      const caster = world.entities.get(p.ObjectID);
+      const caster = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
       if (caster && p.Cast) { caster.castStartedAt = performance.now(); caster.castUntil = caster.castStartedAt + 600; }
-      if (p.Cast) world.showSpell(p.Spell, p.TargetID, p.Target);
+      if (p.Cast) { world.showCastSpell(p.Spell, caster); world.showSpell(p.Spell, p.TargetID, p.Target); }
       break;
     }
     case "HealthChanged":
@@ -533,6 +539,7 @@ function receive(type, p) {
     case "GainedGold":
       if (state.user) {
         state.user.Gold += p.Gold;
+        if (p.Gold > 0) gameAudio.play(10106);
         updateInventory();
       }
       break;

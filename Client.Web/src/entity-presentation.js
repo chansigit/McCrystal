@@ -6,8 +6,18 @@ export function nameTop(y, standingOffset, height, scale) {
 
 export function showName(entity, nameView, hovered) {
   if (entity.Hidden) return false;
+  if (entity.kind === "item") return false;
   if (hovered) return true;
-  return entity.kind === "item" || (nameView && !entity.Dead);
+  return nameView && !entity.Dead;
+}
+
+export function beginAttackAnimation(entity, now) {
+  const pacedGuard = entity.kind === "monster" && (entity.Image === 0 || entity.Image === 1);
+  if (pacedGuard && now < (entity.nextAttackAnimationAt || 0)) return false;
+  if (pacedGuard) entity.nextAttackAnimationAt = now + 2600;
+  entity.attackStartedAt = now;
+  entity.attackUntil = now + 600;
+  return true;
 }
 
 export function frameIndex(frame, direction, step) {
@@ -24,4 +34,23 @@ export function transitionFrame(entity, frame, now, ready) {
 // WaterDragon's native DrawBlend overlay uses the same directional layout as its body.
 export function hydraOverlay(index) {
   return index >= 0 && index < 400 ? index + 400 : null;
+}
+
+export function goldImage(amount) {
+  if (amount < 100) return 112;
+  if (amount < 200) return 113;
+  if (amount < 500) return 114;
+  if (amount < 1000) return 115;
+  return 116;
+}
+
+export function npcIdleAction(entity, animations, now, random = Math.random) {
+  const choices = animations?.Harvest ? ["Standing", "Harvest"] : ["Standing"];
+  if (!entity.npcIdleAction || now >= (entity.npcIdleUntil || 0)) {
+    entity.npcIdleAction = choices[Math.floor(random() * choices.length)];
+    const frame = animations?.[entity.npcIdleAction] || animations?.Standing;
+    entity.npcIdleStartedAt = now;
+    entity.npcIdleUntil = now + Math.max(1, frame?.count || 1) * Math.max(50, frame?.interval || 500);
+  }
+  return entity.npcIdleAction;
 }

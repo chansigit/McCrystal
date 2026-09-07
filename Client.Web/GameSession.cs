@@ -82,13 +82,23 @@ public static class GameSession
                         byte[] hash = MD5.HashData(await File.ReadAllBytesAsync(clientAssembly, stop.Token));
                         await Send(new C.ClientVersion { VersionHash = hash });
                     }
-                    byte[] json = JsonSerializer.SerializeToUtf8Bytes(new
+                    byte[] json;
+                    try
                     {
-                        type = packet.GetType().Name,
-                        data = packet is S.NPCGoods goods
-                            ? JsonSerializer.SerializeToElement(ShopPrices.Project(goods, itemDefinitions), Json)
-                            : JsonSerializer.SerializeToElement(packet, packet.GetType(), Json)
-                    });
+                        json = JsonSerializer.SerializeToUtf8Bytes(new
+                        {
+                            type = packet.GetType().Name,
+                            data = packet is S.NPCGoods goods
+                                ? JsonSerializer.SerializeToElement(ShopPrices.Project(goods, itemDefinitions), Json)
+                                : JsonSerializer.SerializeToElement(packet, packet.GetType(), Json)
+                        });
+                    }
+                    catch (Exception error)
+                    {
+                        // Optional native dialogs must not terminate the entire browser session.
+                        Console.Error.WriteLine($"Skipped {packet.GetType().Name}: {error.GetType().Name}");
+                        continue;
+                    }
                     await socket.SendAsync(json, WebSocketMessageType.Text, true, stop.Token);
                 }
             }

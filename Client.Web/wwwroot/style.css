@@ -41,6 +41,19 @@ input:focus-visible {
   position: fixed;
   inset: 0 0 96px;
 }
+.ground-item-tooltip {
+  position: fixed;
+  z-index: 20;
+  max-width: 220px;
+  padding: 4px 7px;
+  border: 1px solid #82724a;
+  border-radius: 3px;
+  background: #0b110de8;
+  color: #f0d99b;
+  font: 12px/1.25 Arial, sans-serif;
+  pointer-events: none;
+  white-space: nowrap;
+}
 canvas {
   display: block;
   width: 100%;

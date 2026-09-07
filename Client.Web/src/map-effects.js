@@ -7,6 +7,11 @@ export function mapAnimation(cell, layer) {
 export function mapEffectFrame(index, animation, now) {
   return index + (animation.count ? Math.floor(Math.floor(now / 100) / (animation.tick + 1)) % animation.count : 0);
 }
+export function tileAnimationFrame(cell, now) {
+  const image = cell[11] || 0, offset = (cell[12] || 0) ^ 0x2000, frames = cell[13] || 0;
+  if (image <= 0 || frames <= 0 || offset <= 0) return -1;
+  return image - 1 + offset * (Math.floor(now / 100) % frames);
+}
 export function mapPlacement(cell, layer, index, frame, x, y) {
   const animation = mapAnimation(cell, layer), file = cell[layer * 2];
   let left = x * 48, top = y * 32 + 32 - frame.height;

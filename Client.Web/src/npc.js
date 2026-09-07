@@ -85,9 +85,16 @@ export class NPCDialog {
     this.cancelInput();
     clearTimeout(this.timer);
     document.getElementById("npc-status").textContent = "";
-    this.panel.hidden = !lines?.length;
+    const hasLines = Array.isArray(lines) && lines.length > 0;
+    this.panel.hidden = false;
     const body = document.getElementById("npc-page"); body.replaceChildren();
-    for (const line of lines || []) {
+    if (!hasLines) {
+      const empty = document.createElement("p");
+      empty.textContent = "这个 NPC 暂时没有可用的对话。";
+      body.append(empty);
+      return;
+    }
+    for (const line of lines) {
       const row = document.createElement("p");
       for (const token of npcTokens(line)) {
         const node = document.createElement(token.key ? "button" : "span");

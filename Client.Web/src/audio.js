@@ -6,6 +6,10 @@ export class GameAudio {
     const unlock = () => this.unlock();
     window.addEventListener("pointerdown", unlock, { capture: true });
     window.addEventListener("keydown", unlock, { capture: true });
+    document.addEventListener("click", (event) => {
+      const button = event.target.closest?.("button");
+      if (button && !button.disabled) this.play(10104);
+    }, { capture: true });
     document.getElementById("sound-toggle").onclick = () => {
       this.muted = !this.muted; this.update();
       if (this.muted) this.clearEffects();

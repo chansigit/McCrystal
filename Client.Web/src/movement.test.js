@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { movementLength, motionPosition, beginMotion, resetMotion, canPath, MOVE_INTERVAL, worldScale, walkingPath, blockedTurn } from "./movement.js";
+import { movementLength, motionPosition, beginMotion, resetMotion, canPath, MOVE_INTERVAL, worldScale, walkingPath, blockedTurn, singleDetourStep } from "./movement.js";
 import PF from "pathfinding";
 
 const from = { X: 10, Y: 10 };
@@ -24,6 +24,11 @@ test("Left walking tries only native facing and adjacent directions around a blo
 test("Walking on the current tile or into fully blocked neighbours stops", () => {
   assert.deepEqual(walkingPath(-1, () => { throw new Error("Unexpected path request"); }), []);
   assert.deepEqual(walkingPath(0, () => []), []);
+});
+test("A blocked click takes only the first routed detour step", () => {
+  assert.deepEqual(singleDetourStep([], [{X: 10, Y: 11}, {X: 11, Y: 11}]), [{X: 10, Y: 11}]);
+  assert.deepEqual(singleDetourStep([{X: 11, Y: 10}], [{X: 10, Y: 11}]), [{X: 11, Y: 10}]);
+  assert.deepEqual(singleDetourStep([], []), []);
 });
 test("Running covers twice the walking distance over the same interpolation interval", () => {
   const walk = { Location: { X: 0, Y: 0 } }, run = { Location: { X: 0, Y: 0 } };

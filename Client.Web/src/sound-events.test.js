@@ -4,10 +4,14 @@ import { actorSound, audible } from "./sound-events.js";
 test("Monster attack, flinch and death use native image sound families", () => {
   for (const image of [0, 7, 25, 57]) {
     const actor = { kind: "monster", Image: image };
+    assert.equal(actorSound(actor, "show"), image * 10);
     assert.equal(actorSound(actor, "attack"), image * 10 + 1);
     assert.equal(actorSound(actor, "struck"), image * 10 + 2);
     assert.equal(actorSound(actor, "die"), image * 10 + 3);
   }
+});
+test("Water Dragon emergence uses its native popup sound", () => {
+  assert.equal(actorSound({ kind: "monster", Image: 371 }, "show"), 3710);
 });
 test("Player flinch and death retain gender-specific voices, not generic weapon hits", () => {
   assert.equal(actorSound({ kind: "player", Gender: 0 }, "struck"), 10138);

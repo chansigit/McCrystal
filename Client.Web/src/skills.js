@@ -108,7 +108,10 @@ export class Skills {
       user.castStartedAt = now; user.castUntil = now + 600;
       this.lockAction(600);
       this.status("");
-      if (type === "Magic") this.world.showSpell(p.Spell, p.TargetID, p.Target);
+      if (type === "Magic") {
+        this.world.showCastSpell(p.Spell, user);
+        this.world.showSpell(p.Spell, p.TargetID, p.Target);
+      }
     }
   }
   hotkey(number) {

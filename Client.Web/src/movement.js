@@ -12,6 +12,10 @@ export function walkingPath(direction, pathInDirection) {
   }
   return [];
 }
+export function singleDetourStep(directPath, routedPath) {
+  const path = directPath.length ? directPath : routedPath;
+  return path.slice(0, 1);
+}
 export function resetMotion(object, location, direction) {
   object.Location = { ...location };
   object.Direction = direction;

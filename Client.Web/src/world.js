@@ -1,14 +1,14 @@
 import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js";
 import PF from "pathfinding";
-import { motionPosition, worldScale, canPath, walkingPath } from "./movement.js";
+import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
 import { weaponLayer } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps, locomotionFrame } from "./footsteps.js";
-import { mapAnimation, mapEffectFrame, mapPlacement } from "./map-effects.js";
-import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay } from "./entity-presentation.js";
+import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
+import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction } from "./entity-presentation.js";
 
 export const directions = [
   [0, -1],
@@ -60,6 +60,10 @@ export class World {
       antialias: false,
     });
     this.host.append(this.app.canvas);
+    this.itemTooltip = document.createElement("div");
+    this.itemTooltip.className = "ground-item-tooltip";
+    this.itemTooltip.hidden = true;
+    this.host.append(this.itemTooltip);
     this.floor = new Container();
     this.objects = new Container();
     this.objects.sortableChildren = true;
@@ -78,8 +82,8 @@ export class World {
     window.addEventListener("pointercancel", releasePointer);
     window.addEventListener("blur", releasePointer);
     this.app.canvas.addEventListener("pointerleave", releasePointer);
-    this.app.canvas.addEventListener("pointerleave", () => { this.hoverPointer = null; });
-    window.addEventListener("blur", () => { this.hoverPointer = null; });
+    this.app.canvas.addEventListener("pointerleave", () => { this.hoverPointer = null; this.itemTooltip.hidden = true; });
+    window.addEventListener("blur", () => { this.hoverPointer = null; this.itemTooltip.hidden = true; });
     this.app.canvas.addEventListener("pointerdown", (e) => {
       if (e.button !== 0 && e.button !== 2) return;
       if (!this.user || !this.map) return;
@@ -137,6 +141,8 @@ export class World {
     const libraries = new Set();
     for (const cell of data.cells) for (const layer of [1, 2])
       if (cell[layer * 2 + 1] >= 0 && data.libraries[cell[layer * 2]]) libraries.add(data.libraries[cell[layer * 2]]);
+    if (data.cells.some((cell) => cell[11] > 0 && cell[13] > 0) && data.libraries[190])
+      libraries.add(data.libraries[190]);
     for (const library of libraries) this.manifest(library);
     await Promise.all([...libraries].map((library) => this.manifestLoads.get(library)));
     if (this.mapToken !== token) return false;
@@ -210,7 +216,8 @@ export class World {
   }
   walkPath(point) {
     if (!this.user) return [];
-    return walkingPath(directionTo(this.user.Location, point), direction => this.straightPath(direction, 1));
+    const direct = walkingPath(directionTo(this.user.Location, point), direction => this.straightPath(direction, 1));
+    return singleDetourStep(direct, direct.length ? [] : this.path(point));
   }
   pathToMelee(target) {
     if (!this.map || !this.user || !canPath(this.grid, this.user.Location, target)) return [];
@@ -238,24 +245,59 @@ export class World {
     if (this.damageEvents.length > 64) this.damageEvents.shift();
   }
   spellEffect(spell) {
-    // Effect frames and durations match PlayerObject's native spell rendering.
-    return ({ 31: ["Magic", 170, 10, 600], 34: ["Magic", 570, 10, 600],
-      33: ["Magic", 1570, 10, 1000], 36: ["Magic2", 10, 5, 400],
-      61: ["Magic", 370, 10, 800] })[spell];
+    // Impact frames match PlayerObject's native completed-cast rendering.
+    return ({ 31: ["Magic", 170, 10, 600], 33: ["Magic", 1570, 10, 1000],
+      34: ["Magic", 570, 10, 600], 36: ["Magic2", 10, 5, 400],
+      38: ["Magic", 1660, 10, 1000], 41: ["Magic2", 570, 8, 600],
+      44: ["Magic", 3930, 15, 1000], 45: ["Magic2", 1060, 20, 1000],
+      46: ["Magic", 3850, 20, 1300], 47: ["Magic2", 140, 10, 600],
+      61: ["Magic", 370, 10, 800], 63: ["Magic", 770, 10, 1000],
+      64: ["Magic", 1360, 10, 600], 70: ["Magic", 3990, 10, 1000],
+      74: ["Magic2", 620, 10, 800], 75: ["Magic", 1800, 10, 1000],
+      76: ["Magic2", 1110, 10, 1000], 86: ["Magic3", 620, 10, 1200] })[spell];
+  }
+  castSpellEffects(spell) {
+    // Effects attached to the caster when MirAction.Spell begins.
+    const effect = ({ 7:["Magic2",990,10,600], 9:["Magic2",710,20,1200],
+      12:["Magic2",1520,10,600], 13:["Magic2",1510,10,600],
+      16:["Magic3",187,10,1000], 17:["Magic3",550,17,1600],
+      31:["Magic",0,10,600], 32:["Magic",900,6,600], 33:["Magic",1560,10,600],
+      34:["Magic",400,10,600], 35:["Magic",920,10,600], 36:["Magic2",20,3,300],
+      37:["Magic",1590,10,600], 38:["Magic",1650,10,600], 39:["Magic",1620,10,600],
+      41:["Magic2",400,10,600], 42:["Magic",1680,10,600], 43:["Magic",3880,10,600],
+      44:["Magic",3920,10,600], 45:["Magic2",1040,7,600], 46:["Magic",3840,10,600],
+      47:["Magic2",130,6,600], 48:["Magic2",650,10,600], 49:["Magic2",910,23,1800],
+      50:["Magic2",1540,8,600], 51:["Magic3",80,9,900], 52:["Magic2",1590,10,600],
+      55:["Magic3",590,10,600], 61:["Magic",200,10,600], 63:["Magic",600,10,600],
+      65:["Magic",1500,10,600], 67:["Magic",1520,10,600], 70:["Magic",3960,20,1200],
+      72:["Magic2",190,6,600], 73:["Magic",1380,10,600], 75:["Magic",1790,10,600],
+      77:["Magic2",160,15,1000], 78:["Magic2",0,10,600], 86:["Magic3",620,10,600]
+    })[spell];
+    return effect ? [effect] : [];
   }
   preloadSpell(spell) {
-    const effect = this.spellEffect(spell); if (!effect) return;
-    const [library, start, count] = effect;
-    this.manifest(library);
-    this.manifestLoads.get(library)?.then(() => {
-      for (let i = 0; i < count; i++) if (this.manifests.get(library)?.frames[start + i]) this.texture(library, start + i, true);
-    });
+    const effects = [...this.castSpellEffects(spell), this.spellEffect(spell)].filter(Boolean);
+    for (const [library, start, count] of effects) {
+      this.manifest(library);
+      this.manifestLoads.get(library)?.then(() => {
+        for (let i = 0; i < count; i++) if (this.manifests.get(library)?.frames[start + i]) this.texture(library, start + i, true);
+      });
+    }
+  }
+  addSpellEffect(effect, targetID, location) {
+    if (!effect || !location) return;
+    this.spellEffects.push({ id: ++this.effectID, effect, targetID, location, started: performance.now() });
+    if (this.spellEffects.length > 32) this.spellEffects.shift();
+  }
+  showCastSpell(spell, caster) {
+    if (!caster?.Location) return;
+    this.preloadSpell(spell);
+    for (const effect of this.castSpellEffects(spell)) this.addSpellEffect(effect, caster.ObjectID, caster.Location);
   }
   showSpell(spell, targetID, location) {
     const effect = this.spellEffect(spell); if (!effect || !location) return;
     this.preloadSpell(spell);
-    this.spellEffects.push({ id: ++this.effectID, effect, targetID, location, started: performance.now() });
-    if (this.spellEffects.length > 32) this.spellEffects.shift();
+    this.addSpellEffect(effect, targetID, location);
   }
   manifest(library) {
     if (!library) return null;
@@ -269,15 +311,24 @@ export class World {
     return this.manifests.get(library);
   }
   preloadEntity(entity) {
-    if (entity.kind !== "monster") return;
-    const library = `Monster/${String(entity.Image).padStart(3, "0")}`;
+    if (!["monster", "npc"].includes(entity.kind)) return;
+    const library = entity.kind === "npc"
+      ? `NPC/${String(entity.Image).padStart(2, "0")}`
+      : `Monster/${String(entity.Image).padStart(3, "0")}`;
     this.manifest(library);
     this.manifestLoads.get(library)?.then(() => {
       const manifest = this.manifests.get(library);
       if (!manifest) return;
-      for (let direction = 0; direction < 8; direction++) {
-        const index = this.animation(library, "Standing", direction, 0);
-        if (manifest.frames[index]) this.texture(library, index, true);
+      const actions = entity.kind === "npc" ? ["Standing", "Harvest"] : ["Standing"];
+      const directions = entity.kind === "npc" ? 3 : 8;
+      for (const action of actions) {
+        const frame = manifest.animations[action];
+        if (!frame) continue;
+        for (let direction = 0; direction < directions; direction++)
+          for (let step = 0; step < frame.count; step++) {
+            const index = frameIndex(frame, direction, step);
+            if (manifest.frames[index]) this.texture(library, index, true);
+          }
       }
     });
   }
@@ -435,6 +486,13 @@ export class World {
       hoverCandidates.push({entity, z: body.zIndex, bounds: {x: body.x, y: body.y, width: body.width, height: body.height}});
     }
     const hoveredID = pointer ? hitSprite(pointer, hoverCandidates)?.ObjectID : null;
+    const hoveredItem = hoveredID == null ? null : this.entities.get(hoveredID);
+    if (hoveredItem?.kind === "item" && this.hoverPointer) {
+      this.itemTooltip.textContent = hoveredItem.Name || "物品";
+      this.itemTooltip.style.left = `${Math.min(window.innerWidth - 12, this.hoverPointer.clientX + 12)}px`;
+      this.itemTooltip.style.top = `${Math.max(8, this.hoverPointer.clientY - 32)}px`;
+      this.itemTooltip.hidden = false;
+    } else this.itemTooltip.hidden = true;
     const viewport = { x: -this.floor.x / scale, y: -this.floor.y / scale,
       width: this.app.screen.width / scale, height: this.app.screen.height / scale };
     this.minimap.draw(this.map, u, this.entities, viewport, now);
@@ -463,6 +521,12 @@ export class World {
             0,
             this.floor,
           );
+        const tileIndex = tileAnimationFrame(c, now);
+        if (tileIndex >= 0) {
+          const library = this.map.libraries[190];
+          this.sprite(`tile-animation:${x},${y}`, library, tileIndex, px, py + 32,
+            py + 30, this.floor, false, true);
+        }
         for (let layer = 1; layer <= 2; layer++) {
           const lib = this.map.libraries[c[layer * 2]],
             index = c[layer * 2 + 1],
@@ -523,7 +587,8 @@ export class World {
         index = e.Image;
       } else if (e.kind === "npc") {
         library = `NPC/${String(e.Image).padStart(2, "0")}`;
-        index = this.animation(library, "Standing", e.Direction || 0, now);
+        action = npcIdleAction(e, this.manifest(library)?.animations, now);
+        index = this.animation(library, action, e.Direction || 0, now - (e.npcIdleStartedAt || now));
       } else if (e.kind === "monster") {
         library = `Monster/${String(e.Image).padStart(3, "0")}`;
         index = this.animation(library, action, e.Direction || 0, now);
@@ -586,6 +651,26 @@ export class World {
         true,
       );
       const body = this.nodes.get(`entity:${e.ObjectID}`);
+      if (body && e.kind === "item") {
+        body.scale.set(0.78);
+        body.position.set(Math.round(x + 24 - body.width / 2), Math.round(y + 16 - body.height / 2));
+        const key = `item-glint:${e.ObjectID}`;
+        let glint = this.nodes.get(key);
+        if (!glint) {
+          glint = new Graphics();
+          this.objects.addChild(glint);
+          this.nodes.set(key, glint);
+        }
+        const phase = ((now + Math.abs(Number(e.ObjectID) || 0) * 137) % 1800) / 1800;
+        const alpha = phase < 0.28 ? Math.sin(phase / 0.28 * Math.PI) * 0.9 : 0;
+        glint.clear().rect(-5, 0, 11, 1).fill(0xffedaa).rect(0, -5, 1, 11).fill(0xffedaa)
+          .rect(-2, -2, 5, 5).fill({color: 0xffffff, alpha: 0.55});
+        glint.position.set(x + 24, y + 8);
+        glint.alpha = alpha;
+        glint.blendMode = "add";
+        glint.zIndex = y + 32.1;
+        glint.seen = this.tick;
+      }
       if (body) body.tint = now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
       if (body && !e.Dead && ["monster", "npc"].includes(e.kind) &&
           (e.ObjectID === hoveredID || e.ObjectID === this.selectedID)) {

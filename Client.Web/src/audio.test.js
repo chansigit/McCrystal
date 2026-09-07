@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import { GameAudio } from "./audio.js";
 test("Map music loops separately from effects, reuses the same track and honours mute and exit", () => {
   const original = { Audio: globalThis.Audio, window: globalThis.window, document: globalThis.document };
+  let click;
   class Audio {
     paused = true; plays = 0;
     play() { this.paused = false; this.plays++; return Promise.resolve(); }
@@ -12,9 +13,17 @@ test("Map music loops separately from effects, reuses the same track and honours
   }
   globalThis.Audio = Audio;
   globalThis.window = { addEventListener() {} };
-  globalThis.document = { getElementById: () => ({ setAttribute() {}, classList: { toggle() {} } }) };
+  globalThis.document = {
+    addEventListener(type, listener) { if (type === "click") click = listener; },
+    getElementById: () => ({ setAttribute() {}, classList: { toggle() {} } }),
+  };
   try {
     const audio = new GameAudio();
+    const effects = [];
+    audio.play = (id) => effects.push(id);
+    click({ target: { closest: () => ({ disabled: false }) } });
+    click({ target: { closest: () => ({ disabled: true }) } });
+    assert.deepEqual(effects, [10104]);
     audio.setMusic(30001);
     assert.equal(audio.music.loop, true);
     assert.equal(audio.music.src, "/assets/sound?id=30001");

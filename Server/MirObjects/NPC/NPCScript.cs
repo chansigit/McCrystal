@@ -939,9 +939,9 @@ namespace Server.MirObjects
                         {
                             for (int i = 0; i < callingNPC.UsedGoods.Count; i++)
                                 player.CheckItem(callingNPC.UsedGoods[i]);
-                        }
 
-                        sentGoods.AddRange(callingNPC.UsedGoods);
+                            sentGoods.AddRange(callingNPC.UsedGoods);
+                        }
                     }
 
                     player.SendNPCGoods(sentGoods, PriceRate(player), PanelType.Buy, Settings.GoodsHideAddedStats);

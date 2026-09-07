@@ -25,10 +25,12 @@ test("NPC input submits once, preserves text and clears on close or page change"
   const nodes = new Map();
   globalThis.document = {
     activeElement: null,
+    createElement() { return { textContent: "" }; },
     getElementById(id) {
       if (!nodes.has(id)) nodes.set(id, {
-        hidden: true, value: "", textContent: "",
-        replaceChildren() {}, contains(node) { return node === nodes.get("npc-input-value"); },
+        hidden: true, value: "", textContent: "", children: [],
+        replaceChildren() { this.children = []; }, append(node) { this.children.push(node); },
+        contains(node) { return node === nodes.get("npc-input-value"); },
         focus() { document.activeElement = this; }, blur() { document.activeElement = null; },
       });
       return nodes.get(id);
@@ -69,6 +71,8 @@ test("NPC input submits once, preserves text and clears on close or page change"
     dialog.requestInput(request);
     dialog.page([]);
     assert.equal(dialog.inputRequest, null);
+    assert.equal(dialog.panel.hidden, false);
+    assert.equal(nodes.get("npc-page").children[0].textContent, "这个 NPC 暂时没有可用的对话。");
     dialog.requestInput(request);
     let closed = 0;
     dialog.onChange = () => closed++;

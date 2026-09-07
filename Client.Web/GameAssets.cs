@@ -141,7 +141,8 @@ public sealed class GameAssets : IDisposable
                 cell.FrontIndex, (cell.FrontImage & 0x7FFF) - 1,
                 (cell.BackImage & 0x20000000) != 0 || (cell.FrontImage & 0x8000) != 0 ? 1 : 0,
                 cell.FrontAnimationFrame, cell.FrontAnimationTick,
-                cell.MiddleAnimationFrame, cell.MiddleAnimationTick
+                cell.MiddleAnimationFrame, cell.MiddleAnimationTick,
+                cell.TileAnimationImage, cell.TileAnimationOffset, cell.TileAnimationFrames
             };
         }
         return new { map.Width, map.Height, Cells = cells, Libraries = MapLibraries() };
