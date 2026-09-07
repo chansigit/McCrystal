@@ -5,6 +5,22 @@ using S = ServerPackets;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Admin action queue drains in order and survives failures", AdminChecks.ActionQueueDrainsInOrder),
+    ("Admin action runner reports success and failure", AdminChecks.ActionRunnerReturnsResult),
+    ("Admin action runner times out without the game loop", AdminChecks.ActionRunnerTimesOut),
+    ("Admin action runner hides internal errors", AdminChecks.ActionRunnerLogsInternalErrors),
+    ("Admin log buffer keeps the last lines", AdminChecks.LogBufferKeepsLastLines),
+    ("Admin account search matches id and character", AdminChecks.AccountSearchMatchesIdAndCharacter),
+    ("Admin account detail lists inventory", AdminChecks.AccountDetailListsInventory),
+    ("Admin database search filters by name", AdminChecks.DatabaseSearchFiltersByName),
+    ("Admin statistics count characters and gold", AdminChecks.StatisticsCountCharactersAndGold),
+    ("Admin overview reports pack and counts", AdminChecks.OverviewReportsPackAndCounts),
+    ("Admin password reset rehashes with the account salt", AdminChecks.ResetPasswordRehashes),
+    ("Admin toggles the account admin flag", AdminChecks.ToggleAdminFlag),
+    ("Admin online actions reject unknown players", AdminChecks.OnlineActionsRejectUnknownPlayer),
+    ("Admin HTTP requires login", AdminChecks.HttpRequiresLogin),
+    ("Admin HTTP rejects actions without login", AdminChecks.HttpRejectsActionsWithoutLogin),
+    ("Admin HTTP guard is case-insensitive", AdminChecks.HttpGuardIsCaseInsensitive),
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),

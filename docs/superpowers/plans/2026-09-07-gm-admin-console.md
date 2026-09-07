@@ -798,14 +798,14 @@ namespace Server.Admin
             {
                 Running = envir.Running,
                 UptimeSeconds = envir.Stopwatch.Elapsed.TotalSeconds,
-                PackId = ContentPack.Current.Id,
-                PackVersion = ContentPack.Current.Version,
+                PackId = ContentPack.Current.Manifest.Id,
+                PackVersion = ContentPack.Current.Manifest.Version,
                 DatabaseVersion = Envir.LoadVersion,
                 OnlinePlayers = envir.Players.Count,
                 Connections = connections,
                 Monsters = envir.MonsterCount,
                 LoopMilliseconds = Envir.LastRunTime,
-                MemoryBytes = Process.GetCurrentProcess().WorkingSet64
+                MemoryBytes = Environment.WorkingSet
             };
         }
 
@@ -1079,14 +1079,27 @@ git commit -m "Add admin service queries"
 ### Task 5: AdminService actions
 
 **Files:**
-- Modify: `Server.Admin/AdminService.cs`
+- Modify: `Server.Admin/AdminService.cs`, split into `AdminService.cs` / `AdminService.Queries.cs` / `AdminService.Actions.cs` (partial class)
 - Modify: `Tests/Regression/AdminChecks.cs`, `Tests/Regression/Program.cs`
+- Modify: `Server/MirEnvir/Envir.cs` (adds `BeginSaveAll()`, next to `BeginSaveAccounts()`) — an allowed, narrow exception to "don't touch `Server/`", needed so the console can trigger the engine's own periodic save instead of a blocking one
+- Modify: `Server/Server.Library.csproj` (adds `InternalsVisibleTo` for the `Regression` test assembly, so the tests can call `Server.Utils.Crypto.HashPassword` directly instead of re-implementing it)
 
 Online-player actions need a live `PlayerObject` with a connection, which the tests cannot build. Tests cover the offline actions (password, admin flag) and the "unknown player" path, which is the argument validation every online action shares.
 
+A code review after the first pass of this task found three real engine-interaction bugs (not just transcription slips), fixed below: `SetLevel` could spin a character's level to 65535 or immediately re-level them back down; `SaveNow` blocked the whole game loop and rewrote static gameplay data the console never edits; and GM-given items weren't marked `GMMade` for traceability. `SetAdmin`'s message was also corrected to note that revoking a connected GM's admin flag only takes effect at their next login (`IsGM` is read once, at `PlayerObject` construction).
+
+- [ ] **Step 0: Split the file**
+
+Before adding ~180 lines of actions to an already ~290-line file, split `AdminService.cs` into partial classes:
+- `AdminService.cs` keeps the class declaration (`public sealed partial class AdminService`), the two fields, the constructor, and the private helpers `Matches`, `MapName`, `ItemRows`.
+- `AdminService.Queries.cs` holds the existing query methods (`GetOverview`, `GetOnlinePlayers`, `SearchAccounts`, `GetAccount`, `SearchItems`, `SearchMonsters`, `SearchMaps`, `SearchNpcs`, `GetStatistics`), moved verbatim.
+- `AdminService.Actions.cs` holds the new actions (Step 3 below).
+
+Run the suite and confirm it is still green before adding anything.
+
 - [ ] **Step 1: Write failing tests**
 
-Append to `AdminChecks.cs`:
+Append to `AdminChecks.cs` (no `using System.Security.Cryptography;`/`using System.Text;` needed — the test calls `Server.Utils.Crypto.HashPassword` directly via the `InternalsVisibleTo` added in Step 3a):
 
 ```csharp
     static Server.Admin.AdminService ServiceWithLoop(Envir envir, out Thread loop, out CancellationTokenSource stop)
@@ -1098,9 +1111,9 @@ Append to `AdminChecks.cs`:
             while (!token.IsCancellationRequested)
             {
                 envir.ProcessAdminActions();
-                Thread.Sleep(10);
+                Thread.Sleep(5);
             }
-        });
+        }) { IsBackground = true }; // never blocks process exit if a caller forgets to Join()
         loop.Start();
         return new Server.Admin.AdminService(envir, new Server.Admin.AdminActionRunner(envir, TimeSpan.FromSeconds(2)));
     }
@@ -1111,15 +1124,29 @@ Append to `AdminChecks.cs`:
         var service = ServiceWithLoop(envir, out var loop, out var stop);
         try
         {
+            var account = envir.GetAccount("cocofly");
+            var saltBefore = account.Salt;
+            var passwordBefore = account.Password;
+
             var result = service.ResetPassword("cocofly", "newSecret1");
             Check(result.Ok, result.Message);
-            var account = envir.GetAccount("cocofly");
             Check(account.Password == Server.Utils.Crypto.HashPassword("newSecret1", account.Salt), "password not rehashed with account salt");
+            Check(account.Salt != saltBefore, "salt must be regenerated on reset");
+            Check(account.Password != passwordBefore, "stored value must change on reset");
+            Check(account.Password != "newSecret1", "plaintext must not be stored");
+
+            // The setter regenerates the salt every time, so even resetting to the same
+            // password must change the stored value — the hash comparison alone can't show this.
+            var saltAfterFirstReset = account.Salt;
+            var passwordAfterFirstReset = account.Password;
+            Check(service.ResetPassword("cocofly", "newSecret1").Ok, "second reset of same password should succeed");
+            Check(account.Salt != saltAfterFirstReset, "salt must be regenerated on every reset");
+            Check(account.Password != passwordAfterFirstReset, "resetting to the same password must still change the stored value (fresh salt)");
 
             Check(!service.ResetPassword("nobody", "x").Ok, "unknown account must fail");
             Check(!service.ResetPassword("cocofly", "").Ok, "empty password must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void ToggleAdminFlag()
@@ -1132,8 +1159,9 @@ Append to `AdminChecks.cs`:
             Check(envir.GetAccount("guest").AdminAccount, "flag not set");
             Check(service.SetAdmin("guest", false).Ok, "clear admin failed");
             Check(!envir.GetAccount("guest").AdminAccount, "flag not cleared");
+            Check(!service.SetAdmin("nobody", true).Ok, "unknown account must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void OnlineActionsRejectUnknownPlayer()
@@ -1145,12 +1173,19 @@ Append to `AdminChecks.cs`:
             Check(service.GiveItem("nobody", "Wooden Sword", 1).Message.Contains("not online"), "give item");
             Check(service.GiveGold("nobody", 10).Message.Contains("not online"), "give gold");
             Check(service.Teleport("nobody", 1, null, null).Message.Contains("not online"), "teleport");
-            Check(service.SetLevel("nobody", 5).Message.Contains("not online"), "set level");
+            // Settings.ExperienceList is empty in the test process, so the level bound
+            // collapses to [1, 1]; use a level within that bound to reach the online check.
+            Check(service.SetLevel("nobody", 1).Message.Contains("not online"), "set level");
             Check(service.Kick("nobody").Message.Contains("not online"), "kick");
             Check(service.Whisper("nobody", "hi").Message.Contains("not online"), "whisper");
-            Check(!service.SetLevel("kzs", 0).Ok, "level 0 must be rejected");
+            // Assert the actual rejection reason, not just !Ok — otherwise these would still
+            // pass if the player lookup ran first and failed with "not online" instead.
+            Check(service.SetLevel("kzs", 0).Message.Contains("Level must be"), "level 0 must be rejected for the argument, not the lookup");
+            Check(service.GiveGold("kzs", 0).Message.Contains("positive"), "zero gold must be rejected for the argument, not the lookup");
+            Check(service.Whisper("kzs", "  ").Message.Contains("empty"), "empty whisper must be rejected for the argument, not the lookup");
+            Check(service.Broadcast(" ").Message.Contains("empty"), "empty broadcast must be rejected for the argument, not the lookup");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 ```
 
@@ -1167,9 +1202,35 @@ Register in `Program.cs` after the Task 4 lines:
 Run: `dotnet run --project Tests/Regression/Regression.csproj`
 Expected: build error, `ResetPassword` not found.
 
-- [ ] **Step 3: Add the actions**
+- [ ] **Step 3a: Let the tests see `Crypto`, and give the console an async save path**
 
-Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminService.cs`, then add this region before `// ---------- helpers ----------`:
+`Server.Utils.Crypto` has no access modifier (defaults to `internal`), so `Server.Utils.Crypto.HashPassword` isn't visible from the `Regression` test assembly across the `ProjectReference` boundary. Add to `Server/Server.Library.csproj` (next to the existing `ProjectReference` item group):
+
+```xml
+  <ItemGroup>
+    <InternalsVisibleTo Include="Regression" />
+  </ItemGroup>
+```
+
+Separately, `SaveNow` must not call `Envir.SaveAccounts()` directly (it opens with `while (Saving) Thread.Sleep(1)`, which blocks the whole game loop until the periodic async save finishes) or `Envir.SaveDB()` (a bare `File.Create` rewrite of static gameplay data the console never edits). Instead, add a method that starts the same save the work loop performs periodically. In `Server/MirEnvir/Envir.cs`, next to `BeginSaveAccounts()`:
+
+```csharp
+        /// <summary>Starts the same save the work loop performs periodically. False when one is already running.</summary>
+        public bool BeginSaveAll()
+        {
+            if (Saving) return false;
+
+            BeginSaveAccounts();
+            SaveGuilds(true);
+            SaveGoods(true);
+            SaveConquests(true);
+            return true;
+        }
+```
+
+- [ ] **Step 3b: Add the actions**
+
+Create `AdminService.Actions.cs` (`public sealed partial class AdminService`) with `using System.Drawing;`, `using Server.MirDatabase;`, `using Server.MirEnvir;`, `using Server.MirObjects;`, `using S = ServerPackets;`:
 
 ```csharp
         // ---------- actions (run on the engine thread) ----------
@@ -1184,6 +1245,7 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
 
                 var item = envir.CreateFreshItem(info);
                 item.Count = (ushort)Math.Clamp(count, 1, Math.Max(1, (int)info.StackSize));
+                item.GMMade = true; // matches @MAKE (PlayerObject.cs:2391) so console-created items stay traceable
                 if (!player.CanGainItem(item)) throw new AdminException($"{player.Name} cannot carry {item.Count} x {info.Name}.");
 
                 player.GainItem(item);
@@ -1230,10 +1292,14 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         {
             return runner.Run(() =>
             {
-                if (level < 1 || level > ushort.MaxValue) throw new AdminException("Level must be between 1 and 65535.");
+                // Above the configured curve MaxExperience is 0, which makes GainExp's
+                // level-up loop spin to 65535 on the next kill (PlayerObject.cs:905-919).
+                var max = Math.Max(1, Settings.ExperienceList.Count);
+                if (level < 1 || level > max) throw new AdminException($"Level must be between 1 and {max}.");
                 var player = OnlinePlayer(playerName);
                 var old = player.Level;
                 player.Level = (ushort)level;
+                if (level < old) player.Experience = 0; // stale exp would re-level them immediately
                 player.LevelUp();
                 return Log($"changed {player.Name} level {old} -> {player.Level}");
             });
@@ -1290,7 +1356,7 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
             {
                 var account = Account(accountId);
                 account.AdminAccount = admin;
-                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID}");
+                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID} (takes effect at next login)");
             });
         }
 
@@ -1298,9 +1364,10 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         {
             return runner.Run(() =>
             {
-                envir.SaveDB();
-                envir.SaveAccounts();
-                return Log("saved database and accounts");
+                // Async, like the engine's own periodic save. A synchronous SaveAccounts()
+                // blocks the game loop, and SaveDB() rewrites static data the console never edits.
+                if (!envir.BeginSaveAll()) throw new AdminException("A save is already in progress.");
+                return Log("started a save of accounts, guilds, goods and conquests");
             });
         }
 
@@ -1343,12 +1410,14 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         }
 ```
 
+`Settings` and `MessageQueue` resolve unqualified because `Server.Admin` nests under the `Server` namespace.
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `dotnet run --project Tests/Regression/Regression.csproj`
-Expected: `31/31 passed`.
+Expected: `33/33 passed`.
 
-If `envir.GetAccount` is case-sensitive and the test fails on `"cocofly"`, that is fine: the sample uses the exact id. `Crypto` lives in namespace `Server.Utils`.
+If `envir.GetAccount` is case-sensitive and the test fails on `"cocofly"`, that is fine: the sample uses the exact id.
 
 - [ ] **Step 5: Commit**
 
@@ -1415,11 +1484,36 @@ Expected: build error, `AdminConsole` not found.
 
 - [ ] **Step 3: Implement the host**
 
+**Auth hardening (post-review, 2026-09-07):** the version below already includes a fix for
+a confirmed authentication bypass found after the initial implementation. The original guard
+compared the path with `StringComparison.Ordinal` (`path.StartsWith("/api/", ...) && path !=
+"/api/login"`), but ASP.NET Core routing matches paths case-insensitively, so a request to
+`/API/overview` (or `/Api/Overview`, or the percent-encoded `/%41PI/overview`) skipped the
+guard entirely and reached every query and all twelve actions - including password reset and
+granting GM - with no cookie. A related gap: four actions (`kick`, `server/save`,
+`server/reload-drops`, `server/reload-npcs`) take no request body, so they accept any content
+type and were reachable by a plain cross-origin form POST once the casing trick removed the
+cookie requirement. The fix below is segment-aware and case-insensitive
+(`StartsWithSegments("/api", OrdinalIgnoreCase, ...)`), checks the session cookie first with a
+constant-time comparison (`TokenMatches`, via `CryptographicOperations.FixedTimeEquals`) so a
+fully anonymous request gets a plain 401, and then - only for state-changing methods, since a
+cross-origin request cannot set a custom header without a CORS preflight and none is
+configured - requires an `X-Admin-Console: 1` header, returning 403 if it's a request with a
+valid cookie but no header (the actual cross-site-form-post case). `/api/login` is excluded
+from both checks so it keeps working before any cookie exists. See also: the environment is
+now pinned to `Production` (the host used to inherit `ASPNETCORE_ENVIRONMENT` from the calling
+shell, so `Development` would leak a stack trace via the developer exception page), an
+`UseExceptionHandler` logs unhandled errors to `MessageQueue.Instance` instead of losing them
+silently under `ClearProviders()`, and `/api/logs/stream` links its cancellation token to
+`IHostApplicationLifetime.ApplicationStopping` so an open browser tab doesn't make host
+shutdown wait out the full 2s timeout.
+
 `Server.Admin/AdminConsole.cs`:
 
 ```csharp
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -1451,10 +1545,22 @@ namespace Server.Admin
         public void Start()
         {
             var service = new AdminService(envir);
-            var builder = WebApplication.CreateBuilder();
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                ContentRootPath = AppContext.BaseDirectory,
+                EnvironmentName = Environments.Production,
+            });
             builder.Logging.ClearProviders();
             builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
             app = builder.Build();
+
+            app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+            {
+                var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+                if (error != null && error.Error != null) MessageQueue.Instance.Enqueue(error.Error);
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { error = "Internal error; see server log." });
+            }));
 
             // Static page from the copied AdminConsole folder next to the binaries.
             var pageRoot = Path.Combine(AppContext.BaseDirectory, "AdminConsole");
@@ -1471,13 +1577,27 @@ namespace Server.Admin
 
             app.Use(async (context, next) =>
             {
-                var path = context.Request.Path.Value ?? string.Empty;
-                if (path.StartsWith("/api/", StringComparison.Ordinal) && path != "/api/login")
+                // Routing matches paths case-insensitively, so this guard must too.
+                if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase, out var rest)
+                    && !rest.Equals("/login", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || cookie != token)
+                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || !TokenMatches(cookie, token))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsJsonAsync(new { error = "login required" });
+                        return;
+                    }
+
+                    // CSRF guard: a browser cannot set a custom header on a cross-origin request
+                    // without a CORS preflight, and no CORS policy is configured, so the preflight
+                    // fails. Only state-changing methods need it - GET and HEAD are exempt because
+                    // EventSource cannot set headers, and they are guarded by SameSite cookies plus
+                    // having no side effects.
+                    if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
+                        && context.Request.Headers["X-Admin-Console"] != "1")
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsJsonAsync(new { error = "missing X-Admin-Console header" });
                         return;
                     }
                 }
@@ -1512,22 +1632,27 @@ namespace Server.Admin
             app.MapGet("/api/stats", () => service.GetStatistics());
 
             app.MapGet("/api/logs", (long? after) => Logs.After(after ?? 0));
-            app.MapGet("/api/logs/stream", async (HttpContext context, long? after) =>
+            app.MapGet("/api/logs/stream", async (HttpContext context, IHostApplicationLifetime lifetime, long? after) =>
             {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, lifetime.ApplicationStopping);
+                var cancellation = linked.Token;
                 context.Response.Headers.ContentType = "text/event-stream";
                 context.Response.Headers.CacheControl = "no-cache";
                 long cursor = after ?? Math.Max(0, Logs.LastSequence - 200);
-                while (!context.RequestAborted.IsCancellationRequested)
+                try
                 {
-                    foreach (var entry in Logs.After(cursor))
+                    while (!cancellation.IsCancellationRequested)
                     {
-                        cursor = entry.Sequence;
-                        var json = System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions);
-                        await context.Response.WriteAsync($"data: {json}\n\n", context.RequestAborted);
+                        foreach (var entry in Logs.After(cursor))
+                        {
+                            cursor = entry.Sequence;
+                            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions)}\n\n", cancellation);
+                        }
+                        await context.Response.Body.FlushAsync(cancellation);
+                        await Task.Delay(500, cancellation);
                     }
-                    await context.Response.Body.FlushAsync(context.RequestAborted);
-                    try { await Task.Delay(500, context.RequestAborted); } catch (TaskCanceledException) { }
                 }
+                catch (OperationCanceledException) { } // client left or the host is stopping
             });
 
             app.MapPost("/api/players/{name}/give-item", (string name, GiveItemRequest body) => Result(service.GiveItem(name, body.Item, body.Count)));
@@ -1558,6 +1683,14 @@ namespace Server.Admin
         private static readonly System.Text.Json.JsonSerializerOptions JsonOptions =
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
 
+        private static bool TokenMatches(string candidate, string expected)
+        {
+            if (candidate == null || expected == null) return false;
+            return CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(candidate),
+                System.Text.Encoding.ASCII.GetBytes(expected));
+        }
+
         private static IResult Result(AdminActionResult result)
         {
             return result.Ok
@@ -1585,6 +1718,20 @@ Run: `dotnet run --project Tests/Regression/Regression.csproj`
 Expected: `32/32 passed`.
 
 If the test fails on `page.IsSuccessStatusCode` because no `AdminConsole/` folder exists yet in the test output, that is expected until Task 8 adds the page; the fallback `MapGet("/")` handles it, so the check should pass either way.
+
+- [ ] **Step 4b (post-review): case-insensitive guard + CSRF header regression test**
+
+Add `HttpGuardIsCaseInsensitive` to `AdminChecks.cs` (registered in `Program.cs` right after
+`HttpRejectsActionsWithoutLogin`): it asserts `/API/overview`, `/Api/Overview`, and
+`/%41PI/overview` all still require login (401); that a cross-origin-shaped form POST to
+`/API/server/reload-drops` with no cookie is rejected before the action runs (401 or 403); that
+an unrelated path like `/apifoo` is not treated as an API path (404, not swept into the guard);
+and - the case the header actually defends - that a request carrying a *valid* session cookie
+but no `X-Admin-Console` header is still rejected with 403 when POSTing to
+`/api/server/reload-drops`. Run the full suite and expect `36/36 passed`, with neither of the
+two pre-existing HTTP tests (`HttpRequiresLogin`, `HttpRejectsActionsWithoutLogin`) modified -
+cookie-first ordering in the guard above is exactly what keeps both of those green while still
+closing the bypass.
 
 - [ ] **Step 5: Commit**
 
@@ -1890,8 +2037,13 @@ git commit -m "Host the admin console from Server.Console"
   const logLines = [];
 
   async function api(path, body) {
+    // Auth hardening (post-review, 2026-09-07): the host now requires this header on every
+    // state-changing (non-GET/HEAD) /api/* request as a CSRF guard - a cross-origin request
+    // cannot set a custom header without a CORS preflight, and none is configured, so the
+    // preflight fails and the request never reaches the server. Send it on every POST here,
+    // including /api/login, where it is accepted but not required.
     const res = await fetch(path, body === undefined ? {} : {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Console': '1' }, body: JSON.stringify(body)
     });
     if (res.status === 401) { showLogin(); throw new Error('login required'); }
     const data = await res.json().catch(() => ({}));

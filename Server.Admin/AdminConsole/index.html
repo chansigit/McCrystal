@@ -1,0 +1,523 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Crystal - GM 管理后台</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body {
+    height: 100%;
+    font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #0d1117;
+    color: #c9d1d9;
+    line-height: 1.5;
+  }
+  a { color: #58a6ff; }
+  button {
+    font-family: inherit;
+    background: #21262d;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px 12px;
+    cursor: pointer;
+    font-size: 0.9em;
+  }
+  button:hover { background: #30363d; }
+  button:disabled { opacity: 0.5; cursor: default; }
+  button.primary { background: #1f6feb; border-color: #1f6feb; color: #fff; }
+  button.primary:hover { background: #388bfd; }
+  button.danger { background: #3a1414; border-color: #f85149; color: #f85149; }
+  button.danger:hover { background: #f85149; color: #0d1117; }
+  input[type=text], input[type=number], input[type=password], select {
+    font-family: inherit;
+    background: #0d1117;
+    color: #c9d1d9;
+    border: 1px solid #30363d;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 0.9em;
+  }
+  input:focus, select:focus { outline: 1px solid #58a6ff; }
+  label { font-size: 0.85em; color: #8b949e; }
+
+  /* ---------- login screen ---------- */
+  #login-screen {
+    display: none;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+  }
+  #login-card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    padding: 32px;
+    width: 320px;
+    text-align: center;
+  }
+  #login-card h1 {
+    color: #e6a817;
+    font-size: 1.4em;
+    margin-bottom: 4px;
+  }
+  #login-card p.sub { color: #8b949e; margin-bottom: 20px; font-size: 0.9em; }
+  #login-card input { width: 100%; margin-bottom: 12px; }
+  #login-card button { width: 100%; }
+  #login-error { color: #f85149; font-size: 0.85em; min-height: 1.2em; margin-top: 10px; }
+
+  /* ---------- app shell ---------- */
+  #app {
+    display: none;
+    height: 100%;
+  }
+  #app.visible, #login-screen.visible { display: flex; }
+
+  nav#side {
+    width: 180px;
+    flex-shrink: 0;
+    background: #161b22;
+    border-right: 1px solid #30363d;
+    display: flex;
+    flex-direction: column;
+    padding: 12px 0;
+  }
+  nav#side .brand {
+    color: #e6a817;
+    font-weight: 600;
+    padding: 8px 16px 16px;
+    font-size: 1.05em;
+    border-bottom: 1px solid #30363d;
+    margin-bottom: 8px;
+  }
+  nav#side button.tab {
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 10px 16px;
+    color: #c9d1d9;
+    border-left: 3px solid transparent;
+  }
+  nav#side button.tab:hover { background: #1c2333; }
+  nav#side button.tab.active {
+    background: #1c2333;
+    border-left-color: #e6a817;
+    color: #e6a817;
+  }
+  nav#side .spacer { flex: 1; }
+  nav#side button.logout {
+    margin: 8px 16px 0;
+    border: 1px solid #30363d;
+  }
+
+  main#content {
+    flex: 1;
+    overflow: auto;
+    padding: 20px;
+  }
+  .page { display: none; }
+  .page.active { display: block; }
+  .page h2 {
+    color: #e6a817;
+    font-size: 1.3em;
+    margin-bottom: 16px;
+  }
+
+  /* ---------- shared widgets ---------- */
+  .cards {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .card .label { color: #8b949e; font-size: 0.8em; margin-bottom: 6px; }
+  .card .value { font-size: 1.3em; font-weight: 600; color: #c9d1d9; }
+  .card .value.ok { color: #7ee787; }
+  .card .value.bad { color: #f85149; }
+
+  .toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .toolbar .grow { flex: 1; }
+  .hint { color: #8b949e; font-size: 0.85em; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    background: #161b22;
+    border-radius: 8px;
+    overflow: hidden;
+    margin-bottom: 16px;
+  }
+  thead th {
+    background: #21262d;
+    color: #e6a817;
+    padding: 8px 12px;
+    text-align: left;
+    font-size: 0.85em;
+    border-bottom: 2px solid #30363d;
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 7px 12px;
+    border-bottom: 1px solid #21262d;
+    font-size: 0.88em;
+    vertical-align: top;
+  }
+  tbody tr:hover { background: #1c2333; cursor: pointer; }
+  tbody tr.selected { background: #1c2b3a; }
+  .table-wrap { overflow-x: auto; }
+  .empty-row td { color: #8b949e; text-align: center; padding: 16px; cursor: default; }
+  .empty-row:hover { background: none; }
+
+  .panel {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 16px;
+    margin-bottom: 16px;
+  }
+  .panel h3 {
+    color: #e6a817;
+    font-size: 1em;
+    margin-bottom: 12px;
+  }
+  .panel h4 {
+    color: #58a6ff;
+    font-size: 0.92em;
+    margin: 14px 0 8px;
+  }
+  .field-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+  .field-row input, .field-row select { flex: 0 0 auto; }
+  .field-row .item-name { width: 180px; }
+  .field-row .num-small { width: 70px; }
+  .field-row .msg { flex: 1; min-width: 160px; }
+
+  .badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 999px;
+    font-size: 0.78em;
+    border: 1px solid #30363d;
+  }
+  .badge.on { color: #7ee787; border-color: #2e6b3f; }
+  .badge.off { color: #8b949e; }
+  .badge.warn { color: #f85149; border-color: #6b2e2e; }
+  .badge.gm { color: #e6a817; border-color: #6b5a2e; }
+
+  #account-detail-head { margin-bottom: 12px; }
+  #account-detail-head .line { margin-bottom: 4px; font-size: 0.92em; }
+  #account-characters .char-block {
+    border-top: 1px solid #21262d;
+    padding-top: 10px;
+    margin-top: 10px;
+  }
+  #account-characters .char-title { color: #58a6ff; margin-bottom: 6px; font-size: 0.95em; }
+
+  /* ---------- logs ---------- */
+  #log-view {
+    background: #010409;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    padding: 10px 12px;
+    height: 380px;
+    overflow-y: auto;
+    font-family: 'Consolas', 'Monaco', monospace;
+    font-size: 0.85em;
+    white-space: pre-wrap;
+    word-break: break-all;
+  }
+  #log-view .line { padding: 1px 0; }
+  #log-view .line.server { color: #c9d1d9; }
+  #log-view .line.chat { color: #7ee787; }
+  #log-view .line.debug { color: #8b949e; }
+  #log-view .line .time { color: #6e7681; margin-right: 6px; }
+
+  /* ---------- toast ---------- */
+  #toast {
+    position: fixed;
+    right: 20px;
+    bottom: 20px;
+    max-width: 360px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-left: 4px solid #58a6ff;
+    border-radius: 6px;
+    padding: 12px 16px;
+    font-size: 0.9em;
+    display: none;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
+  #toast.show { display: block; }
+  #toast.error { border-left-color: #f85149; }
+
+  @media (max-width: 720px) {
+    #app.visible { flex-direction: column; }
+    nav#side { width: 100%; flex-direction: row; overflow-x: auto; padding: 6px; align-items: center; }
+    nav#side .brand { display: none; }
+    nav#side .spacer { display: none; }
+    nav#side button.tab { border-left: none; border-bottom: 3px solid transparent; white-space: nowrap; }
+    nav#side button.tab.active { border-bottom-color: #e6a817; }
+    nav#side button.logout { margin: 0 0 0 6px; }
+    main#content { padding: 12px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============ login screen ============ -->
+<div id="login-screen" class="visible">
+  <div id="login-card">
+    <h1>Crystal GM 控制台</h1>
+    <p class="sub">请输入管理密码</p>
+    <form id="login-form" autocomplete="off">
+      <input type="password" id="login-password" placeholder="密码" autofocus>
+      <button type="submit" class="primary">登录</button>
+    </form>
+    <div id="login-error"></div>
+  </div>
+</div>
+
+<!-- ============ app shell ============ -->
+<div id="app">
+  <nav id="side">
+    <div class="brand">Crystal GM</div>
+    <button class="tab active" data-tab="overview">总览</button>
+    <button class="tab" data-tab="players">在线玩家</button>
+    <button class="tab" data-tab="accounts">账号与角色</button>
+    <button class="tab" data-tab="server">服务器与日志</button>
+    <button class="tab" data-tab="database">数据库</button>
+    <button class="tab" data-tab="stats">统计</button>
+    <div class="spacer"></div>
+    <button class="logout" id="logout-btn">退出</button>
+  </nav>
+
+  <main id="content">
+
+    <!-- ---------- 总览 ---------- -->
+    <section class="page active" id="page-overview">
+      <h2>总览</h2>
+      <div class="cards" id="overview-cards"></div>
+    </section>
+
+    <!-- ---------- 在线玩家 ---------- -->
+    <section class="page" id="page-players">
+      <h2>在线玩家</h2>
+      <div class="toolbar">
+        <button id="players-refresh">刷新</button>
+        <span class="hint" id="players-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>角色</th><th>账号</th><th>职业</th><th>等级</th><th>地图</th>
+              <th>坐标</th><th>IP</th><th>在线时长</th>
+            </tr>
+          </thead>
+          <tbody id="players-body"></tbody>
+        </table>
+      </div>
+
+      <div class="panel" id="player-actions" style="display:none;">
+        <h3>操作: <span id="player-actions-name"></span></h3>
+
+        <div class="field-row">
+          <label>发物品</label>
+          <input type="text" class="item-name" id="give-item-name" list="item-name-list" placeholder="物品名称">
+          <datalist id="item-name-list"></datalist>
+          <input type="number" class="num-small" id="give-item-count" value="1" min="1">
+          <button id="give-item-btn">发送</button>
+        </div>
+
+        <div class="field-row">
+          <label>发金币</label>
+          <input type="number" class="num-small" id="give-gold-amount" min="1" placeholder="数量">
+          <button id="give-gold-btn">发送</button>
+        </div>
+
+        <div class="field-row">
+          <label>传送</label>
+          <select id="teleport-map"></select>
+          <input type="number" class="num-small" id="teleport-x" placeholder="X">
+          <input type="number" class="num-small" id="teleport-y" placeholder="Y">
+          <button id="teleport-btn">传送</button>
+          <span class="hint">坐标留空则随机传送</span>
+        </div>
+
+        <div class="field-row">
+          <label>改等级</label>
+          <input type="number" class="num-small" id="set-level-value" min="1" placeholder="等级">
+          <button id="set-level-btn">设置</button>
+        </div>
+
+        <div class="field-row">
+          <label>私聊</label>
+          <input type="text" class="msg" id="whisper-message" placeholder="消息内容">
+          <button id="whisper-btn">发送</button>
+        </div>
+
+        <div class="field-row">
+          <button class="danger" id="kick-btn">踢下线</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ---------- 账号与角色 ---------- -->
+    <section class="page" id="page-accounts">
+      <h2>账号与角色</h2>
+      <div class="toolbar">
+        <input type="text" class="grow" id="accounts-search" placeholder="账号或角色名">
+        <button id="accounts-search-btn">搜索</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>账号</th><th>角色数</th><th>创建</th><th>最后登录</th><th>GM</th><th>封禁</th><th>在线</th></tr>
+          </thead>
+          <tbody id="accounts-body"></tbody>
+        </table>
+      </div>
+
+      <div class="panel" id="account-detail" style="display:none;">
+        <h3>账号详情: <span id="account-detail-id"></span></h3>
+        <div id="account-detail-head"></div>
+
+        <div class="field-row">
+          <label>重置密码</label>
+          <input type="text" id="reset-password-value" placeholder="新密码">
+          <button id="reset-password-btn">重置</button>
+        </div>
+        <div class="field-row">
+          <button id="toggle-admin-btn">设为GM</button>
+        </div>
+
+        <h4>仓库</h4>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>槽</th><th>物品</th><th>数量</th><th>耐久</th></tr></thead>
+            <tbody id="account-storage-body"></tbody>
+          </table>
+        </div>
+
+        <h4>角色</h4>
+        <div id="account-characters"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 服务器与日志 ---------- -->
+    <section class="page" id="page-server">
+      <h2>服务器与日志</h2>
+
+      <div class="panel">
+        <h3>全服公告</h3>
+        <div class="field-row">
+          <input type="text" class="msg" id="broadcast-message" placeholder="公告内容">
+          <button class="primary" id="broadcast-btn">发送</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>服务器操作</h3>
+        <div class="field-row">
+          <button id="save-btn">立即存档</button>
+          <button id="reload-drops-btn">重载掉落表</button>
+          <button id="reload-npcs-btn">重载 NPC 脚本</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>实时日志</h3>
+        <div class="toolbar">
+          <input type="text" class="grow" id="log-filter" placeholder="关键字过滤">
+          <label><input type="checkbox" id="log-include-chat" checked> 聊天</label>
+          <label><input type="checkbox" id="log-include-debug"> 调试</label>
+        </div>
+        <div id="log-view"></div>
+      </div>
+    </section>
+
+    <!-- ---------- 数据库 ---------- -->
+    <section class="page" id="page-database">
+      <h2>数据库</h2>
+      <div class="toolbar">
+        <select id="db-kind">
+          <option value="items">物品</option>
+          <option value="monsters">怪物</option>
+          <option value="maps">地图</option>
+          <option value="npcs">NPC</option>
+        </select>
+        <input type="text" class="grow" id="db-search" placeholder="搜索">
+        <span class="hint" id="db-count"></span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead id="db-head"></thead>
+          <tbody id="db-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ---------- 统计 ---------- -->
+    <section class="page" id="page-stats">
+      <h2>统计</h2>
+      <div class="toolbar">
+        <button id="stats-refresh">刷新</button>
+      </div>
+      <div class="cards" id="stats-cards"></div>
+
+      <div class="panel">
+        <h4>职业分布</h4>
+        <div class="table-wrap">
+          <table><thead><tr><th>职业</th><th>数量</th></tr></thead><tbody id="stats-class-body"></tbody></table>
+        </div>
+
+        <h4>等级分布</h4>
+        <div class="table-wrap">
+          <table><thead><tr><th>等级区间</th><th>数量</th></tr></thead><tbody id="stats-level-body"></tbody></table>
+        </div>
+
+        <h4>怪物最多的地图</h4>
+        <div class="table-wrap">
+          <table><thead><tr><th>地图</th><th>怪物数</th></tr></thead><tbody id="stats-map-monsters-body"></tbody></table>
+        </div>
+
+        <h4>玩家最多的地图</h4>
+        <div class="table-wrap">
+          <table><thead><tr><th>地图</th><th>玩家数</th></tr></thead><tbody id="stats-map-players-body"></tbody></table>
+        </div>
+
+        <h4>金币最多的账号</h4>
+        <div class="table-wrap">
+          <table><thead><tr><th>账号</th><th>角色</th><th>金币</th></tr></thead><tbody id="stats-gold-body"></tbody></table>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script src="admin.js"></script>
+</body>
+</html>

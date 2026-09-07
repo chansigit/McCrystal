@@ -1,5 +1,6 @@
 using log4net;
 using Server;
+using Server.Admin;
 using Server.ContentPacks;
 using Server.MirEnvir;
 using System.Reflection;
@@ -40,6 +41,30 @@ namespace Server.Console
                 Envir.Main.Start();
                 System.Console.WriteLine("Server started. Press Ctrl+C to stop.");
 
+                AdminConsole admin = null;
+                if (Settings.AdminEnabled)
+                {
+                    if (string.IsNullOrWhiteSpace(Settings.AdminPassword))
+                    {
+                        System.Console.WriteLine("Admin console disabled: set [Admin] Password in Configs/Setup.ini.");
+                    }
+                    else
+                    {
+                        try
+                        {
+                            admin = new AdminConsole(Envir.Main, Settings.AdminPassword, Settings.AdminPort);
+                            admin.Start();
+                            System.Console.WriteLine($"Admin console at {admin.BaseUrl}");
+                        }
+                        catch (Exception adminEx)
+                        {
+                            admin = null;
+                            System.Console.WriteLine($"Admin console failed to start: {adminEx.Message}");
+                            Logger.GetLogger(LogType.Server).Error(adminEx);
+                        }
+                    }
+                }
+
                 // Drain message queue to console
                 var cts = new CancellationTokenSource();
                 System.Console.CancelKeyPress += (s, e) =>
@@ -57,12 +82,20 @@ namespace Server.Console
                     while (messageQueue.MessageLog.TryDequeue(out string message))
                     {
                         System.Console.Write(message);
+                        AdminConsole.Logs.Append("server", message);
                         hadMessage = true;
                     }
 
                     while (messageQueue.DebugLog.TryDequeue(out string debug))
                     {
                         System.Console.Write($"[Debug] {debug}");
+                        AdminConsole.Logs.Append("debug", debug);
+                        hadMessage = true;
+                    }
+
+                    while (messageQueue.ChatLog.TryDequeue(out string chat))
+                    {
+                        AdminConsole.Logs.Append("chat", chat);
                         hadMessage = true;
                     }
 
@@ -71,6 +104,7 @@ namespace Server.Console
                 }
 
                 System.Console.WriteLine("Stopping server...");
+                if (admin != null) admin.Stop();
                 Envir.Main.Stop();
                 System.Console.WriteLine("Server stopped.");
 

@@ -77,6 +77,10 @@ namespace Server
         public static bool StartHTTPService = false;
         public static string HTTPIPAddress = "http://127.0.0.1:5679/";
         public static string HTTPTrustedIPAddress = "127.0.0.1";
+        //Admin console
+        public static bool AdminEnabled = true;
+        public static int AdminPort = 5081;
+        public static string AdminPassword = string.Empty;
 
         //Permission
         public static bool AllowNewAccount = true,
@@ -401,6 +405,10 @@ namespace Server
             StartHTTPService = Reader.ReadBoolean("Network", "StartHTTPService", StartHTTPService);
             HTTPIPAddress = Reader.ReadString("Network", "HTTPIPAddress", HTTPIPAddress);
             HTTPTrustedIPAddress = Reader.ReadString("Network", "HTTPTrustedIPAddress", HTTPTrustedIPAddress);
+            //Admin console
+            AdminEnabled = Reader.ReadBoolean("Admin", "Enabled", AdminEnabled);
+            AdminPort = Reader.ReadInt32("Admin", "Port", AdminPort);
+            AdminPassword = Reader.ReadString("Admin", "Password", AdminPassword);
 
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
@@ -688,6 +696,10 @@ namespace Server
             Reader.Write("Network", "StartHTTPService", StartHTTPService);
             Reader.Write("Network", "HTTPIPAddress", HTTPIPAddress);
             Reader.Write("Network", "HTTPTrustedIPAddress", HTTPTrustedIPAddress);
+            //Admin console
+            Reader.Write("Admin", "Enabled", AdminEnabled);
+            Reader.Write("Admin", "Port", AdminPort);
+            Reader.Write("Admin", "Password", AdminPassword);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

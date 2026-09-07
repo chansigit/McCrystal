@@ -153,6 +153,25 @@ namespace Server.MirEnvir
         public Dictionary<int, NPCScript> Scripts = new Dictionary<int, NPCScript>();
         public Dictionary<string, Timer> Timers = new Dictionary<string, Timer>();
 
+        // Work posted by the admin console. Drained once per main loop tick so
+        // mutations happen on the engine thread.
+        public readonly ConcurrentQueue<Action> AdminActions = new ConcurrentQueue<Action>();
+
+        public void ProcessAdminActions()
+        {
+            while (AdminActions.TryDequeue(out var action))
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    MessageQueue.Enqueue(ex);
+                }
+            }
+        }
+
         //multithread vars
         readonly object _locker = new object();
         public MobThread[] MobThreads = new MobThread[Settings.ThreadLimit];
@@ -2053,6 +2072,7 @@ namespace Server.MirEnvir
                     while (Running)
                     {
                         Time = Stopwatch.ElapsedMilliseconds;
+                        ProcessAdminActions();
 
                         if (Time >= processTime)
                         {
@@ -2744,6 +2764,18 @@ namespace Server.MirEnvir
             catch (Exception)
             {
             }
+        }
+
+        /// <summary>Starts the same save the work loop performs periodically. False when one is already running.</summary>
+        public bool BeginSaveAll()
+        {
+            if (Saving) return false;
+
+            BeginSaveAccounts();
+            SaveGuilds(true);
+            SaveGoods(true);
+            SaveConquests(true);
+            return true;
         }
 
         public void BeginSaveAccounts()
