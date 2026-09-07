@@ -4,6 +4,9 @@ const $ = (id) => document.getElementById(id);
 // Shared/Enums.cs BindMode. PlayerObject.StoreItem refuses an item whose definition or whose
 // rental binding carries this flag, before it ever looks at the destination slot.
 export const DONT_STORE = 8;
+// Globals.StorageGridSize. AccountInfo.Storage starts at one page and AccountInfo.ExpandStorage
+// doubles it for a rented vault, which is the largest the server ever allows.
+export const STORAGE_PAGE = 80;
 // PlayerObject.StoreItem and PlayerObject.TakeBackItem both refuse everything they cannot do
 // with a bare Success = false, so name the causes the server actually checks.
 const failures = {
@@ -16,22 +19,29 @@ export function blockedFromStorage(item, info) {
 }
 
 // Neither transfer swaps and neither merges: the server only fills a slot it finds empty.
-export function firstEmptySlot(grid) {
-  return grid ? grid.findIndex((slot) => !slot) : -1;
+// A vault whose rental has lapsed keeps its second page in the array while the server refuses
+// those indexes again, so the search stops at the slots that are actually usable.
+export function firstEmptySlot(grid, limit = Infinity) {
+  if (!grid) return -1;
+  for (let index = 0; index < Math.min(grid.length, limit); index++) if (!grid[index]) return index;
+  return -1;
 }
 
 // S.StoreItem and S.TakeBackItem echo the From and To of the request plus the outcome.
 // Nothing is applied before the answer arrives, exactly as the bag model in inventory.js
 // works, so a refusal reverts to itself: both grids still hold what the server holds.
+// A desync locks the panel until reset(), which runs when a new socket opens and not when a
+// character logs out and back in on the same one, so a page reload is the only recovery there
+// is -- these messages have to ask for that rather than for a re-login that changes nothing.
 export function applyStorageMove(bag, storage, type, p) {
   if (type !== "StoreItem" && type !== "TakeBackItem") return false;
   if (!p?.Success) return false;
   const [source, target] = type === "StoreItem" ? [bag, storage] : [storage, bag];
   if (!Number.isInteger(p.From) || p.From < 0 || p.From >= source.length ||
       !Number.isInteger(p.To) || p.To < 0 || p.To >= target.length)
-    throw new Error("仓库位置同步异常，请重新登录");
-  if (!source[p.From]) throw new Error("仓库物品同步异常，请重新登录");
-  if (target[p.To]) throw new Error("仓库目标格同步异常，请重新登录");
+    throw new Error("仓库位置同步异常，请刷新页面");
+  if (!source[p.From]) throw new Error("仓库物品同步异常，请刷新页面");
+  if (target[p.To]) throw new Error("仓库目标格同步异常，请刷新页面");
   target[p.To] = source[p.From];
   source[p.From] = null;
   return true;
@@ -81,6 +91,27 @@ export class StorageUI {
   grid(name) {
     return name === "storage" ? this.items : this.getUser()?.Inventory;
   }
+  // NPCDialogs.RefreshStorage2 keeps the second vault page locked unless the rental is live,
+  // and AccountInfo.IsValidStorageIndex refuses those indexes then. ExpandStorage only ever
+  // grows Storage, so an expired rental leaves a 160-slot array with 80 usable slots.
+  slots() {
+    if (!this.items) return 0;
+    return this.getUser()?.HasExpandedStorage ? this.items.length : Math.min(this.items.length, STORAGE_PAGE);
+  }
+  // S.ResizeStorage announces the new length when ADDSTORAGE buys a page and again when the
+  // rental lapses; without it the grid would stay at its old size until the page is reloaded.
+  resize(p) {
+    if (!Number.isInteger(p?.Size) || p.Size < 0) return;
+    const user = this.getUser();
+    if (user) user.HasExpandedStorage = !!p.HasExpandedStorage;
+    if (this.items) {
+      const size = Math.min(p.Size, 2 * STORAGE_PAGE);
+      // Only ever grow the copy: the server keeps the items on a lapsed page, and dropping
+      // them here would tell the player they are gone when they are only out of reach.
+      while (this.items.length < size) this.items.push(null);
+    }
+    this.refresh();
+  }
   item(ref) { return this.grid(ref.grid)?.[ref.index]; }
   request(type, From, To) {
     if (!this.send(type, { From, To })) { $("storage-status").textContent = "连接已断开"; return; }
@@ -99,6 +130,10 @@ export class StorageUI {
   // inside the vault, and moving inside the bag belongs to the inventory panel.
   move(from, to) {
     if (!this.available() || from.grid === to.grid) return;
+    if (to.grid === "storage" && to.index >= this.slots()) {
+      $("storage-status").textContent = "该仓库格尚未开通";
+      return;
+    }
     const item = this.item(from);
     if (!item || this.item(to)) return;
     if (from.grid === "bag" && blockedFromStorage(item, this.getInfo(item.ItemIndex))) {
@@ -113,7 +148,7 @@ export class StorageUI {
     if (!this.available()) return;
     const item = this.item(ref);
     if (!item) return;
-    const target = ref.grid === "bag" ? firstEmptySlot(this.items) : emptyBagSlot(this.getUser().Inventory);
+    const target = ref.grid === "bag" ? firstEmptySlot(this.items, this.slots()) : emptyBagSlot(this.getUser().Inventory);
     if (target < 0) {
       $("storage-status").textContent = ref.grid === "bag" ? "仓库已满" : "背包已满";
       return;
@@ -155,7 +190,8 @@ export class StorageUI {
   fill(id, name) {
     const grid = this.grid(name) || [];
     const cells = document.createDocumentFragment();
-    for (let index = 0; index < grid.length; index++) cells.append(this.slot({ grid: name, index }));
+    const count = name === "storage" ? this.slots() : grid.length;
+    for (let index = 0; index < count; index++) cells.append(this.slot({ grid: name, index }));
     $(id).replaceChildren(cells);
   }
   render() {
@@ -174,14 +210,28 @@ export class StorageUI {
     }
     this.fill("storage-grid", "storage");
     this.fill("storage-bag-grid", "bag");
-    const used = this.items.filter(Boolean).length, carried = user.Inventory.filter(Boolean).length;
+    const slots = this.slots();
+    const used = this.items.slice(0, slots).filter(Boolean).length;
+    const carried = user.Inventory.filter(Boolean).length;
+    const stranded = this.items.length - slots > 0 ? this.items.slice(slots).filter(Boolean).length : 0;
     $("storage-hint").textContent =
-      `仓库 ${used}/${this.items.length} · 背包 ${carried}/${user.Inventory.length} · 点击物品存取，拖动可指定格子`;
+      `仓库 ${used}/${slots} · 背包 ${carried}/${user.Inventory.length} · 点击物品存取，拖动可指定格子` +
+      (stranded ? ` · 扩充仓库已到期，另有 ${stranded} 件物品需续租后才能取出` : "");
   }
   receive(type, p) {
     if (type === "UserStorage") {
       this.items = Array.isArray(p?.Storage) ? p.Storage.slice() : null;
       this.uncertain = false;
+      this.refresh();
+      return;
+    }
+    // HumanObject.ProcessItems empties an expired vault slot outright and announces only the
+    // full count, so clear the whole slot rather than leaving a copy the player can still click.
+    if (type === "DeleteItem") {
+      if (!this.items) return;
+      const index = this.items.findIndex((slot) => slot?.UniqueID === p?.UniqueID);
+      if (index < 0) return;
+      this.items[index] = null;
       this.refresh();
       return;
     }
@@ -194,6 +244,12 @@ export class StorageUI {
     if (user && this.items) {
       try { applyStorageMove(user.Inventory, this.items, type, p); }
       catch (error) { this.uncertain = true; $("storage-status").textContent = error.message; }
+    } else if (p?.Success) {
+      // A transfer the server carried out that no local copy can absorb leaves the vault and
+      // the bag out of step exactly as a rejected apply does, so fail the same way instead of
+      // dropping the acknowledgement and letting the player keep clicking.
+      this.uncertain = true;
+      $("storage-status").textContent = "仓库同步异常，请刷新页面";
     }
     this.refresh();
   }

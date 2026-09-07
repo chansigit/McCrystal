@@ -268,6 +268,11 @@ function receive(type, p) {
       clearTimeout(npc.timer); $("npc-status").textContent = "";
       trade.open(type === "NPCSell" ? "sell" : "repair", p.Rate);
       break;
+    // AccountInfo.ExpandStorage doubles the vault and the server announces the new length
+    // here, so a rental bought mid-session grows the grid instead of waiting for a reload.
+    case "ResizeStorage":
+      storage.resize(p);
+      break;
     case "NPCStorage":
       if (!npc.objectID) break;
       clearTimeout(npc.timer); $("npc-status").textContent = "";
@@ -607,6 +612,10 @@ function receive(type, p) {
       const sound = used ? itemUseSound(p, state.items.get(used.ItemIndex)) : null;
       inventory.receive(type, p);
       trade.receive(type, p);
+      // HumanObject.ProcessItems empties an expired vault slot and announces it with nothing
+      // but S.DeleteItem, so the vault copy has to see it too or it keeps offering an item
+      // that no longer exists. The other packets here never touch the vault.
+      storage.receive(type, p);
       if (sound !== null) gameAudio.play(sound);
       break;
     }

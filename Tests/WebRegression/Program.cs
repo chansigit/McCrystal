@@ -216,12 +216,22 @@ Check(decodedWithdrawal.From == 0 && decodedWithdrawal.To == 6 && withdrawalExtr
 Reject("""{"type":"StoreItem","data":{"From":-1,"To":0}}""", "Negative bag slot in a deposit rejected");
 Reject("""{"type":"StoreItem","data":{"From":0,"To":-1}}""", "Negative vault slot in a deposit rejected");
 Reject("""{"type":"StoreItem","data":{"From":256,"To":0}}""", "Out-of-range bag slot in a deposit rejected");
-Reject(JsonSerializer.Serialize(new { type = "StoreItem", data = new { From = 0, To = Globals.StorageGridSize } }),
-    "Vault slot beyond the account storage rejected");
+// Globals.StorageGridSize is one vault page. AccountInfo.ExpandStorage doubles Storage to two
+// pages for a rented vault, so the wire has to carry the second page: a rejected command closes
+// the whole browser session, which would leave such an account unable to touch slots 80..159 at
+// all. AccountInfo.IsValidStorageIndex still refuses the second page for accounts without it.
+Check(((ClientPackets.StoreItem)Parse(JsonSerializer.Serialize(new
+    { type = "StoreItem", data = new { From = 0, To = 2 * Globals.StorageGridSize - 1 } }))).To == 2 * Globals.StorageGridSize - 1,
+    "Expanded vault slots are carried to the server instead of closing the session");
+Check(((ClientPackets.TakeBackItem)Parse(JsonSerializer.Serialize(new
+    { type = "TakeBackItem", data = new { From = Globals.StorageGridSize, To = 0 } }))).From == Globals.StorageGridSize,
+    "The first slot of the rented vault page is carried to the server");
+Reject(JsonSerializer.Serialize(new { type = "StoreItem", data = new { From = 0, To = 2 * Globals.StorageGridSize } }),
+    "Vault slot beyond the largest account storage rejected");
 Reject("""{"type":"TakeBackItem","data":{"From":-1,"To":0}}""", "Negative vault slot in a withdrawal rejected");
 Reject("""{"type":"TakeBackItem","data":{"From":0,"To":-1}}""", "Negative bag slot in a withdrawal rejected");
-Reject(JsonSerializer.Serialize(new { type = "TakeBackItem", data = new { From = Globals.StorageGridSize, To = 0 } }),
-    "Vault slot beyond the account storage in a withdrawal rejected");
+Reject(JsonSerializer.Serialize(new { type = "TakeBackItem", data = new { From = 2 * Globals.StorageGridSize, To = 0 } }),
+    "Vault slot beyond the largest account storage in a withdrawal rejected");
 Reject("""{"type":"TakeBackItem","data":{"From":0,"To":256}}""", "Out-of-range bag slot in a withdrawal rejected");
 // Storage passwords are not part of this client, so the two commands that manage them
 // must not become a way to brute-force a vault through the browser gateway.
@@ -232,4 +242,43 @@ Reject("""{"type":"DropItem","data":{"UniqueID":"abc","Count":1,"HeroInventory":
 Reject("""{"type":"DropItem","data":{"UniqueID":"99999999999999999999999","Count":1,"HeroInventory":false}}""", "Overflowing unique id rejected");
 Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"","Count":1}}""", "Empty unique id rejected");
 
+// The sell and repair panels quote prices the browser computes itself, from the same inputs
+// UserItem.Price() and UserItem.RepairPrice() use. Two things have to hold for that to be safe.
+
+// First, AddedStats has to survive the gateway. StatsConverter flattens Stats into one number
+// per stat, absent ones as 0, and Stats.Count is a sum of magnitudes rather than a key count,
+// so summing the flattened object reproduces it. Client.Web/src/item-price.js relies on this.
+var added = new Stats();
+added[Stat.MaxDC] = 3;
+added[Stat.MaxAC] = -2;
+using (var flattened = JsonDocument.Parse(JsonSerializer.Serialize(added, GameSession.Json)))
+{
+    int sum = 0;
+    foreach (var stat in flattened.RootElement.EnumerateObject()) sum += Math.Abs(stat.Value.GetInt32());
+    Check(sum == added.Count && added.Count == 5,
+        "A browser can still recover AddedStats.Count from the flattened stats the gateway sends");
+}
+
+// Second, the ported formulas have to keep agreeing with the server's. These are the same items
+// item-price.test.js pins, so a change to UserItem.Price() breaks here and names the JS copy.
+var potion = new ItemInfo { Index = 1, Name = "potion", Price = 200, Durability = 0, StackSize = 50 };
+var sword = new ItemInfo { Index = 2, Name = "sword", Price = 15000, Durability = 5000 };
+var ring = new ItemInfo { Index = 3, Name = "ring", Price = 7, Durability = 3 };
+var worn = new UserItem(sword) { Count = 1, MaxDura = 4500, CurrentDura = 1200 };
+var upgraded = new UserItem(sword) { Count = 1, MaxDura = 4500, CurrentDura = 1200 };
+upgraded.AddedStats[Stat.MaxDC] = 3;
+upgraded.AddedStats[Stat.MaxAC] = -2;
+var rented = new UserItem(sword) { Count = 1, MaxDura = 4500, CurrentDura = 1200, RentalInformation = new RentalInformation() };
+Check(new UserItem(potion) { Count = 7 }.Price() == 1400 &&
+    worn.Price() == 11775 && upgraded.Price() == 17662 &&
+    new UserItem(sword) { Count = 1, MaxDura = 5000, CurrentDura = 5000 }.Price() == 15000 &&
+    new UserItem(sword) { Count = 1, MaxDura = 0, CurrentDura = 0 }.Price() == 7500 &&
+    new UserItem(ring) { Count = 1, MaxDura = 2, CurrentDura = 1 }.Price() == 5,
+    "Item sale prices match the values the browser price module is pinned to");
+Check(worn.RepairPrice() == 2475 && upgraded.RepairPrice() == 3713 && rented.RepairPrice() == 4950 &&
+    new UserItem(sword) { Count = 1, MaxDura = 5000, CurrentDura = 5000 }.RepairPrice() == 0 &&
+    (uint)(upgraded.RepairPrice() * 1.35F) == 5012,
+    "Item repair prices, including the NPC rate, match the values the browser price module is pinned to");
+
 Console.WriteLine($"{count}/{count} passed");
+

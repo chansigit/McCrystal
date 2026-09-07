@@ -246,13 +246,18 @@ public static class GameSession
         if (packet is C.DropGold gold && gold.Amount == 0) throw new InvalidDataException("Invalid gold drop");
         if (packet is C.SplitItem split && (split.Grid != MirGridType.Inventory || split.UniqueID == 0 || split.Count == 0))
             throw new InvalidDataException("Invalid item split");
-        // The vault is Globals.StorageGridSize slots (AccountInfo.Storage is allocated at that
-        // size), and both halves of a transfer address a bag slot on one side and a vault slot on
-        // the other. PlayerObject.StoreItem / TakeBackItem answer an out-of-range index with a bare
-        // failure, so refuse it here instead of spending a round trip on it.
-        if (packet is C.StoreItem store && (store.From is < 0 or > 255 || store.To < 0 || store.To >= Globals.StorageGridSize))
+        // Globals.StorageGridSize is one vault PAGE, not the size of AccountInfo.Storage:
+        // AccountInfo.ExpandStorage doubles the array to two pages and persists that, so a rented
+        // vault addresses indexes up to 2 * Globals.StorageGridSize - 1. Bound the wire here at
+        // the server's own maximum and leave the per-account limit to AccountInfo.IsValidStorageIndex,
+        // because rejecting a command tears the whole browser session down: a player with expanded
+        // storage would be disconnected by every click on the second page. Both halves of a
+        // transfer address a bag slot on one side and a vault slot on the other, and
+        // PlayerObject.StoreItem / TakeBackItem answer an out-of-range index with a bare failure.
+        const int storageSlots = 2 * Globals.StorageGridSize;
+        if (packet is C.StoreItem store && (store.From is < 0 or > 255 || store.To < 0 || store.To >= storageSlots))
             throw new InvalidDataException("Invalid storage deposit");
-        if (packet is C.TakeBackItem takeBack && (takeBack.From < 0 || takeBack.From >= Globals.StorageGridSize || takeBack.To is < 0 or > 255))
+        if (packet is C.TakeBackItem takeBack && (takeBack.From < 0 || takeBack.From >= storageSlots || takeBack.To is < 0 or > 255))
             throw new InvalidDataException("Invalid storage withdrawal");
         if (packet is C.Magic magic && (magic.ObjectID == 0 || magic.Spell == Spell.None || !Enum.IsDefined(magic.Spell) ||
             (byte)magic.Direction > 7 || magic.Location.X is < 0 or > 32767 || magic.Location.Y is < 0 or > 32767))

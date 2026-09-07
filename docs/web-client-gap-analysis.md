@@ -211,10 +211,20 @@ render-only work with no gateway change.
    layers, occlusion behind scenery, weather.
 4. Tier 2 systems as needed.
 
-## Known limitation carried by the Tier 1 work
+## Prices in the sell and repair panels
 
-The sell and repair panels show no price. `S.NPCSell` carries no fields and the
-native client computes `Price() / 2` locally, which the browser cannot reproduce
-because the gateway's `StatsConverter` flattens `Stats` to a name-value map and
-loses `AddedStats.Count`. Showing a real price needs the gateway to keep its own
-item model and reuse the `Shared` pricing code.
+The panels quote real prices. `S.NPCSell` carries no fields and the native client
+computes `Price() / 2` locally, which was first read as unreachable from the
+browser because the gateway's `StatsConverter` flattens `Stats` to a name-value
+map and appears to lose `AddedStats.Count`. It does not: `Stats.Count` is
+`Values.Sum(pair => Math.Abs(pair.Value))`, a sum of magnitudes rather than a key
+count, and the converter writes every stat, absent ones as `0`, so summing the
+flattened object reproduces it exactly. `Client.Web/src/item-price.js` therefore
+ports `UserItem.Price()` and `UserItem.RepairPrice()` directly, single-precision
+intermediates included, and needs nothing new from the gateway. That also keeps
+the quote fresh across `S.DuraChanged` and `S.ItemRepaired`, which a projection
+computed once per forwarded packet would not. `Tests/WebRegression` pins both the
+`AddedStats.Count` invariant and the price values the JS tests assert.
+
+The remaining gap on the sell path is the NPC buy-back list, which has no web UI:
+the panel says so before it confirms a sale.

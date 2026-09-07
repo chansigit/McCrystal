@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { sellCount, sellList, repairList, DONT_SELL, DONT_REPAIR } from "./npc-trade.js";
+import { NPCTrade, sellCount, sellList, repairList, DONT_SELL, DONT_REPAIR } from "./npc-trade.js";
 import { applyInventoryPacket } from "./inventory.js";
 
 const item = (id, extra = {}) => ({ UniqueID: String(id), ItemIndex: 1, Count: 1, ...extra });
@@ -59,4 +59,77 @@ test("a successful sale takes the sold count off the stack and a refusal leaves 
   assert.equal(user.Inventory[1].Count, 3);
   assert.equal(applyInventoryPacket(user, "SellItem", { UniqueID: "7", Count: 3, Success: true }), true);
   assert.equal(user.Inventory[1], null);
+});
+
+// The panel needs enough of a DOM to render into; these tests are about the numbers it shows.
+function withTrade(user, definitions, run) {
+  const previousDocument = globalThis.document, previousWindow = globalThis.window;
+  const nodes = new Map(), sent = [], asked = [];
+  const element = () => ({
+    hidden: true, disabled: false, textContent: "", children: [],
+    append(...kids) { this.children.push(...kids); },
+    replaceChildren(...kids) { this.children = kids; },
+    setAttribute() {}, getAttribute: () => "",
+  });
+  globalThis.document = {
+    getElementById(id) { if (!nodes.has(id)) nodes.set(id, element()); return nodes.get(id); },
+    createElement: element, createDocumentFragment: element,
+  };
+  globalThis.window = {
+    confirm: (text) => { asked.push(text); return true; },
+    prompt: (text) => { asked.push(text); return null; },
+  };
+  const ui = new NPCTrade(() => user, (index) => definitions[index],
+    (type, data) => { sent.push({ type, data }); return true; });
+  const detail = (row) => nodes.get("trade-list").children[0].children[row].children[2].textContent;
+  try { return run(ui, { nodes, sent, asked, detail }); }
+  finally { clearTimeout(ui.timer); globalThis.document = previousDocument; globalThis.window = previousWindow; }
+}
+
+const SWORD = { Name: "剑", Price: 15000, Durability: 5000, Image: 1, Bind: 0 };
+const POTION = { Name: "药", Price: 200, Durability: 0, StackSize: 50, Image: 2, Bind: 0 };
+
+test("the sell panel quotes what the server will pay and warns that nothing can be bought back", () => {
+  const user = {
+    Inventory: [item(1, { ItemIndex: 1, MaxDura: 4500, CurrentDura: 1200 }), item(2, { ItemIndex: 2, Count: 7 })],
+    Equipment: [], Gold: 500,
+  };
+  withTrade(user, { 1: SWORD, 2: POTION }, (ui, { nodes, detail }) => {
+    // S.NPCSell carries no fields at all, so a sale must not keep a rate it never received.
+    ui.open("sell", undefined);
+    assert.equal(ui.rate, null);
+    assert.match(detail(0), /售价 5,887 金币/);
+    assert.match(detail(1), /售价 700 金币/);
+    assert.match(nodes.get("trade-hint").textContent, /无法买回/);
+  });
+});
+
+test("the repair panel quotes the rated cost and refuses a request the server would answer with silence", () => {
+  const user = { Inventory: [item(1, { ItemIndex: 1, MaxDura: 4500, CurrentDura: 1200 })], Equipment: [], Gold: 500 };
+  withTrade(user, { 1: SWORD }, (ui, { nodes, sent, detail }) => {
+    // S.NPCRepair carries the rate PlayerObject.RepairItem multiplies RepairPrice() by.
+    ui.open("repair", 2);
+    assert.equal(ui.rate, 2);
+    assert.match(detail(0), /修理费 4,950 金币（金币不足）/);
+    // PlayerObject.RepairItem returns without a message when the gold is short.
+    ui.choose("1");
+    assert.equal(sent.length, 0);
+    assert.match(nodes.get("trade-status").textContent, /金币不足/);
+    user.Gold = 10000;
+    ui.choose("1");
+    assert.deepEqual(sent.at(-1), { type: "RepairItem", data: { UniqueID: "1" } });
+    // S.RepairItem is enqueued before any of those checks run, so it must not claim acceptance.
+    ui.receive("RepairItem", { UniqueID: "1" });
+    assert.match(nodes.get("trade-status").textContent, /尚未确认/);
+    ui.receive("ItemRepaired", { UniqueID: "1", MaxDura: 4500, CurrentDura: 4500 });
+    assert.equal(nodes.get("trade-status").textContent, "修理完成");
+  });
+});
+
+test("an item whose definition has not arrived is listed without inventing a price for it", () => {
+  const user = { Inventory: [item(1, { ItemIndex: 9 })], Equipment: [], Gold: 0 };
+  withTrade(user, {}, (ui, { detail }) => {
+    ui.open("sell");
+    assert.match(detail(0), /价格未就绪/);
+  });
 });

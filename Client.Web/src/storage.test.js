@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { applyStorageMove, blockedFromStorage, firstEmptySlot, slotLabel, DONT_STORE, StorageUI } from "./storage.js";
+import { applyStorageMove, blockedFromStorage, firstEmptySlot, slotLabel, DONT_STORE, STORAGE_PAGE, StorageUI } from "./storage.js";
 
 const item = (id, extra = {}) => ({ UniqueID: String(id), ItemIndex: 1, Count: 1, ...extra });
 const player = () => ({ Inventory: Array(46).fill(null), Equipment: Array(14).fill(null), Gold: 0 });
@@ -71,6 +71,9 @@ test("the first free slot and the bind flag decide what can be stored at all", (
   assert.equal(firstEmptySlot([item(1), null, null]), 1);
   assert.equal(firstEmptySlot([item(1), item(2)]), -1);
   assert.equal(firstEmptySlot(null), -1);
+  // A locked second vault page is not a free slot, however empty it looks.
+  assert.equal(firstEmptySlot([item(1), null, null], 1), -1);
+  assert.equal(firstEmptySlot([item(1), null, null], 2), 1);
   assert.equal(blockedFromStorage(item(1), { Bind: DONT_STORE }), true);
   assert.equal(blockedFromStorage(item(1), { Bind: 4 }), false);
   assert.equal(blockedFromStorage(item(1, { RentalInformation: { BindingFlags: DONT_STORE } }), { Bind: 0 }), true);
@@ -237,4 +240,67 @@ test("a vault the server never sent says why instead of showing an empty grid", 
     ui.render();
     assert.match(nodes.get("storage-hint").textContent, /尚未送达/);
   } finally { clearTimeout(ui.timer); globalThis.document = previousDocument; }
+});
+
+// HumanObject.ProcessItems empties an expired vault slot and announces it with S.DeleteItem
+// alone; nothing else tells the browser the item is gone.
+test("an item that expires in the vault leaves the copy instead of staying clickable", () => {
+  const user = player();
+  withUI(user, (ui, { sent }) => {
+    ui.receive("UserStorage", { Storage: [item(3), item(4), null] });
+    ui.open();
+    ui.receive("DeleteItem", { UniqueID: "3", Count: 1 });
+    assert.equal(ui.items[0], null);
+    assert.equal(ui.items[1].UniqueID, "4");
+    // A deletion for a bag item the vault does not hold must leave the vault alone.
+    ui.receive("DeleteItem", { UniqueID: "99", Count: 1 });
+    assert.equal(ui.items[1].UniqueID, "4");
+    // The freed slot is now a real destination rather than one the server would refuse.
+    user.Inventory[6] = item(7);
+    ui.transfer({ grid: "bag", index: 6 });
+    assert.deepEqual(sent.at(-1), { type: "StoreItem", data: { From: 6, To: 0 } });
+  });
+});
+
+// AccountInfo.ExpandStorage doubles Storage to two pages and the server announces the new
+// length with S.ResizeStorage; the grid has to follow without waiting for a page reload.
+test("buying a vault expansion grows the grid, and letting it lapse locks the page again", () => {
+  const user = player();
+  withUI(user, (ui) => {
+    ui.receive("UserStorage", { Storage: Array(STORAGE_PAGE).fill(null) });
+    ui.open();
+    assert.equal(ui.slots(), STORAGE_PAGE);
+    ui.resize({ Size: 2 * STORAGE_PAGE, HasExpandedStorage: true });
+    assert.equal(ui.items.length, 2 * STORAGE_PAGE);
+    assert.equal(ui.slots(), 2 * STORAGE_PAGE);
+    assert.equal(user.HasExpandedStorage, true);
+    // A rented slot is a legal destination, which is exactly what the gateway now forwards.
+    user.Inventory[6] = item(7);
+    ui.items.fill(item(1), 0, STORAGE_PAGE);
+    ui.transfer({ grid: "bag", index: 6 });
+    assert.deepEqual(ui.pending, { type: "StoreItem", From: 6, To: STORAGE_PAGE });
+    ui.receive("StoreItem", { From: 6, To: STORAGE_PAGE, Success: true });
+    assert.equal(ui.items[STORAGE_PAGE].UniqueID, "7");
+    // The rental lapsing keeps the array but locks the page, as IsValidStorageIndex does.
+    ui.resize({ Size: 2 * STORAGE_PAGE, HasExpandedStorage: false });
+    assert.equal(ui.items.length, 2 * STORAGE_PAGE, "the stranded items are still there");
+    assert.equal(ui.slots(), STORAGE_PAGE);
+    ui.move({ grid: "bag", index: 7 }, { grid: "storage", index: STORAGE_PAGE });
+    assert.equal(ui.pending, null);
+    // A size that could not have come from the server is ignored rather than trusted.
+    ui.resize({ Size: "160", HasExpandedStorage: true });
+    assert.equal(ui.items.length, 2 * STORAGE_PAGE);
+  });
+});
+
+test("a transfer the server carried out but the copy cannot absorb fails instead of being dropped", () => {
+  const user = player();
+  withUI(user, (ui, { nodes }) => {
+    // The vault window can be opened before S.UserStorage arrives, so the ack has no copy.
+    ui.open();
+    ui.receive("StoreItem", { From: 6, To: 0, Success: true });
+    assert.equal(ui.uncertain, true);
+    assert.equal(ui.available(), false);
+    assert.match(nodes.get("storage-status").textContent, /刷新页面/);
+  });
 });

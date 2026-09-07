@@ -1,10 +1,12 @@
 import { BELT_SIZE, clampCount } from "./inventory.js";
+import { repairCost, sellPrice } from "./item-price.js";
 
 const $ = (id) => document.getElementById(id);
 // Shared/Enums.cs BindMode. NPCDropDialog.Confirm refuses these outright, and the server
 // (PlayerObject.SellItem / RepairItem) checks the same two flags before doing anything.
 export const DONT_SELL = 4, DONT_REPAIR = 32;
 const TITLES = { sell: "出售", repair: "修理" };
+const gold = (amount) => Number(amount).toLocaleString();
 
 // The native amount box never offers more than the stack it was opened on, and the
 // server refuses a count larger than the stack it finds; ushort is the wire limit.
@@ -52,10 +54,13 @@ export class NPCTrade {
     this.panel.hidden = true;
     $("trade-status").textContent = "";
   }
+  // Only S.NPCRepair carries a rate; S.NPCSell has no fields at all, and PlayerObject.SellItem
+  // pays Price() / 2 without consulting the NPC, so a sale has no rate to keep.
   open(mode, rate) {
     if (!TITLES[mode]) return;
     clearTimeout(this.timer);
-    this.mode = mode; this.rate = rate; this.pending = null;
+    this.mode = mode; this.pending = null;
+    this.rate = mode === "repair" && Number.isFinite(rate) && rate >= 0 ? rate : null;
     this.panel.hidden = false;
     $("trade-title").textContent = TITLES[mode];
     $("trade-status").textContent = "";
@@ -69,6 +74,14 @@ export class NPCTrade {
   rows() {
     const bag = this.getUser()?.Inventory || [];
     return this.mode === "repair" ? repairList(bag, this.getInfo) : sellList(bag, this.getInfo);
+  }
+  // What the server will actually move: PlayerObject.SellItem pays Price() / 2 and
+  // PlayerObject.RepairItem charges RepairPrice() times the rate S.NPCRepair carried.
+  price(row, count) {
+    if (!row.info) return null;
+    return this.mode === "repair"
+      ? repairCost(row.item, row.info, this.rate)
+      : sellPrice(row.item, row.info, count);
   }
   render() {
     const user = this.getUser();
@@ -85,11 +98,17 @@ export class NPCTrade {
       const slot = row.index < BELT_SIZE ? `快捷栏 ${row.index + 1}` : `背包 ${row.index - BELT_SIZE + 1}`;
       name.textContent = `${row.info?.Name || "加载中…"}${row.item.Count > 1 ? ` × ${row.item.Count}` : ""}（${slot}）`;
       const detail = document.createElement("small");
-      detail.textContent = row.blocked
-        ? (this.mode === "repair" ? "不可修理" : "不可出售")
-        : row.item.MaxDura > 0
-          ? `持久 ${(row.item.CurrentDura / 1000).toFixed(1)}/${(row.item.MaxDura / 1000).toFixed(1)}`
-          : "";
+      const parts = [];
+      if (row.item.MaxDura > 0)
+        parts.push(`持久 ${(row.item.CurrentDura / 1000).toFixed(1)}/${(row.item.MaxDura / 1000).toFixed(1)}`);
+      if (row.blocked) parts.push(this.mode === "repair" ? "不可修理" : "不可出售");
+      else {
+        const cost = this.price(row);
+        if (cost === null) parts.push("价格未就绪");
+        else if (this.mode === "repair") parts.push(`修理费 ${gold(cost)} 金币${cost > user.Gold ? "（金币不足）" : ""}`);
+        else parts.push(`售价 ${gold(cost)} 金币`);
+      }
+      detail.textContent = parts.join(" · ");
       button.append(image, name, detail);
       button.onclick = () => this.choose(row.item.UniqueID);
       list.append(button);
@@ -100,13 +119,14 @@ export class NPCTrade {
       list.append(empty);
     }
     $("trade-list").replaceChildren(list);
-    // The server never quotes a sale or repair price: S.NPCSell carries no fields and
-    // S.NPCRepair carries only the NPC rate, so a number here could only be a guess.
+    // Prices are computed here from UserItem.Price() and UserItem.RepairPrice(), the same
+    // routines the server charges by, so they are quotes rather than guesses. The one thing
+    // this client cannot offer is the buy-back list, so say so before a sale is confirmed.
     const damagedEquipment = this.mode === "repair" &&
       (user.Equipment || []).some((item) => item && item.MaxDura > 0 && item.CurrentDura < item.MaxDura);
     $("trade-hint").textContent = this.mode === "repair"
-      ? `修理费由服务端结算${damagedEquipment ? "；身上的装备需先卸下才能修理" : ""}`
-      : "售价由服务端结算";
+      ? `修理费按此 NPC 的费率结算${damagedEquipment ? "；身上的装备需先卸下才能修理" : ""}`
+      : "售价为物品价值的一半；本客户端没有回购界面，卖出后无法买回";
     $("trade-total").textContent = `金币 ${Number(user.Gold || 0).toLocaleString()}`;
   }
   choose(uniqueID) {
@@ -118,8 +138,17 @@ export class NPCTrade {
       return;
     }
     const name = row.info?.Name || "未知物品";
+    const user = this.getUser();
     if (this.mode === "repair") {
-      if (!window.confirm(`修理 ${name}？修理费由服务端从金币中扣除。`)) return;
+      const cost = this.price(row);
+      // PlayerObject.RepairItem returns without a word when the gold is short, so refuse the
+      // request here rather than sending one that can only come back as silence.
+      if (cost !== null && cost > user.Gold) {
+        $("trade-status").textContent = `金币不足：修理需要 ${gold(cost)} 金币，现有 ${gold(user.Gold)}`;
+        return;
+      }
+      const quote = cost === null ? "修理费由服务端从金币中扣除" : `修理费约 ${gold(cost)} 金币`;
+      if (!window.confirm(`修理 ${name}？${quote}。`)) return;
       this.request("RepairItem", { UniqueID: uniqueID });
       return;
     }
@@ -130,7 +159,10 @@ export class NPCTrade {
       if (answer === null) return;
       Count = sellCount(answer, row.item, row.info);
       if (!Count) { $("trade-status").textContent = "出售数量无效"; return; }
-    } else if (!window.confirm(`出售 ${name}？`)) return;
+    }
+    const income = this.price(row, Count);
+    const quote = income === null ? "售价由服务端结算" : `可得 ${gold(income)} 金币`;
+    if (!window.confirm(`出售 ${name} × ${Count}？${quote}，且本客户端无法买回。`)) return;
     this.request("SellItem", { UniqueID: uniqueID, Count });
   }
   request(type, data) {
@@ -150,10 +182,11 @@ export class NPCTrade {
     if (!this.mode) return;
     if (this.pending?.type === type && this.pending.uniqueID === data.UniqueID) {
       clearTimeout(this.timer); this.pending = null;
-      // S.RepairItem is enqueued before the server checks gold, binding and NPC type,
-      // so it acknowledges the request only; S.ItemRepaired is the actual success.
+      // S.RepairItem is enqueued before the server checks gold, range, binding and NPC type,
+      // and every one of those checks returns without a message, so this acknowledges nothing
+      // beyond delivery; S.ItemRepaired is the only proof the repair happened.
       $("trade-status").textContent = type === "RepairItem"
-        ? "修理请求已受理，若持久未恢复请查看聊天提示"
+        ? "修理请求已发出，尚未确认；持久未恢复即表示服务端未受理（距离过远、此 NPC 不修这类物品或金币不足）"
         : data.Success ? "已出售" : "服务器拒绝了此次出售：物品已绑定、此 NPC 不收这类物品，或金币已满";
     }
     if (type === "ItemRepaired") $("trade-status").textContent = "修理完成";
