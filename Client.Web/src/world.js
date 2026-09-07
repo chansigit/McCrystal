@@ -8,7 +8,7 @@ import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps, locomotionFrame } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
 
 export const directions = [
   [0, -1],
@@ -570,6 +570,7 @@ export class World {
         continue;
       const position = motionPosition(e, now);
       const x = position.X * 48, y = position.Y * 32;
+      const depth = entityDepth(y, e);
       let library,
         index,
         action = e.Dead
@@ -647,13 +648,13 @@ export class World {
         index,
         x,
         y,
-        y + 32,
+        depth,
         this.objects,
         true,
       );
       const body = this.nodes.get(`entity:${e.ObjectID}`);
       if (body && e.kind === "item") {
-        body.scale.set(0.78);
+        body.scale.set(0.6);
         body.position.set(Math.round(x + 24 - body.width / 2), Math.round(y + 16 - body.height / 2));
         const key = `item-glint:${e.ObjectID}`;
         let glint = this.nodes.get(key);
@@ -669,14 +670,14 @@ export class World {
         glint.position.set(x + 24, y + 8);
         glint.alpha = alpha;
         glint.blendMode = "add";
-        glint.zIndex = y + 32.1;
+        glint.zIndex = depth + 0.01;
         glint.seen = this.tick;
       }
       if (body) body.tint = now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
       if (body && !e.Dead && ["monster", "npc"].includes(e.kind) &&
           (e.ObjectID === hoveredID || e.ObjectID === this.selectedID)) {
         const key = `entity:highlight:${e.ObjectID}`;
-        this.sprite(key, library, body.assetIndex, x, y, y + 32.02, this.objects, true);
+        this.sprite(key, library, body.assetIndex, x, y, depth + 0.02, this.objects, true);
         const highlight = this.nodes.get(key);
         if (highlight) { highlight.blendMode = "add"; highlight.alpha = 0.3; highlight.tint = body.tint; }
       }
@@ -684,7 +685,7 @@ export class World {
         const overlay = hydraOverlay(body.assetIndex);
         if (overlay != null) {
           const key = `entity:overlay:${e.ObjectID}`;
-          this.sprite(key, library, overlay, x, y, y + 32.01, this.objects, true);
+          this.sprite(key, library, overlay, x, y, depth + 0.01, this.objects, true);
           const sprite = this.nodes.get(key);
           if (sprite) sprite.blendMode = "add";
         }
@@ -693,7 +694,7 @@ export class World {
         const weapon = weaponLayer(action === "Harvest" ? { ...e, Weapon: 1, WeaponEffect: 0 } : e, body.assetIndex);
         if (weapon) {
           const key = `entity:weapon:${e.ObjectID}:${e.Weapon}`;
-          const z = y + (weapon.behind ? 31.75 : 32.25);
+          const z = depth + (weapon.behind ? -0.25 : 0.25);
           this.sprite(key, weapon.library, weapon.index, x, y, z, this.objects, true);
           const sprite = this.nodes.get(key);
           if (sprite) sprite.tint = body.tint;

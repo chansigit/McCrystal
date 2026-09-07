@@ -21,6 +21,11 @@ export function beginAttackAnimation(entity, now) {
   return true;
 }
 
+export function entityDepth(y, entity) {
+  const layer = entity.kind === "item" ? 0 : entity.Dead ? 0.1 : 0.2;
+  return y + 32 + layer + Math.abs(Number(entity.ObjectID) || 0) % 1000 / 1000000;
+}
+
 export function frameIndex(frame, direction, step) {
   return frame.start + direction * (frame.count + frame.skip) + (frame.reverse ? -step : step);
 }

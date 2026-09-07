@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation, entityDepth } from "./entity-presentation.js";
 
 test("names clear tall sprites and keep a screen-space gap", () => {
   assert.ok(PLAYER_NAME_SIZE > TEXT_SIZE);
@@ -28,6 +28,15 @@ test("Guard attack animation includes the native standing recovery", () => {
   assert.equal(beginAttackAnimation(guard, 2000), false);
   assert.equal(beginAttackAnimation(guard, 3600), true);
   assert.equal(beginAttackAnimation({kind: "monster", Image: 20}, 2000), true);
+});
+
+test("native cell depth draws loot, then corpses, then living actors", () => {
+  const item = entityDepth(320, {kind: "item", ObjectID: 3});
+  const corpse = entityDepth(320, {kind: "monster", Dead: true, ObjectID: 2});
+  const actor = entityDepth(320, {kind: "player", Dead: false, ObjectID: 1});
+  assert.ok(item < corpse);
+  assert.ok(corpse < actor);
+  assert.ok(actor < entityDepth(352, {kind: "item", ObjectID: 1}));
 });
 
 test("Hydra emergence waits for textures, plays eight frames once, and hides in reverse", () => {
