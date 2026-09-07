@@ -798,14 +798,14 @@ namespace Server.Admin
             {
                 Running = envir.Running,
                 UptimeSeconds = envir.Stopwatch.Elapsed.TotalSeconds,
-                PackId = ContentPack.Current.Id,
-                PackVersion = ContentPack.Current.Version,
+                PackId = ContentPack.Current.Manifest.Id,
+                PackVersion = ContentPack.Current.Manifest.Version,
                 DatabaseVersion = Envir.LoadVersion,
                 OnlinePlayers = envir.Players.Count,
                 Connections = connections,
                 Monsters = envir.MonsterCount,
                 LoopMilliseconds = Envir.LastRunTime,
-                MemoryBytes = Process.GetCurrentProcess().WorkingSet64
+                MemoryBytes = Environment.WorkingSet
             };
         }
 

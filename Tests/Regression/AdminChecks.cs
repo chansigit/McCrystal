@@ -102,8 +102,11 @@ static class AdminChecks
         envir.ItemInfoList.Add(new ItemInfo { Index = 1, Name = "Wooden Sword", Type = ItemType.Weapon, StackSize = 1, Durability = 5000, Price = 100 });
         envir.ItemInfoList.Add(new ItemInfo { Index = 2, Name = "Gold Ore", Type = ItemType.Ore, StackSize = 20, Durability = 0 });
         envir.MonsterInfoList.Add(new Server.MirDatabase.MonsterInfo { Index = 1, Name = "Deer", Level = 3, Experience = 10, AI = 1, DropPath = "Deer" });
+        envir.MonsterInfoList.Add(new Server.MirDatabase.MonsterInfo { Index = 2, Name = "Hen", Level = 1, Experience = 1, AI = 1, DropPath = "" });
         envir.MapInfoList.Add(new Server.MirDatabase.MapInfo { Index = 1, FileName = "0", Title = "Bichon" });
+        envir.MapInfoList.Add(new Server.MirDatabase.MapInfo { Index = 2, FileName = "3", Title = "" });
         envir.NPCInfoList.Add(new Server.MirDatabase.NPCInfo { Index = 1, Name = "Blacksmith", FileName = "Blacksmith", MapIndex = 1, Location = new System.Drawing.Point(300, 600) });
+        envir.NPCInfoList.Add(new Server.MirDatabase.NPCInfo { Index = 2, Name = "Guard", FileName = "Guard", MapIndex = 2, Location = new System.Drawing.Point(1, 2) });
 
         var admin = new Server.MirDatabase.AccountInfo { Index = 1, AccountID = "cocofly", AdminAccount = true, Gold = 5000, CreationDate = new DateTime(2026, 1, 1) };
         var warrior = new Server.MirDatabase.CharacterInfo { Index = 1, Name = "kzs", Class = MirClass.Warrior, Level = 27, AccountInfo = admin };
@@ -138,6 +141,8 @@ static class AdminChecks
 
         Check(service.SearchAccounts("").Count == 2, "empty search must list all");
         Check(service.SearchAccounts("zzz").Count == 0, "unexpected match");
+        Check(service.SearchAccounts("", 0).Count == 0, "limit 0 must return nothing");
+        Check(service.SearchAccounts("", 1).Count == 1, "limit must cap results");
     }
 
     public static void AccountDetailListsInventory()
@@ -159,9 +164,11 @@ static class AdminChecks
         Check(service.SearchItems("sword").Count == 1, "item search failed");
         Check(service.SearchItems("").Count == 2, "item list failed");
         Check(service.SearchMonsters("dee")[0].DropPath == "Deer", "monster search failed");
+        Check(service.SearchMonsters("hen")[0].DropPath == "Hen", "empty DropPath must fall back to name");
         Check(service.SearchMaps("bich")[0].Index == 1, "map search failed");
         var npc = service.SearchNpcs("black")[0];
         Check(npc.MapTitle == "Bichon" && npc.X == 300, "npc row wrong");
+        Check(service.SearchNpcs("guard")[0].MapTitle == "3", "empty map title must fall back to file name");
     }
 
     public static void StatisticsCountCharactersAndGold()

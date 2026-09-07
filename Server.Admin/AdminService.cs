@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using Server.ContentPacks;
 using Server.MirDatabase;
 using Server.MirEnvir;
@@ -36,7 +35,7 @@ namespace Server.Admin
                 Connections = connections,
                 Monsters = envir.MonsterCount,
                 LoopMilliseconds = Envir.LastRunTime,
-                MemoryBytes = Process.GetCurrentProcess().WorkingSet64
+                MemoryBytes = Environment.WorkingSet
             };
         }
 
@@ -69,65 +68,74 @@ namespace Server.Admin
         {
             query = (query ?? string.Empty).Trim();
             var rows = new List<AccountSummaryModel>();
-            foreach (var account in envir.AccountList.ToArray())
-            {
-                if (query.Length > 0 && !Matches(account.AccountID, query)
-                    && !account.Characters.Any(c => Matches(c.Name, query)))
-                    continue;
+            if (limit <= 0) return rows;
 
-                rows.Add(new AccountSummaryModel
+            lock (Envir.AccountLock)
+            {
+                foreach (var account in envir.AccountList)
                 {
-                    AccountId = account.AccountID,
-                    CharacterCount = account.Characters.Count(c => !c.Deleted),
-                    CreationDate = account.CreationDate,
-                    LastDate = account.LastDate,
-                    Admin = account.AdminAccount,
-                    Banned = account.Banned,
-                    Online = account.Connection != null && account.Connection.Connected
-                });
-                if (rows.Count >= limit) break;
+                    if (query.Length > 0 && !Matches(account.AccountID, query)
+                        && !account.Characters.Any(c => Matches(c.Name, query)))
+                        continue;
+
+                    rows.Add(new AccountSummaryModel
+                    {
+                        AccountId = account.AccountID,
+                        CharacterCount = account.Characters.Count(c => !c.Deleted),
+                        CreationDate = account.CreationDate,
+                        LastDate = account.LastDate,
+                        Admin = account.AdminAccount,
+                        Banned = account.Banned,
+                        Online = account.Connection != null && account.Connection.Connected
+                    });
+                    if (rows.Count >= limit) break;
+                }
             }
             return rows;
         }
 
         public AccountDetailModel GetAccount(string accountId)
         {
-            var account = envir.GetAccount(accountId);
-            if (account == null) return null;
-
-            var detail = new AccountDetailModel
+            lock (Envir.AccountLock)
             {
-                AccountId = account.AccountID,
-                Admin = account.AdminAccount,
-                Banned = account.Banned,
-                BanReason = account.BanReason,
-                Gold = account.Gold,
-                CreationDate = account.CreationDate,
-                LastDate = account.LastDate,
-                LastIp = account.LastIP,
-                Storage = ItemRows(account.Storage)
-            };
+                var account = envir.GetAccount(accountId);
+                if (account == null) return null;
 
-            foreach (var character in account.Characters)
-            {
-                detail.Characters.Add(new CharacterDetailModel
+                var detail = new AccountDetailModel
                 {
-                    Name = character.Name,
-                    Class = character.Class.ToString(),
-                    Gender = character.Gender.ToString(),
-                    Level = character.Level,
-                    Online = character.Player != null,
-                    Deleted = character.Deleted,
-                    LastLoginDate = character.LastLoginDate,
-                    Inventory = ItemRows(character.Inventory),
-                    Equipment = ItemRows(character.Equipment)
-                });
+                    AccountId = account.AccountID,
+                    Admin = account.AdminAccount,
+                    Banned = account.Banned,
+                    BanReason = account.BanReason,
+                    Gold = account.Gold,
+                    CreationDate = account.CreationDate,
+                    LastDate = account.LastDate,
+                    LastIp = account.LastIP,
+                    Storage = ItemRows(account.Storage)
+                };
+
+                foreach (var character in account.Characters)
+                {
+                    detail.Characters.Add(new CharacterDetailModel
+                    {
+                        Name = character.Name,
+                        Class = character.Class.ToString(),
+                        Gender = character.Gender.ToString(),
+                        Level = character.Level,
+                        Online = character.Player != null,
+                        Deleted = character.Deleted,
+                        LastLoginDate = character.LastLoginDate,
+                        Inventory = ItemRows(character.Inventory),
+                        Equipment = ItemRows(character.Equipment)
+                    });
+                }
+                return detail;
             }
-            return detail;
         }
 
         public List<ItemInfoModel> SearchItems(string query, int limit = 300)
         {
+            query = (query ?? string.Empty).Trim();
             return envir.ItemInfoList
                 .Where(i => Matches(i.Name, query))
                 .Take(limit)
@@ -149,6 +157,7 @@ namespace Server.Admin
 
         public List<MonsterInfoModel> SearchMonsters(string query, int limit = 300)
         {
+            query = (query ?? string.Empty).Trim();
             return envir.MonsterInfoList
                 .Where(m => Matches(m.Name, query))
                 .Take(limit)
@@ -167,6 +176,7 @@ namespace Server.Admin
 
         public List<MapInfoModel> SearchMaps(string query, int limit = 500)
         {
+            query = (query ?? string.Empty).Trim();
             return envir.MapInfoList
                 .Where(m => Matches(m.Title, query) || Matches(m.FileName, query))
                 .Take(limit)
@@ -187,6 +197,7 @@ namespace Server.Admin
 
         public List<NpcInfoModel> SearchNpcs(string query, int limit = 500)
         {
+            query = (query ?? string.Empty).Trim();
             return envir.NPCInfoList
                 .Where(n => Matches(n.Name, query) || Matches(n.FileName, query))
                 .Take(limit)
@@ -205,8 +216,14 @@ namespace Server.Admin
 
         public StatisticsModel GetStatistics()
         {
-            var accounts = envir.AccountList.ToArray();
-            var characters = envir.CharacterList.Where(c => !c.Deleted).ToArray();
+            AccountInfo[] accounts;
+            CharacterInfo[] characters;
+            lock (Envir.AccountLock)
+            {
+                accounts = envir.AccountList.ToArray();
+                characters = envir.CharacterList.Where(c => !c.Deleted).ToArray();
+            }
+
             var stats = new StatisticsModel
             {
                 Accounts = accounts.Length,
@@ -229,28 +246,31 @@ namespace Server.Admin
                 .OrderByDescending(m => m.Players.Count).Take(20)
                 .Select(m => new MapCountModel { MapIndex = m.Info.Index, Map = MapName(m.Info), Count = m.Players.Count }).ToList();
 
-            ulong gold = 0;
-            int items = 0;
-            foreach (var account in accounts)
+            lock (Envir.AccountLock)
             {
-                gold += account.Gold;
-                items += account.Storage.Count(i => i != null);
-                foreach (var character in account.Characters)
+                ulong gold = 0;
+                int items = 0;
+                foreach (var account in accounts)
                 {
-                    if (character.Deleted) continue;
-                    items += character.Inventory.Count(i => i != null);
-                    items += character.Equipment.Count(i => i != null);
+                    gold += account.Gold;
+                    items += account.Storage.Count(i => i != null);
+                    foreach (var character in account.Characters)
+                    {
+                        if (character.Deleted) continue;
+                        items += character.Inventory.Count(i => i != null);
+                        items += character.Equipment.Count(i => i != null);
+                    }
                 }
+                stats.TotalGold = gold;
+                stats.TotalItems = items;
+                stats.TopGold = accounts.OrderByDescending(a => a.Gold).Take(10)
+                    .Select(a => new GoldRowModel
+                    {
+                        AccountId = a.AccountID,
+                        Characters = string.Join(", ", a.Characters.Where(c => !c.Deleted).Select(c => c.Name)),
+                        Gold = a.Gold
+                    }).ToList();
             }
-            stats.TotalGold = gold;
-            stats.TotalItems = items;
-            stats.TopGold = accounts.OrderByDescending(a => a.Gold).Take(10)
-                .Select(a => new GoldRowModel
-                {
-                    AccountId = a.AccountID,
-                    Characters = string.Join(", ", a.Characters.Where(c => !c.Deleted).Select(c => c.Name)),
-                    Gold = a.Gold
-                }).ToList();
             return stats;
         }
 
@@ -259,7 +279,7 @@ namespace Server.Admin
         private static bool Matches(string value, string query)
         {
             if (string.IsNullOrEmpty(query)) return true;
-            return value != null && value.Contains(query.Trim(), StringComparison.OrdinalIgnoreCase);
+            return value != null && value.Contains(query, StringComparison.OrdinalIgnoreCase);
         }
 
         private static string MapName(MapInfo info)
