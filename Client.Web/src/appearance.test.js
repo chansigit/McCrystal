@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { equippedWeapon, weaponLayer } from "./appearance.js";
+import { equippedWeapon, weaponLayer, hairLayer, HAIR_LIBRARIES } from "./appearance.js";
 
 test("equipped weapon shape zero is valid while missing and broken weapons are hidden", () => {
   assert.deepEqual(equippedWeapon({ CurrentDura: 1000 }, { Shape: 0, Effect: 3, Durability: 10 }), { Weapon: 0, WeaponEffect: 3 });
@@ -24,4 +24,26 @@ test("unequipping removes weapon and effect layers; unsupported alternate bodies
   assert.equal(weaponLayer({ Weapon: 100, Class: 3 }, 0), null);
   assert.equal(weaponLayer({ Weapon: 1, RidingMount: true }, 0), null);
   assert.equal(weaponLayer({ Weapon: 1, WeaponEffect: 12 }, 0).effectLibrary, "CWeaponEffect/12");
+});
+test("hair uses the body's own displayed frame because HairOffSet equals ArmourOffSet", () => {
+  // A female body frame already carries the 808 armour offset; the head shares it.
+  assert.deepEqual(hairLayer({ Hair: 3, Gender: 1 }, 148 + 808), { library: "CHair/03", index: 148 + 808 });
+  assert.deepEqual(hairLayer({ Hair: 0, Gender: 0 }, 0), { library: "CHair/00", index: 0 });
+  // Every animation the body plays is followed for free, including death frames.
+  for (const frame of [0, 32, 136, 296, 344, 384, 387, 1615])
+    assert.equal(hairLayer({ Hair: 8 }, frame).index, frame);
+});
+test("hair layer is drawn in all eight directions", () => {
+  for (let direction = 0; direction < 8; direction++)
+    assert.equal(hairLayer({ Hair: 1, Direction: direction }, direction * 4).library, "CHair/01");
+});
+test("hair is absent for out of range styles, transforms and unresolved body frames", () => {
+  assert.equal(hairLayer({ Hair: HAIR_LIBRARIES }, 0), null);
+  assert.equal(hairLayer({ Hair: -1 }, 0), null);
+  assert.equal(hairLayer({}, 0), null);
+  assert.equal(hairLayer({ Hair: 2 }, -1), null);
+  assert.equal(hairLayer({ Hair: 2, TransformType: 4 }, 0), null);
+  assert.equal(hairLayer({ Hair: 2, TransformType: -1 }, 0).library, "CHair/02");
+  // Riding a mount still shows the head in the native client, unlike the weapon.
+  assert.equal(hairLayer({ Hair: 2, RidingMount: true }, 0).library, "CHair/02");
 });

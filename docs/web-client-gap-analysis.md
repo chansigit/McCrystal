@@ -91,13 +91,15 @@ bind a newly learned spell, because that needs `AssignKeyPanel` and `C.MagicKey`
 
 Missing outright: all lighting and the day/night cycle (also needs a gateway
 change, since `GameAssets.Map()` never exports the per-cell `Light` byte,
-`GameAssets.cs:135-148`); weather particles, all ten flags; hair and head layer;
+`GameAssets.cs:135-148`); weather particles, all ten flags;
 wings; mount and transform sprites; projectiles in flight; ground spell objects
 such as fire walls; melee skill trails; buff auras; level-up effect.
 
-The web draws body plus one weapon layer against the native seven-pass stack
+The web draws body, head and one weapon layer against the native seven-pass stack
 (`PlayerObject.cs:4877-4926`), and always uses `CArmour`, so Assassins and
-Archers get warrior animation sets. Spell effects are a hand-coded table of 38
+Archers get warrior animation sets. The head is drawn between the body and the
+front weapon pass, which is where native puts it in all eight directions; the
+direction test around `DrawHead` only orders it against the wings. Spell effects are a hand-coded table of 38
 cast and 18 impact effects against roughly 200 native spawn sites.
 
 Two gameplay-relevant ones that read as bugs rather than missing polish:
