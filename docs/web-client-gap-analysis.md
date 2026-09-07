@@ -196,9 +196,10 @@ browser side is missing.
 `NewRecipeInfo`, `CompleteQuest`, `ReceiveMail`, `FriendUpdate`, `LoverUpdate`,
 `MentorUpdate`, `SwitchGroup`, `GuildBuffList`, `DefaultNPC`, `Connected`.
 
-That makes the experience bar and the buff display cheaper than the original
-estimate: the data arrives already, so they are render-only work with no gateway
-change.
+That makes the buff display cheaper than the original estimate: the data arrives
+already, so it is render-only work with no gateway change. The experience bar
+was exactly that -- `S.GainExperience` (a delta), `S.LevelChanged` and
+`S.UserInformation` are the whole of it, and the HUD now carries the bar.
 
 The character stat panel is the exception, and the packet list above is what
 misled the estimate. `S.BaseStatsInfo` does arrive, but it is the per-class
@@ -218,8 +219,8 @@ support).
 
 ## Suggested order for what remains
 
-1. The read-only displays whose data already arrives: experience bar, buff and
-   poison icons (`AddBuff`), day and night (`TimeOfDay`).
+1. The read-only displays whose data already arrives: buff and poison icons
+   (`AddBuff`), day and night (`TimeOfDay`).
 2. Quests and groups, the two remaining Tier 1 systems that are real feature
    work.
 3. Presentation, in the order players notice it: lighting, the missing character

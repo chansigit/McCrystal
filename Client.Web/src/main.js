@@ -31,6 +31,7 @@ import { ReviveOverlay } from "./revive.js";
 import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
+import { ExperienceBar } from "./experience.js";
 import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
@@ -57,6 +58,7 @@ createIcons({ icons });
 const gameAudio = new GameAudio();
 gameAudio.setMusic(INTRO_MUSIC);
 const vitals = new Vitals($("vitals-orb"));
+const experience = new ExperienceBar($("experience-bar"), $("experience-fill"), $("experience-label"));
 const state = {
   socket: null,
   ready: false,
@@ -205,6 +207,7 @@ function leaveWorld() {
   $("equipment").hidden = true;
   // The growth table is per class, so the next character starts from its own S.BaseStatsInfo.
   characterStats.reset();
+  experience.reset();
   showCharacterTab("equipment");
   inventory.reset();
   // The vault belongs to the account, not to the character, and the server sends it once
@@ -410,6 +413,7 @@ function receive(type, p) {
       state.maxMP = 1;
       world.user = state.user;
       state.inWorld = true;
+      experience.set(p.Experience, p.MaxExperience);
       $("account-screen").hidden = true;
       for (const id of ["world-header", "hud", "chat-panel", "minimap"])
         $(id).hidden = false;
@@ -588,9 +592,14 @@ function receive(type, p) {
         updateHud();
       }
       break;
-    // Every level-based stat moves with it (Client/MirScenes/GameScene.cs:3847).
+    // S.GainExperience is a delta and S.LevelChanged a whole new pair
+    // (Client/MirScenes/GameScene.cs:3836-3856).
+    case "GainExperience":
+      experience.gain(p.Amount);
+      break;
     case "LevelChanged":
       if (state.user) state.user.Level = p.Level;
+      experience.set(p.Experience, p.MaxExperience);
       updateHud();
       break;
     // The growth table the stat panel starts from, and the buffs that move it afterwards.
