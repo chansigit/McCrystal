@@ -58,6 +58,7 @@ export class World {
       resolution: Math.min(devicePixelRatio, 2),
       autoDensity: true,
       antialias: false,
+      roundPixels: true,
     });
     this.host.append(this.app.canvas);
     this.itemTooltip = document.createElement("div");
