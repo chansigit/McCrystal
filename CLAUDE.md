@@ -11,6 +11,8 @@ Run client (must run from Build/Client/Debug/ where Data/ exists):
 cd Build/Client/Debug && /opt/homebrew/Cellar/dotnet@8/8.0.124/bin/dotnet Client.dll
 ```
 
+Admin console (GM web UI): set `[Admin] Password` in `Build/Server/Debug/Configs/Setup.ini`, start `Server.Console`, open http://127.0.0.1:5081
+
 ## Architecture
 
 - Game client ported to macOS using MonoGame (replacing WinForms/SlimDX) and SkiaSharp (replacing GDI+)
