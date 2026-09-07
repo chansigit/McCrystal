@@ -6,6 +6,9 @@ using S = ServerPackets;
 var tests = new (string Name, Action Run)[]
 {
     ("Admin action queue drains in order and survives failures", AdminChecks.ActionQueueDrainsInOrder),
+    ("Admin action runner reports success and failure", AdminChecks.ActionRunnerReturnsResult),
+    ("Admin action runner times out without the game loop", AdminChecks.ActionRunnerTimesOut),
+    ("Admin log buffer keeps the last lines", AdminChecks.LogBufferKeepsLastLines),
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),
