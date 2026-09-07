@@ -804,3 +804,7 @@ progress::-moz-progress-bar {
 .npc-input-actions button { min-height: 40px; padding: 6px 18px; color: #f1f4f3; background: #263c31; border: 1px solid #829879; border-radius: 4px; }
 .npc-input-actions button[type="submit"] { color: #10241c; background: #76d1b6; }
 @media (max-width: 650px) { #minimap { width: 112px; } #map-panel { top: 58px; width: calc(100% - 16px); max-height: calc(100dvh - 280px); overflow: auto; } }
+#revive-panel { position: fixed; z-index: 14; top: 50%; left: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: 12px; width: min(320px, calc(100% - 24px)); background: #17211af5; border: 1px solid #829879; padding: 20px 16px; border-radius: 6px; text-align: center; }
+#revive-title { font-size: 20px; margin: 0; color: #f0b9b0; }
+#revive-town { min-height: 40px; padding: 6px 24px; color: #10241c; background: #76d1b6; border: 1px solid #829879; border-radius: 4px; }
+#revive-status { font-size: 13px; margin: 0; color: #e2cc92; min-height: 18px; }

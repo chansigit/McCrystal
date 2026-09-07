@@ -140,4 +140,12 @@ var harvest = Parse("""{"type":"Harvest","data":{"Direction":7}}""");
 Check(((ClientPackets.Harvest)Packet.ReceivePacket(harvest.GetPacketBytes().ToArray(), out _)).Direction == MirDirection.UpLeft,
     "Harvest uses the native directional protocol without inventing item rewards");
 Reject("""{"type":"Harvest","data":{"Direction":8}}""", "Invalid harvest direction rejected");
+var revive = Parse("""{"type":"TownRevive","data":{}}""");
+Check(Packet.ReceivePacket(revive.GetPacketBytes().ToArray(), out var reviveExtra) is ClientPackets.TownRevive && reviveExtra.Length == 0,
+    "Town revive uses the native empty-body protocol");
+// The empty commands carry no fields, so unmapped members are dropped exactly as they are for LogOut.
+Check(Parse("""{"type":"TownRevive","data":{"Effect":7}}""").GetPacketBytes().ToArray().Length ==
+    Parse("""{"type":"TownRevive","data":{}}""").GetPacketBytes().ToArray().Length,
+    "Extra fields on an empty command never reach the server");
+Reject("""{"type":"TownRevive","data":[]}""", "Non-object revive body rejected");
 Console.WriteLine($"{count}/{count} passed");

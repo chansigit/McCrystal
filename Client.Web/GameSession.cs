@@ -173,6 +173,7 @@ public static class GameSession
             "RequestMapInfo" => typeof(C.RequestMapInfo),
             "Chat" => typeof(C.Chat), "KeepAlive" => typeof(C.KeepAlive),
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
+            "TownRevive" => typeof(C.TownRevive),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();

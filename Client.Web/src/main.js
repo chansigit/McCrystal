@@ -25,6 +25,7 @@ import { GameAudio } from "./audio.js";
 import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
+import { ReviveOverlay } from "./revive.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
@@ -67,10 +68,13 @@ const state = {
 // Diagnostic: server packet types with no case in the receive() switch below,
 // tracked so each type is only logged once per session instead of once per packet.
 const unhandledPackets = new Set();
+// SoundList.Revive in the native client (Client/MirSounds/SoundList.cs).
+const REVIVE_SOUND = 20791;
 window.__unhandledPackets = unhandledPackets;
 const inventory = new InventoryUI(() => state.user, (index) => state.items.get(index), send);
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
+const revive = new ReviveOverlay(send);
 npc.onChange = () => shop.close();
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
@@ -194,6 +198,7 @@ function leaveWorld() {
   state.inWorld = false;
   state.mapReady = false;
   state.user = null;
+  revive.update(null);
   world.user = null;
   world.map = null;
   world.mapToken = null;
@@ -449,9 +454,28 @@ function receive(type, p) {
       }
       break;
     }
+    case "Death": {
+      skills.cancel();
+      cancelAttack();
+      if (state.user) {
+        if (!state.user.Dead) {
+          playActorSound(state.user, "die");
+          state.user.diedAt = performance.now();
+          state.user.deathPlaybackAt = null;
+        }
+        state.user.Dead = true;
+        state.user.Location = p.Location || state.user.Location;
+      }
+      break;
+    }
+    case "Revived":
+      if (state.user) { state.user.Dead = false; state.user.diedAt = null; state.user.deathPlaybackAt = null; }
+      gameAudio.play(REVIVE_SOUND);
+      break;
     case "ObjectRevived": {
-      const o = world.entities.get(p.ObjectID);
+      const o = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
       if (o) { o.Dead = false; o.diedAt = null; o.deathPlaybackAt = null; }
+      if (p.Effect && audible(o, state.user)) gameAudio.play(REVIVE_SOUND);
       break;
     }
     case "ObjectAttack": {
@@ -588,6 +612,7 @@ function receive(type, p) {
       }
       break;
   }
+  revive.update(state.user);
 }
 function showCharacters() {
   gameAudio.setMusic(SELECT_MUSIC);
