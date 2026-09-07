@@ -19,6 +19,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Server\Server.Library.csproj" />
+    <ProjectReference Include="..\Server.Admin\Server.Admin.csproj" />
     <ProjectReference Include="..\Shared\Shared.csproj" />
   </ItemGroup>
 
