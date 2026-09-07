@@ -1,9 +1,12 @@
+using Server.ContentPacks;
 using Server.MirDatabase;
 using Server.MirObjects;
 using S = ServerPackets;
 
 var tests = new (string Name, Action Run)[]
 {
+    ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
+    ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Windows drop paths and nested inserts resolve on the host platform", DropPaths),
     ("Compressed goods round trip and following packet", CompressedRoundTrip),
     ("Compressed goods validates the complete gzip trailer", CompressedTrailer),
@@ -39,6 +42,67 @@ return failed == 0 ? 0 : 1;
 static void Check(bool condition)
 {
     if (!condition) throw new Exception("Assertion failed");
+}
+
+static void ContentPackPaths()
+{
+    string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+    try
+    {
+        var packRoot = Path.Combine(root, "packs", "test");
+        Directory.CreateDirectory(Path.Combine(packRoot, "Configs"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "Envir"));
+        Directory.CreateDirectory(Path.Combine(packRoot, "Maps"));
+        using (var writer = new BinaryWriter(File.Create(Path.Combine(packRoot, "Server.MirDB")))) writer.Write(117);
+        File.WriteAllText(Path.Combine(packRoot, "pack.yaml"), """
+            id: test-pack
+            name: Test Pack
+            version: 1.2.3
+            engine: crystal
+            databaseSchema: 117
+            locale: en-US
+            paths:
+              configs: Configs
+              envir: Envir
+              maps: Maps
+              database: Server.MirDB
+            """);
+
+        var pack = ContentPack.Load("test", "state", root);
+        pack.ValidateOrThrow(60, 117);
+        Check(pack.Manifest.Id == "test-pack");
+        Check(pack.ConfigPath == Path.Combine(packRoot, "Configs"));
+        Check(pack.StateRoot == Path.Combine(root, "state"));
+        Check(pack.DatabasePath != Path.Combine(pack.StateRoot, "Server.MirDB"));
+    }
+    finally
+    {
+        Directory.Delete(root, true);
+    }
+}
+
+static void ContentPackSchema()
+{
+    string root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Configs"));
+        Directory.CreateDirectory(Path.Combine(root, "Envir"));
+        Directory.CreateDirectory(Path.Combine(root, "Maps"));
+        using (var writer = new BinaryWriter(File.Create(Path.Combine(root, "Server.MirDB")))) writer.Write(116);
+        File.WriteAllText(Path.Combine(root, "pack.yaml"), """
+            id: wrong-schema
+            version: 1.0.0
+            databaseSchema: 117
+            """);
+
+        var pack = ContentPack.Load(Path.Combine(root, "pack.yaml"), workingDirectory: root);
+        InvalidData(() => pack.ValidateOrThrow(60, 117));
+    }
+    finally
+    {
+        Directory.Delete(root, true);
+    }
 }
 
 static void DropPaths()

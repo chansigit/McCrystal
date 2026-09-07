@@ -1,5 +1,6 @@
 using log4net;
 using Server;
+using Server.ContentPacks;
 using Server.MirEnvir;
 using System.Reflection;
 
@@ -7,7 +8,7 @@ namespace Server.Console
 {
     static class Program
     {
-        static void Main(string[] args)
+        static int Main(string[] args)
         {
             Packet.IsServer = true;
 
@@ -16,8 +17,17 @@ namespace Server.Console
 
             try
             {
+                var contentPack = ContentPack.Configure(args);
+                contentPack.ValidateOrThrow(Envir.MinVersion, Envir.Version);
+
+                if (args.Contains("--validate-pack", StringComparer.Ordinal))
+                {
+                    System.Console.WriteLine($"Content pack is valid: {contentPack.Describe()}.");
+                    return 0;
+                }
+
                 Settings.Load();
-                System.Console.WriteLine("Settings loaded.");
+                System.Console.WriteLine($"Settings loaded from {contentPack.Describe()}.");
 
                 System.Console.WriteLine("Starting server...");
                 Envir.Main.Start();
@@ -58,11 +68,13 @@ namespace Server.Console
                 System.Console.WriteLine("Server stopped.");
 
                 Settings.Save();
+                return 0;
             }
             catch (Exception ex)
             {
                 System.Console.WriteLine($"Error: {ex}");
                 Logger.GetLogger(LogType.Server).Error(ex);
+                return 1;
             }
         }
     }

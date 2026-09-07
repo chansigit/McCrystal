@@ -1,5 +1,6 @@
 ﻿using System.Collections.Generic;
 using System.Security.Cryptography;
+using Server.ContentPacks;
 using Server.MirDatabase;
 using Server.MirObjects;
 using Shared;
@@ -15,12 +16,12 @@ namespace Server
 
         public const int Day = 24 * Hour, Hour = 60 * Minute, Minute = 60 * Second, Second = 1000;
 
-        public static readonly string EnvirPath = Path.Combine(".", "Envir"),
-            ConfigPath = Path.Combine(".", "Configs"),
-            MapPath = Path.Combine(".", "Maps"),
-            ExportPath = Path.Combine(".", "Exports"),
-            GuildPath = Path.Combine(".", "Guilds"),
-            ConquestsPath = Path.Combine(".", "Conquests"),
+        public static readonly string EnvirPath = ContentPack.Current.EnvirPath,
+            ConfigPath = ContentPack.Current.ConfigPath,
+            MapPath = ContentPack.Current.MapPath,
+            ExportPath = Path.Combine(ContentPack.Current.StateRoot, "Exports"),
+            GuildPath = Path.Combine(ContentPack.Current.StateRoot, "Guilds"),
+            ConquestsPath = Path.Combine(ContentPack.Current.StateRoot, "Conquests"),
             NPCPath = Path.Combine(EnvirPath, "NPCs"),
             GoodsPath = Path.Combine(EnvirPath, "Goods"),
             RecipePath = Path.Combine(EnvirPath, "Recipe"),

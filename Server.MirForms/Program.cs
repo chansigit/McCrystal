@@ -1,4 +1,6 @@
 ﻿using log4net;
+using Server.ContentPacks;
+using Server.MirEnvir;
 using System.Reflection;
 
 namespace Server.MirForms
@@ -9,7 +11,7 @@ namespace Server.MirForms
         /// The main entry point for the application.
         /// </summary>
         [STAThread]
-        static void Main()
+        static void Main(string[] args)
         {
             Packet.IsServer = true;
 
@@ -18,6 +20,8 @@ namespace Server.MirForms
 
             try
             {
+                var contentPack = ContentPack.Configure(args);
+                contentPack.ValidateOrThrow(Envir.MinVersion, Envir.Version);
                 Settings.Load();
 
                 Application.EnableVisualStyles();

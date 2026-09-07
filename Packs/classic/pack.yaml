@@ -1,0 +1,13 @@
+id: crystal-classic
+name: McCrystal Classic
+version: 1.0.0
+engine: crystal
+databaseSchema: 111
+locale: en-US
+clientAssets: crystal-classic-assets@1
+contentRoot: ../..
+paths:
+  configs: Configs
+  envir: Envir
+  maps: Maps
+  database: Server.MirDB
