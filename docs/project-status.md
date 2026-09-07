@@ -1,6 +1,6 @@
 # Project status
 
-As of 2026-09-07, `main` at `47e85a16`. Living document — update the date and
+As of 2026-09-07, `main` at `0fdeb659`. Living document — update the date and
 the sections that changed rather than starting a new file.
 
 ## What runs where
@@ -22,21 +22,28 @@ Settings if it recurs.
 ### launchd jobs
 
 An earlier session registered two transient launchd jobs with `launchctl
-submit`. They restart both processes automatically, which is why killing the
-server appears not to work:
+submit`, which restarted the processes on exit — that is why killing the server
+appeared not to work, and why it came back without `--pack classic`.
 
-```
-com.mccrystal.server   → cd Build/Server/Debug && dotnet Server.Console.dll
-com.mccrystal.web      → the Client.Web gateway
-```
-
-They have no plist file, so they disappear on reboot. Note the server job does
-not pass `--pack classic`. To take manual control:
+`com.mccrystal.server` has since been removed, because it kept resurrecting the
+server with a stale `Setup.ini` whenever the admin password was changed. The
+game server is now started by hand:
 
 ```sh
-launchctl remove com.mccrystal.server
+cd Build/Server/Debug && dotnet Server.Console.dll --pack classic
+```
+
+`com.mccrystal.web` still manages the web gateway. Both kinds of job are
+transient — no plist file — so nothing here survives a reboot. To drop the
+remaining one:
+
+```sh
 launchctl remove com.mccrystal.web
 ```
+
+`Client.Web/play.sh` is the portable way to bring the stack up: it builds,
+checks the ports, starts a game server if none is listening, and tears both
+down on Ctrl+C. Prefer it over a macOS-specific launchd plist.
 
 ## Content packs
 
