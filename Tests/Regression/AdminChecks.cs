@@ -1,3 +1,4 @@
+using System.Net.Http;
 using Server.MirEnvir;
 
 static class AdminChecks
@@ -273,5 +274,52 @@ static class AdminChecks
             Check(service.Broadcast(" ").Message.Contains("empty"), "empty broadcast must be rejected for the argument, not the lookup");
         }
         finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
+    }
+
+    public static void HttpRequiresLogin()
+    {
+        var envir = SampleEnvir();
+        var console = new Server.Admin.AdminConsole(envir, "hunter2", port: 0);
+        console.Start();
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(console.BaseUrl) };
+
+            var anonymous = client.GetAsync("/api/overview").Result;
+            Check(anonymous.StatusCode == System.Net.HttpStatusCode.Unauthorized, "anonymous request must be 401");
+
+            var wrong = client.PostAsync("/api/login", new StringContent("{\"password\":\"nope\"}", System.Text.Encoding.UTF8, "application/json")).Result;
+            Check(wrong.StatusCode == System.Net.HttpStatusCode.Unauthorized, "wrong password must be 401");
+
+            var login = client.PostAsync("/api/login", new StringContent("{\"password\":\"hunter2\"}", System.Text.Encoding.UTF8, "application/json")).Result;
+            Check(login.IsSuccessStatusCode, "login failed");
+            var cookie = login.Headers.GetValues("Set-Cookie").First().Split(';')[0];
+
+            var request = new HttpRequestMessage(HttpMethod.Get, "/api/overview");
+            request.Headers.Add("Cookie", cookie);
+            var authorized = client.SendAsync(request).Result;
+            Check(authorized.IsSuccessStatusCode, "cookie request failed");
+            Check(authorized.Content.ReadAsStringAsync().Result.Contains("\"packId\""), "overview json missing");
+
+            var page = client.GetAsync("/").Result;
+            Check(page.IsSuccessStatusCode, "index page must be public");
+        }
+        finally { console.Stop(); }
+    }
+
+    public static void HttpRejectsActionsWithoutLogin()
+    {
+        var envir = SampleEnvir();
+        var console = new Server.Admin.AdminConsole(envir, "hunter2", port: 0);
+        console.Start();
+        try
+        {
+            using var client = new HttpClient { BaseAddress = new Uri(console.BaseUrl) };
+            var body = new StringContent("{\"admin\":true}", System.Text.Encoding.UTF8, "application/json");
+            var response = client.PostAsync("/api/accounts/guest/admin", body).Result;
+            Check(response.StatusCode == System.Net.HttpStatusCode.Unauthorized, "anonymous action must be 401");
+            Check(!envir.GetAccount("guest").AdminAccount, "anonymous action must not run");
+        }
+        finally { console.Stop(); }
     }
 }

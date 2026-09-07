@@ -18,6 +18,8 @@ var tests = new (string Name, Action Run)[]
     ("Admin password reset rehashes with the account salt", AdminChecks.ResetPasswordRehashes),
     ("Admin toggles the account admin flag", AdminChecks.ToggleAdminFlag),
     ("Admin online actions reject unknown players", AdminChecks.OnlineActionsRejectUnknownPlayer),
+    ("Admin HTTP requires login", AdminChecks.HttpRequiresLogin),
+    ("Admin HTTP rejects actions without login", AdminChecks.HttpRejectsActionsWithoutLogin),
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),
