@@ -56,6 +56,37 @@ The Crystal map archive has also been extracted with CP936 filename handling to
   content matches. Crystal maps therefore require format and semantic validation,
   not filename-only replacement.
 
+## Engine compatibility probe
+
+The McCrystal pack validator now checks map headers, dimensions, and required
+cell data using the same nine formats supported by the server. Results after
+fixing titled classic maps with 12-byte cells:
+
+| Map directory | Files scanned | Structurally invalid | Current DB references missing |
+| --- | ---: | ---: | ---: |
+| McCrystal runtime | 1,704 | 0 | 0 |
+| GPL `48bfebd` baseline | 564 | 0 | 205 |
+| Current GeeM2 | 605 | 0 | 183 |
+| English original server maps | 475 | 0 | 262 |
+| Buyi Legend | 373 | 0 | 219 |
+| Buyi Classic | 980 | 0 | 169 |
+| Crystal extracted maps | 1,849 | 4 | 38 |
+
+The missing-reference column deliberately compares each source map directory
+against McCrystal's current 463-map database. The 205 maps missing from the GPL
+baseline are mostly later areas such as Ancient, White Dragon, Lunar, and Fox
+Mountain. A strict 1.76 pack therefore needs a reduced database; replacing the
+current map directory alone would leave a broken world graph.
+
+The four rejected Crystal files are three unknown or encoded `D001x` maps and a
+C# map-format v2 test file. All 564 maps in the recovered GPL baseline use the
+supported old-school format.
+
+Database conversion is also required. The GPL baseline's `GEEM2.db` is SQLite
+with 352 items, 389 monsters, and 33 skills. McCrystal uses its own versioned
+binary `Server.MirDB`, where maps, connections, spawns, NPCs, items, monsters,
+skills, and quests are serialized together.
+
 ## Indexed but not useful as gameplay packs
 
 | Local directory | Source | Revision | Reason |

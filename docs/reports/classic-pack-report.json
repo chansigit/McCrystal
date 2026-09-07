@@ -1,10 +1,15 @@
 {
   "packId": "crystal-classic",
   "packVersion": "1.0.0",
-  "generatedAtUtc": "2026-09-07T03:09:58.220211Z",
+  "generatedAtUtc": "2026-09-07T08:33:15.679365Z",
   "inventory": {
     "files.configs": 37,
     "files.maps": 1704,
+    "files.maps.format.Mir2_2010": 1444,
+    "files.maps.format.CSharpV1": 16,
+    "files.maps.format.Shanda2012": 1,
+    "files.maps.format.Mir3WeMade": 6,
+    "files.maps.format.OldSchool": 237,
     "files.drops": 2088,
     "files.npcs": 635,
     "files.quests": 161,
