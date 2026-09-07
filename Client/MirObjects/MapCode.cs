@@ -202,21 +202,20 @@
                 LoadMapType1();
                 return;
             }
-            //shanda's 2012 format and one of shandas(wemades) older formats share same header info, only difference is the filesize
+            // Shanda formats and some titled classic maps share the same header.
+            // Distinguish their 12, 14, and 36 byte cells by the complete file size.
             if ((Bytes[4] == 0x0F) || (Bytes[4] == 0x03) && (Bytes[18] == 0x0D) && (Bytes[19] == 0x0A))
             {
                 int W = Bytes[0] + (Bytes[1] << 8);
                 int H = Bytes[2] + (Bytes[3] << 8);
-                if (Bytes.Length > (52 + (W*H*14)))
-                {
+                long cells = (long)W * H;
+                if (Bytes.Length >= 52 + cells * 36)
                     LoadMapType3();
-                    return;
-                }
-                else
-                {
+                else if (Bytes.Length >= 52 + cells * 14)
                     LoadMapType2();
-                    return;
-                }
+                else
+                    LoadMapType0();
+                return;
             }
 
             //3/4 heroes map format (myth/lifcos i guess)

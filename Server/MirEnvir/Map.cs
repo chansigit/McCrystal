@@ -92,15 +92,16 @@ namespace Server.MirEnvir
             if ((input[0] == 0x10) && (input[2] == 0x61) && (input[7] == 0x31) && (input[14] == 0x31))
                 return 1;
 
-            //shanda's 2012 format and one of shandas(wemades) older formats share same header info, only difference is the filesize
+            // Shanda formats and some titled classic maps share the same header.
+            // Distinguish their 12, 14, and 36 byte cells by the complete file size.
             if ((input[4] == 0x0F) || (input[4] == 0x03) && (input[18] == 0x0D) && (input[19] == 0x0A))
             {
                 int W = input[0] + (input[1] << 8);
                 int H = input[2] + (input[3] << 8);
-                if (input.Length > (52 + (W * H * 14)))
-                    return 3;
-                else
-                    return 2;
+                long cells = (long)W * H;
+                if (input.Length >= 52 + cells * 36) return 3;
+                if (input.Length >= 52 + cells * 14) return 2;
+                return 0;
             }
 
             //3/4 heroes map format (myth/lifcos i guess)
