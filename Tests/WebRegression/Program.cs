@@ -205,6 +205,28 @@ Reject("""{"type":"NewCharacter","data":{"Name":"ab\u200bcd","Gender":0,"Class":
 Reject("""{"type":"NewCharacter","data":{"Name":"ab\u202ecd","Gender":0,"Class":0}}""", "Bidi override character name rejected");
 Check(((ClientPackets.NewCharacter)Parse("""{"type":"NewCharacter","data":{"Name":"webtest1","Gender":1,"Class":2}}""")).Name == "webtest1",
     "Plain character name accepted");
+var deposit = Parse("""{"type":"StoreItem","data":{"From":45,"To":79}}""");
+var decodedDeposit = (ClientPackets.StoreItem)Packet.ReceivePacket(deposit.GetPacketBytes().ToArray(), out var depositExtra);
+Check(decodedDeposit.From == 45 && decodedDeposit.To == 79 && depositExtra.Length == 0,
+    "Storage deposit carries the bag slot and the vault slot to the server");
+var withdrawal = Parse("""{"type":"TakeBackItem","data":{"From":0,"To":6}}""");
+var decodedWithdrawal = (ClientPackets.TakeBackItem)Packet.ReceivePacket(withdrawal.GetPacketBytes().ToArray(), out var withdrawalExtra);
+Check(decodedWithdrawal.From == 0 && decodedWithdrawal.To == 6 && withdrawalExtra.Length == 0,
+    "Storage withdrawal carries the vault slot and the bag slot to the server");
+Reject("""{"type":"StoreItem","data":{"From":-1,"To":0}}""", "Negative bag slot in a deposit rejected");
+Reject("""{"type":"StoreItem","data":{"From":0,"To":-1}}""", "Negative vault slot in a deposit rejected");
+Reject("""{"type":"StoreItem","data":{"From":256,"To":0}}""", "Out-of-range bag slot in a deposit rejected");
+Reject(JsonSerializer.Serialize(new { type = "StoreItem", data = new { From = 0, To = Globals.StorageGridSize } }),
+    "Vault slot beyond the account storage rejected");
+Reject("""{"type":"TakeBackItem","data":{"From":-1,"To":0}}""", "Negative vault slot in a withdrawal rejected");
+Reject("""{"type":"TakeBackItem","data":{"From":0,"To":-1}}""", "Negative bag slot in a withdrawal rejected");
+Reject(JsonSerializer.Serialize(new { type = "TakeBackItem", data = new { From = Globals.StorageGridSize, To = 0 } }),
+    "Vault slot beyond the account storage in a withdrawal rejected");
+Reject("""{"type":"TakeBackItem","data":{"From":0,"To":256}}""", "Out-of-range bag slot in a withdrawal rejected");
+// Storage passwords are not part of this client, so the two commands that manage them
+// must not become a way to brute-force a vault through the browser gateway.
+Reject("""{"type":"UnlockStorage","data":{"Password":"secret"}}""", "Storage unlock is not offered by this client");
+Reject("""{"type":"SetStoragePassword","data":{"CurrentPassword":"a","NewPassword":"b"}}""", "Storage password changes are not offered by this client");
 // A malformed unique id must not surface the attacker's text through a FormatException.
 Reject("""{"type":"DropItem","data":{"UniqueID":"abc","Count":1,"HeroInventory":false}}""", "Non-numeric unique id rejected");
 Reject("""{"type":"DropItem","data":{"UniqueID":"99999999999999999999999","Count":1,"HeroInventory":false}}""", "Overflowing unique id rejected");

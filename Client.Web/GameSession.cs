@@ -185,6 +185,7 @@ public static class GameSession
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
             "DeleteCharacter" => typeof(C.DeleteCharacter),
             "TownRevive" => typeof(C.TownRevive),
+            "StoreItem" => typeof(C.StoreItem), "TakeBackItem" => typeof(C.TakeBackItem),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -245,6 +246,14 @@ public static class GameSession
         if (packet is C.DropGold gold && gold.Amount == 0) throw new InvalidDataException("Invalid gold drop");
         if (packet is C.SplitItem split && (split.Grid != MirGridType.Inventory || split.UniqueID == 0 || split.Count == 0))
             throw new InvalidDataException("Invalid item split");
+        // The vault is Globals.StorageGridSize slots (AccountInfo.Storage is allocated at that
+        // size), and both halves of a transfer address a bag slot on one side and a vault slot on
+        // the other. PlayerObject.StoreItem / TakeBackItem answer an out-of-range index with a bare
+        // failure, so refuse it here instead of spending a round trip on it.
+        if (packet is C.StoreItem store && (store.From is < 0 or > 255 || store.To < 0 || store.To >= Globals.StorageGridSize))
+            throw new InvalidDataException("Invalid storage deposit");
+        if (packet is C.TakeBackItem takeBack && (takeBack.From < 0 || takeBack.From >= Globals.StorageGridSize || takeBack.To is < 0 or > 255))
+            throw new InvalidDataException("Invalid storage withdrawal");
         if (packet is C.Magic magic && (magic.ObjectID == 0 || magic.Spell == Spell.None || !Enum.IsDefined(magic.Spell) ||
             (byte)magic.Direction > 7 || magic.Location.X is < 0 or > 32767 || magic.Location.Y is < 0 or > 32767))
             throw new InvalidDataException("Invalid spell command");

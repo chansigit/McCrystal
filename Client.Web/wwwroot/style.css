@@ -808,6 +808,18 @@ progress::-moz-progress-bar {
 .shop-row:disabled { opacity: 0.55; }
 #trade-hint, #trade-total, #trade-status { font-size: 13px; overflow-wrap: anywhere; margin: 2px 0; }
 #trade-hint { color: #cfd8d4; }
+/* The vault needs both grids on screen at once, so the dialog widens while it is open. */
+#npc-panel:has(#npc-storage:not([hidden])) { width: min(720px, calc(100% - 24px)); }
+#npc-storage h3 { font-size: 15px; margin: 12px 0 4px; }
+#npc-storage h4 { font-size: 13px; font-weight: normal; margin: 0 0 4px; color: #cfd8d4; }
+#storage-grids { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; margin: 8px 0; }
+#storage-grids[hidden] { display: none; }
+#storage-grids section { max-height: 320px; overflow: auto; }
+#storage-grid { display: grid; grid-template-columns: repeat(10, 32px); gap: 1px; }
+#storage-bag-grid { display: grid; grid-template-columns: repeat(8, 32px); gap: 1px; }
+#storage-hint, #storage-status { font-size: 13px; overflow-wrap: anywhere; margin: 2px 0; }
+#storage-hint { color: #cfd8d4; }
+#storage-status { color: #e2cc92; }
 @media (max-width: 650px) { #world-header { gap: 6px; padding: 0 8px; } #map-title { max-width: 90px; overflow: hidden; text-overflow: ellipsis; } #attack-mode { width: 94px; flex-basis: 94px; font-size: 13px; } #latency { display: none; } }
 #npc-input-form { display: grid; gap: 10px; }
 #npc-input-form[hidden] { display: none; }

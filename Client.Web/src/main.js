@@ -26,6 +26,7 @@ import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
 import { NPCTrade } from "./npc-trade.js";
+import { StorageUI } from "./storage.js";
 import { ReviveOverlay } from "./revive.js";
 import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
@@ -77,9 +78,10 @@ const inventory = new InventoryUI(() => state.user, (index) => state.items.get(i
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
 const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), send);
+const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
-npc.onChange = () => { shop.close(); trade.close(); };
+npc.onChange = () => { shop.close(); trade.close(); storage.close(); };
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
   const pointer = world.attackInput.pointer;
@@ -152,6 +154,8 @@ function setBusy(busy) {
 }
 function connect() {
   world.minimap.reset(true);
+  // A new socket is a new server connection, and only a new connection resends the vault.
+  storage.reset();
   state.ready = false;
   setBusy(false);
   $("connection").textContent = "正在连接";
@@ -196,6 +200,10 @@ function leaveWorld() {
   $("skills-panel").hidden = true;
   $("equipment").hidden = true;
   inventory.reset();
+  // The vault belongs to the account, not to the character, and the server sends it once
+  // per connection (PlayerObject.SendStorage), so only close the window here: dropping the
+  // copy would leave the vault blank for the rest of a session that logs back in.
+  storage.close();
   cancelAttack();
   world.runPointer = null;
   state.lastMovedAt = 0;
@@ -261,8 +269,17 @@ function receive(type, p) {
       trade.open(type === "NPCSell" ? "sell" : "repair", p.Rate);
       break;
     case "NPCStorage":
-      clearTimeout(npc.timer);
-      $("npc-status").textContent = "此交易窗口尚未接入网页客户端";
+      if (!npc.objectID) break;
+      clearTimeout(npc.timer); $("npc-status").textContent = "";
+      storage.open();
+      break;
+    // The account vault only ever changes through these two acknowledgements, so the copy
+    // the server sends once per connection stays correct without being resent.
+    case "UserStorage":
+    case "StoreItem":
+    case "TakeBackItem":
+      storage.receive(type, p);
+      updateInventory();
       break;
     case "ClientVersion":
       state.ready = p.Result === 1;
@@ -710,6 +727,7 @@ function gainItem(item) {
 function updateInventory() {
   if (shop.goods) shop.details();
   trade.refresh();
+  storage.refresh();
   inventory.render();
 }
 function cancelAttack() {

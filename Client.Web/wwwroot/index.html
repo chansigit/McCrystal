@@ -130,6 +130,15 @@
         <div id="trade-list" aria-label="可交易物品"></div>
         <p id="trade-hint"></p><p id="trade-total"></p><p id="trade-status" role="status"></p>
       </div>
+      <div id="npc-storage" hidden>
+        <h3>仓库</h3>
+        <p id="storage-hint"></p>
+        <div id="storage-grids">
+          <section aria-label="仓库格子"><h4>仓库</h4><div id="storage-grid"></div></section>
+          <section aria-label="背包格子"><h4>背包</h4><div id="storage-bag-grid"></div></section>
+        </div>
+        <p id="storage-status" role="status"></p>
+      </div>
       <form id="npc-input-form" hidden>
         <label for="npc-input-value">请输入内容</label>
         <input id="npc-input-value" type="text" maxlength="200" autocomplete="off" />
