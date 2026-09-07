@@ -91,9 +91,13 @@ and night from `TimeOfDay`. None of those needs a gateway change.
 
 ## Known issues
 
-- **Characters `kzs` and `gan` are level 65535.** Caused by the experience-curve
-  bug above, before it was fixed. They need setting back to a sane level by
-  hand; the admin console will now accept 1 to 500.
+- **Characters `kzs` and `gan` are level 65535 deliberately.** They reached it
+  through the experience-curve bug above, before it was fixed, and the owner has
+  chosen to keep them there because a maxed character is convenient for testing.
+  Do not "fix" this. The side effect is that their experience is also at the cap,
+  so anything driven by `GainExperience` or a level change will never fire on
+  them — use a disposable low-level character to test an experience bar or a
+  level-up effect. The admin console now accepts levels 1 to 500.
 - Sell and repair prices are computed in the browser by a port of
   `UserItem.Price()` and `RepairPrice()`. The arithmetic is pinned by matching
   tests on both sides, but the rendered numbers were never confirmed against an
