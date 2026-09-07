@@ -2766,6 +2766,18 @@ namespace Server.MirEnvir
             }
         }
 
+        /// <summary>Starts the same save the work loop performs periodically. False when one is already running.</summary>
+        public bool BeginSaveAll()
+        {
+            if (Saving) return false;
+
+            BeginSaveAccounts();
+            SaveGuilds(true);
+            SaveGoods(true);
+            SaveConquests(true);
+            return true;
+        }
+
         public void BeginSaveAccounts()
         {
             if (Saving) return;

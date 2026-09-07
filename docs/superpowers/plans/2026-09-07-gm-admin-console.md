@@ -1079,14 +1079,27 @@ git commit -m "Add admin service queries"
 ### Task 5: AdminService actions
 
 **Files:**
-- Modify: `Server.Admin/AdminService.cs`
+- Modify: `Server.Admin/AdminService.cs`, split into `AdminService.cs` / `AdminService.Queries.cs` / `AdminService.Actions.cs` (partial class)
 - Modify: `Tests/Regression/AdminChecks.cs`, `Tests/Regression/Program.cs`
+- Modify: `Server/MirEnvir/Envir.cs` (adds `BeginSaveAll()`, next to `BeginSaveAccounts()`) — an allowed, narrow exception to "don't touch `Server/`", needed so the console can trigger the engine's own periodic save instead of a blocking one
+- Modify: `Server/Server.Library.csproj` (adds `InternalsVisibleTo` for the `Regression` test assembly, so the tests can call `Server.Utils.Crypto.HashPassword` directly instead of re-implementing it)
 
 Online-player actions need a live `PlayerObject` with a connection, which the tests cannot build. Tests cover the offline actions (password, admin flag) and the "unknown player" path, which is the argument validation every online action shares.
 
+A code review after the first pass of this task found three real engine-interaction bugs (not just transcription slips), fixed below: `SetLevel` could spin a character's level to 65535 or immediately re-level them back down; `SaveNow` blocked the whole game loop and rewrote static gameplay data the console never edits; and GM-given items weren't marked `GMMade` for traceability. `SetAdmin`'s message was also corrected to note that revoking a connected GM's admin flag only takes effect at their next login (`IsGM` is read once, at `PlayerObject` construction).
+
+- [ ] **Step 0: Split the file**
+
+Before adding ~180 lines of actions to an already ~290-line file, split `AdminService.cs` into partial classes:
+- `AdminService.cs` keeps the class declaration (`public sealed partial class AdminService`), the two fields, the constructor, and the private helpers `Matches`, `MapName`, `ItemRows`.
+- `AdminService.Queries.cs` holds the existing query methods (`GetOverview`, `GetOnlinePlayers`, `SearchAccounts`, `GetAccount`, `SearchItems`, `SearchMonsters`, `SearchMaps`, `SearchNpcs`, `GetStatistics`), moved verbatim.
+- `AdminService.Actions.cs` holds the new actions (Step 3 below).
+
+Run the suite and confirm it is still green before adding anything.
+
 - [ ] **Step 1: Write failing tests**
 
-Append to `AdminChecks.cs`:
+Append to `AdminChecks.cs` (no `using System.Security.Cryptography;`/`using System.Text;` needed — the test calls `Server.Utils.Crypto.HashPassword` directly via the `InternalsVisibleTo` added in Step 3a):
 
 ```csharp
     static Server.Admin.AdminService ServiceWithLoop(Envir envir, out Thread loop, out CancellationTokenSource stop)
@@ -1098,9 +1111,9 @@ Append to `AdminChecks.cs`:
             while (!token.IsCancellationRequested)
             {
                 envir.ProcessAdminActions();
-                Thread.Sleep(10);
+                Thread.Sleep(5);
             }
-        });
+        }) { IsBackground = true }; // never blocks process exit if a caller forgets to Join()
         loop.Start();
         return new Server.Admin.AdminService(envir, new Server.Admin.AdminActionRunner(envir, TimeSpan.FromSeconds(2)));
     }
@@ -1111,15 +1124,29 @@ Append to `AdminChecks.cs`:
         var service = ServiceWithLoop(envir, out var loop, out var stop);
         try
         {
+            var account = envir.GetAccount("cocofly");
+            var saltBefore = account.Salt;
+            var passwordBefore = account.Password;
+
             var result = service.ResetPassword("cocofly", "newSecret1");
             Check(result.Ok, result.Message);
-            var account = envir.GetAccount("cocofly");
             Check(account.Password == Server.Utils.Crypto.HashPassword("newSecret1", account.Salt), "password not rehashed with account salt");
+            Check(account.Salt != saltBefore, "salt must be regenerated on reset");
+            Check(account.Password != passwordBefore, "stored value must change on reset");
+            Check(account.Password != "newSecret1", "plaintext must not be stored");
+
+            // The setter regenerates the salt every time, so even resetting to the same
+            // password must change the stored value — the hash comparison alone can't show this.
+            var saltAfterFirstReset = account.Salt;
+            var passwordAfterFirstReset = account.Password;
+            Check(service.ResetPassword("cocofly", "newSecret1").Ok, "second reset of same password should succeed");
+            Check(account.Salt != saltAfterFirstReset, "salt must be regenerated on every reset");
+            Check(account.Password != passwordAfterFirstReset, "resetting to the same password must still change the stored value (fresh salt)");
 
             Check(!service.ResetPassword("nobody", "x").Ok, "unknown account must fail");
             Check(!service.ResetPassword("cocofly", "").Ok, "empty password must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void ToggleAdminFlag()
@@ -1132,8 +1159,9 @@ Append to `AdminChecks.cs`:
             Check(envir.GetAccount("guest").AdminAccount, "flag not set");
             Check(service.SetAdmin("guest", false).Ok, "clear admin failed");
             Check(!envir.GetAccount("guest").AdminAccount, "flag not cleared");
+            Check(!service.SetAdmin("nobody", true).Ok, "unknown account must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void OnlineActionsRejectUnknownPlayer()
@@ -1145,12 +1173,19 @@ Append to `AdminChecks.cs`:
             Check(service.GiveItem("nobody", "Wooden Sword", 1).Message.Contains("not online"), "give item");
             Check(service.GiveGold("nobody", 10).Message.Contains("not online"), "give gold");
             Check(service.Teleport("nobody", 1, null, null).Message.Contains("not online"), "teleport");
-            Check(service.SetLevel("nobody", 5).Message.Contains("not online"), "set level");
+            // Settings.ExperienceList is empty in the test process, so the level bound
+            // collapses to [1, 1]; use a level within that bound to reach the online check.
+            Check(service.SetLevel("nobody", 1).Message.Contains("not online"), "set level");
             Check(service.Kick("nobody").Message.Contains("not online"), "kick");
             Check(service.Whisper("nobody", "hi").Message.Contains("not online"), "whisper");
-            Check(!service.SetLevel("kzs", 0).Ok, "level 0 must be rejected");
+            // Assert the actual rejection reason, not just !Ok — otherwise these would still
+            // pass if the player lookup ran first and failed with "not online" instead.
+            Check(service.SetLevel("kzs", 0).Message.Contains("Level must be"), "level 0 must be rejected for the argument, not the lookup");
+            Check(service.GiveGold("kzs", 0).Message.Contains("positive"), "zero gold must be rejected for the argument, not the lookup");
+            Check(service.Whisper("kzs", "  ").Message.Contains("empty"), "empty whisper must be rejected for the argument, not the lookup");
+            Check(service.Broadcast(" ").Message.Contains("empty"), "empty broadcast must be rejected for the argument, not the lookup");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 ```
 
@@ -1167,9 +1202,35 @@ Register in `Program.cs` after the Task 4 lines:
 Run: `dotnet run --project Tests/Regression/Regression.csproj`
 Expected: build error, `ResetPassword` not found.
 
-- [ ] **Step 3: Add the actions**
+- [ ] **Step 3a: Let the tests see `Crypto`, and give the console an async save path**
 
-Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminService.cs`, then add this region before `// ---------- helpers ----------`:
+`Server.Utils.Crypto` has no access modifier (defaults to `internal`), so `Server.Utils.Crypto.HashPassword` isn't visible from the `Regression` test assembly across the `ProjectReference` boundary. Add to `Server/Server.Library.csproj` (next to the existing `ProjectReference` item group):
+
+```xml
+  <ItemGroup>
+    <InternalsVisibleTo Include="Regression" />
+  </ItemGroup>
+```
+
+Separately, `SaveNow` must not call `Envir.SaveAccounts()` directly (it opens with `while (Saving) Thread.Sleep(1)`, which blocks the whole game loop until the periodic async save finishes) or `Envir.SaveDB()` (a bare `File.Create` rewrite of static gameplay data the console never edits). Instead, add a method that starts the same save the work loop performs periodically. In `Server/MirEnvir/Envir.cs`, next to `BeginSaveAccounts()`:
+
+```csharp
+        /// <summary>Starts the same save the work loop performs periodically. False when one is already running.</summary>
+        public bool BeginSaveAll()
+        {
+            if (Saving) return false;
+
+            BeginSaveAccounts();
+            SaveGuilds(true);
+            SaveGoods(true);
+            SaveConquests(true);
+            return true;
+        }
+```
+
+- [ ] **Step 3b: Add the actions**
+
+Create `AdminService.Actions.cs` (`public sealed partial class AdminService`) with `using System.Drawing;`, `using Server.MirDatabase;`, `using Server.MirEnvir;`, `using Server.MirObjects;`, `using S = ServerPackets;`:
 
 ```csharp
         // ---------- actions (run on the engine thread) ----------
@@ -1184,6 +1245,7 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
 
                 var item = envir.CreateFreshItem(info);
                 item.Count = (ushort)Math.Clamp(count, 1, Math.Max(1, (int)info.StackSize));
+                item.GMMade = true; // matches @MAKE (PlayerObject.cs:2391) so console-created items stay traceable
                 if (!player.CanGainItem(item)) throw new AdminException($"{player.Name} cannot carry {item.Count} x {info.Name}.");
 
                 player.GainItem(item);
@@ -1230,10 +1292,14 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         {
             return runner.Run(() =>
             {
-                if (level < 1 || level > ushort.MaxValue) throw new AdminException("Level must be between 1 and 65535.");
+                // Above the configured curve MaxExperience is 0, which makes GainExp's
+                // level-up loop spin to 65535 on the next kill (PlayerObject.cs:905-919).
+                var max = Math.Max(1, Settings.ExperienceList.Count);
+                if (level < 1 || level > max) throw new AdminException($"Level must be between 1 and {max}.");
                 var player = OnlinePlayer(playerName);
                 var old = player.Level;
                 player.Level = (ushort)level;
+                if (level < old) player.Experience = 0; // stale exp would re-level them immediately
                 player.LevelUp();
                 return Log($"changed {player.Name} level {old} -> {player.Level}");
             });
@@ -1290,7 +1356,7 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
             {
                 var account = Account(accountId);
                 account.AdminAccount = admin;
-                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID}");
+                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID} (takes effect at next login)");
             });
         }
 
@@ -1298,9 +1364,10 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         {
             return runner.Run(() =>
             {
-                envir.SaveDB();
-                envir.SaveAccounts();
-                return Log("saved database and accounts");
+                // Async, like the engine's own periodic save. A synchronous SaveAccounts()
+                // blocks the game loop, and SaveDB() rewrites static data the console never edits.
+                if (!envir.BeginSaveAll()) throw new AdminException("A save is already in progress.");
+                return Log("started a save of accounts, guilds, goods and conquests");
             });
         }
 
@@ -1343,12 +1410,14 @@ Add `using System.Drawing;` and `using S = ServerPackets;` to the top of `AdminS
         }
 ```
 
+`Settings` and `MessageQueue` resolve unqualified because `Server.Admin` nests under the `Server` namespace.
+
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run: `dotnet run --project Tests/Regression/Regression.csproj`
-Expected: `31/31 passed`.
+Expected: `33/33 passed`.
 
-If `envir.GetAccount` is case-sensitive and the test fails on `"cocofly"`, that is fine: the sample uses the exact id. `Crypto` lives in namespace `Server.Utils`.
+If `envir.GetAccount` is case-sensitive and the test fails on `"cocofly"`, that is fine: the sample uses the exact id.
 
 - [ ] **Step 5: Commit**
 

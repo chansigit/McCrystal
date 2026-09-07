@@ -20,6 +20,7 @@ namespace Server.Admin
 
                 var item = envir.CreateFreshItem(info);
                 item.Count = (ushort)Math.Clamp(count, 1, Math.Max(1, (int)info.StackSize));
+                item.GMMade = true; // matches @MAKE (PlayerObject.cs:2391) so console-created items stay traceable
                 if (!player.CanGainItem(item)) throw new AdminException($"{player.Name} cannot carry {item.Count} x {info.Name}.");
 
                 player.GainItem(item);
@@ -66,10 +67,14 @@ namespace Server.Admin
         {
             return runner.Run(() =>
             {
-                if (level < 1 || level > ushort.MaxValue) throw new AdminException("Level must be between 1 and 65535.");
+                // Above the configured curve MaxExperience is 0, which makes GainExp's
+                // level-up loop spin to 65535 on the next kill (PlayerObject.cs:905-919).
+                var max = Math.Max(1, Settings.ExperienceList.Count);
+                if (level < 1 || level > max) throw new AdminException($"Level must be between 1 and {max}.");
                 var player = OnlinePlayer(playerName);
                 var old = player.Level;
                 player.Level = (ushort)level;
+                if (level < old) player.Experience = 0; // stale exp would re-level them immediately
                 player.LevelUp();
                 return Log($"changed {player.Name} level {old} -> {player.Level}");
             });
@@ -126,7 +131,7 @@ namespace Server.Admin
             {
                 var account = Account(accountId);
                 account.AdminAccount = admin;
-                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID}");
+                return Log($"{(admin ? "granted" : "revoked")} admin on {account.AccountID} (takes effect at next login)");
             });
         }
 
@@ -134,9 +139,10 @@ namespace Server.Admin
         {
             return runner.Run(() =>
             {
-                envir.SaveDB();
-                envir.SaveAccounts();
-                return Log("saved database and accounts");
+                // Async, like the engine's own periodic save. A synchronous SaveAccounts()
+                // blocks the game loop, and SaveDB() rewrites static data the console never edits.
+                if (!envir.BeginSaveAll()) throw new AdminException("A save is already in progress.");
+                return Log("started a save of accounts, guilds, goods and conquests");
             });
         }
 

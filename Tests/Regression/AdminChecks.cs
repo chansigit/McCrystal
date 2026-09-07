@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Server.MirEnvir;
 
 static class AdminChecks
@@ -7,15 +5,6 @@ static class AdminChecks
     static void Check(bool condition, string message = "Assertion failed")
     {
         if (!condition) throw new Exception(message);
-    }
-
-    // Server.Utils.Crypto is internal to the Server assembly, so it isn't visible from
-    // Tests.Regression (a separate assembly). Mirror its exact algorithm here
-    // (see Server/Utils/Crypto.cs: PBKDF2-SHA1, 50 iterations, 24-byte output) instead.
-    static string ExpectedPasswordHash(string password, byte[] salt)
-    {
-        var pbkdf2 = new Rfc2898DeriveBytes(password, salt, 50, HashAlgorithmName.SHA1);
-        return Encoding.UTF8.GetString(pbkdf2.GetBytes(24));
     }
 
     public static void ActionQueueDrainsInOrder()
@@ -215,7 +204,7 @@ static class AdminChecks
                 envir.ProcessAdminActions();
                 Thread.Sleep(5);
             }
-        });
+        }) { IsBackground = true };
         loop.Start();
         return new Server.Admin.AdminService(envir, new Server.Admin.AdminActionRunner(envir, TimeSpan.FromSeconds(2)));
     }
@@ -226,15 +215,27 @@ static class AdminChecks
         var service = ServiceWithLoop(envir, out var loop, out var stop);
         try
         {
+            var account = envir.GetAccount("cocofly");
+            var saltBefore = account.Salt;
+            var passwordBefore = account.Password;
+
             var result = service.ResetPassword("cocofly", "newSecret1");
             Check(result.Ok, result.Message);
-            var account = envir.GetAccount("cocofly");
-            Check(account.Password == ExpectedPasswordHash("newSecret1", account.Salt), "password not rehashed with account salt");
+            Check(account.Password == Server.Utils.Crypto.HashPassword("newSecret1", account.Salt), "password not rehashed with account salt");
+            Check(account.Salt != saltBefore, "salt must be regenerated on reset");
+            Check(account.Password != passwordBefore, "stored value must change on reset");
+            Check(account.Password != "newSecret1", "plaintext must not be stored");
+
+            var saltAfterFirstReset = account.Salt;
+            var passwordAfterFirstReset = account.Password;
+            Check(service.ResetPassword("cocofly", "newSecret1").Ok, "second reset of same password should succeed");
+            Check(account.Salt != saltAfterFirstReset, "salt must be regenerated on every reset");
+            Check(account.Password != passwordAfterFirstReset, "resetting to the same password must still change the stored value (fresh salt)");
 
             Check(!service.ResetPassword("nobody", "x").Ok, "unknown account must fail");
             Check(!service.ResetPassword("cocofly", "").Ok, "empty password must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void ToggleAdminFlag()
@@ -249,7 +250,7 @@ static class AdminChecks
             Check(!envir.GetAccount("guest").AdminAccount, "flag not cleared");
             Check(!service.SetAdmin("nobody", true).Ok, "unknown account must fail");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 
     public static void OnlineActionsRejectUnknownPlayer()
@@ -261,14 +262,16 @@ static class AdminChecks
             Check(service.GiveItem("nobody", "Wooden Sword", 1).Message.Contains("not online"), "give item");
             Check(service.GiveGold("nobody", 10).Message.Contains("not online"), "give gold");
             Check(service.Teleport("nobody", 1, null, null).Message.Contains("not online"), "teleport");
-            Check(service.SetLevel("nobody", 5).Message.Contains("not online"), "set level");
+            // Settings.ExperienceList is empty in this test process, so the level bound
+            // collapses to [1, 1]; use a level within that bound to reach the online check.
+            Check(service.SetLevel("nobody", 1).Message.Contains("not online"), "set level");
             Check(service.Kick("nobody").Message.Contains("not online"), "kick");
             Check(service.Whisper("nobody", "hi").Message.Contains("not online"), "whisper");
-            Check(!service.SetLevel("kzs", 0).Ok, "level 0 must be rejected");
-            Check(!service.GiveGold("kzs", 0).Ok, "zero gold must be rejected");
-            Check(!service.Whisper("kzs", "  ").Ok, "empty whisper must be rejected");
-            Check(!service.Broadcast(" ").Ok, "empty broadcast must be rejected");
+            Check(service.SetLevel("kzs", 0).Message.Contains("Level must be"), "level 0 must be rejected for the argument, not the lookup");
+            Check(service.GiveGold("kzs", 0).Message.Contains("positive"), "zero gold must be rejected for the argument, not the lookup");
+            Check(service.Whisper("kzs", "  ").Message.Contains("empty"), "empty whisper must be rejected for the argument, not the lookup");
+            Check(service.Broadcast(" ").Message.Contains("empty"), "empty broadcast must be rejected for the argument, not the lookup");
         }
-        finally { stop.Cancel(); loop.Join(); }
+        finally { stop.Cancel(); loop.Join(); stop.Dispose(); }
     }
 }
