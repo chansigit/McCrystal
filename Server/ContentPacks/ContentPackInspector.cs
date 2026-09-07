@@ -103,7 +103,16 @@ namespace Server.ContentPacks
         private static void Inventory(ContentPack pack, ContentPackReport report)
         {
             report.Inventory["files.configs"] = CountFiles(pack.ConfigPath, "*", SearchOption.TopDirectoryOnly);
-            report.Inventory["files.maps"] = CountFiles(pack.MapPath, "*.map", SearchOption.AllDirectories);
+            var mapFiles = Directory.EnumerateFiles(pack.MapPath, "*.map", SearchOption.AllDirectories).ToArray();
+            report.Inventory["files.maps"] = mapFiles.Length;
+            foreach (var mapPath in mapFiles)
+            {
+                var inspection = MapFileInspector.Inspect(mapPath);
+                var formatKey = $"files.maps.format.{inspection.Format}";
+                report.Inventory[formatKey] = report.Inventory.GetValueOrDefault(formatKey) + 1;
+                if (!inspection.IsValid)
+                    Add(report, ContentIssueSeverity.Error, "MAP_FILE_INVALID", inspection.Error, mapPath);
+            }
             report.Inventory["files.drops"] = CountFiles(Path.Combine(pack.EnvirPath, "Drops"), "*.txt", SearchOption.AllDirectories);
             report.Inventory["files.npcs"] = CountFiles(Path.Combine(pack.EnvirPath, "NPCs"), "*.txt", SearchOption.AllDirectories);
             report.Inventory["files.quests"] = CountFiles(Path.Combine(pack.EnvirPath, "Quests"), "*.txt", SearchOption.AllDirectories);

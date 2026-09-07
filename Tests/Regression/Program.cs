@@ -8,6 +8,10 @@ var tests = new (string Name, Action Run)[]
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),
+    ("Classic map headers report dimensions and format", ClassicMapInspection),
+    ("Titled classic maps use 12-byte cells", TitledClassicMapInspection),
+    ("C# map headers enforce their version", CSharpMapInspection),
+    ("Truncated map data is rejected", TruncatedMapInspection),
     ("Windows drop paths and nested inserts resolve on the host platform", DropPaths),
     ("Compressed goods round trip and following packet", CompressedRoundTrip),
     ("Compressed goods validates the complete gzip trailer", CompressedTrailer),
@@ -131,6 +135,65 @@ static void ContentPackReportJson()
         var directory = Path.GetDirectoryName(path);
         if (Directory.Exists(directory)) Directory.Delete(directory);
     }
+}
+
+static void ClassicMapInspection()
+{
+    var bytes = new byte[52 + 2 * 3 * 12];
+    BitConverter.GetBytes((short)2).CopyTo(bytes, 0);
+    BitConverter.GetBytes((short)3).CopyTo(bytes, 2);
+
+    var result = MapFileInspector.Inspect(bytes, bytes.Length);
+
+    Check(result.IsValid);
+    Check(result.Format == "OldSchool");
+    Check(result.Width == 2 && result.Height == 3);
+    Check(result.RequiredBytes == bytes.Length);
+}
+
+static void TitledClassicMapInspection()
+{
+    var bytes = new byte[52 + 2 * 3 * 12];
+    BitConverter.GetBytes((short)2).CopyTo(bytes, 0);
+    BitConverter.GetBytes((short)3).CopyTo(bytes, 2);
+    bytes[4] = 0x0F;
+    "Legend of mir\r\n"u8.CopyTo(bytes.AsSpan(5));
+
+    var result = MapFileInspector.Inspect(bytes, bytes.Length);
+
+    Check(result.IsValid);
+    Check(result.Format == "OldSchool");
+    Check(result.RequiredBytes == bytes.Length);
+}
+
+static void CSharpMapInspection()
+{
+    var bytes = new byte[8 + 26];
+    bytes[0] = 1;
+    bytes[2] = 0x43;
+    bytes[3] = 0x23;
+    BitConverter.GetBytes((short)1).CopyTo(bytes, 4);
+    BitConverter.GetBytes((short)1).CopyTo(bytes, 6);
+
+    var valid = MapFileInspector.Inspect(bytes, bytes.Length);
+    Check(valid.IsValid && valid.Format == "CSharpV1");
+
+    bytes[0] = 2;
+    var unsupported = MapFileInspector.Inspect(bytes, bytes.Length);
+    Check(!unsupported.IsValid && unsupported.Error.Contains("Unsupported C# map version"));
+}
+
+static void TruncatedMapInspection()
+{
+    var bytes = new byte[52];
+    BitConverter.GetBytes((short)2).CopyTo(bytes, 0);
+    BitConverter.GetBytes((short)3).CopyTo(bytes, 2);
+
+    var result = MapFileInspector.Inspect(bytes, bytes.Length);
+
+    Check(!result.IsValid);
+    Check(result.RequiredBytes == 124);
+    Check(result.Error.Contains("truncated"));
 }
 
 static void DropPaths()
