@@ -1,11 +1,13 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation } from "./entity-presentation.js";
 
 test("names clear tall sprites and keep a screen-space gap", () => {
+  assert.ok(PLAYER_NAME_SIZE > TEXT_SIZE);
   assert.equal(nameTop(100, -120, 11, 1), -35);
   assert.equal(nameTop(100, -60, 5.5, 2), 32.5);
   assert.ok(nameTop(100, undefined, 11, 1) < 60);
+  assert.equal(nameTop(100, -60, 12, 1, -2), 30);
 });
 
 test("native name defaults exclude corpses; hover works with names disabled", () => {

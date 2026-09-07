@@ -8,7 +8,7 @@ import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps, locomotionFrame } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
-import { TEXT_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction } from "./entity-presentation.js";
 
 export const directions = [
   [0, -1],
@@ -722,13 +722,14 @@ export class World {
         let label = this.labels.get(e.ObjectID);
         if (!label) {
           label = new Text({text:e.kind === "monster" ? (e.Name || "").replaceAll("_", "\n") : e.Name || "",
-            style:{fontFamily:"Arial, sans-serif",fontSize:TEXT_SIZE,align:"center",
+            style:{fontFamily:"Arial, sans-serif",fontSize:e.kind === "player" ? PLAYER_NAME_SIZE : TEXT_SIZE,align:"center",
               fill:e.kind === "monster" ? "#ffcf9c" : e.kind === "npc" ? "#a5e7d0" : "#f1f3e1",
               stroke:{color:"#000000",width:2}},resolution:2});
           label.anchor.set(0.5,0); this.objects.addChild(label); this.labels.set(e.ObjectID,label);
         }
         label.scale.set(1 / scale);
-        label.position.set(x + 25, e.kind === "item" ? y + 16 : nameTop(y, top, label.height, scale));
+        label.position.set(x + 25, e.kind === "item" ? y + 16 :
+          nameTop(y, top, label.height, scale, e.kind === "player" ? -2 : 4));
         label.zIndex = y + 100; label.visible = true; label.seen = this.tick;
         actorTop = label.y;
       }

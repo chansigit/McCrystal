@@ -1,7 +1,8 @@
 export const TEXT_SIZE = 8 * 96 / 72;
+export const PLAYER_NAME_SIZE = 12;
 
-export function nameTop(y, standingOffset, height, scale) {
-  return Math.min(y - 40, y + (standingOffset ?? -40)) - height - 4 / scale;
+export function nameTop(y, standingOffset, height, scale, gap = 4) {
+  return Math.min(y - 40, y + (standingOffset ?? -40)) - height - gap / scale;
 }
 
 export function showName(entity, nameView, hovered) {
