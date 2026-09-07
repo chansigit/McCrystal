@@ -1484,11 +1484,36 @@ Expected: build error, `AdminConsole` not found.
 
 - [ ] **Step 3: Implement the host**
 
+**Auth hardening (post-review, 2026-09-07):** the version below already includes a fix for
+a confirmed authentication bypass found after the initial implementation. The original guard
+compared the path with `StringComparison.Ordinal` (`path.StartsWith("/api/", ...) && path !=
+"/api/login"`), but ASP.NET Core routing matches paths case-insensitively, so a request to
+`/API/overview` (or `/Api/Overview`, or the percent-encoded `/%41PI/overview`) skipped the
+guard entirely and reached every query and all twelve actions - including password reset and
+granting GM - with no cookie. A related gap: four actions (`kick`, `server/save`,
+`server/reload-drops`, `server/reload-npcs`) take no request body, so they accept any content
+type and were reachable by a plain cross-origin form POST once the casing trick removed the
+cookie requirement. The fix below is segment-aware and case-insensitive
+(`StartsWithSegments("/api", OrdinalIgnoreCase, ...)`), checks the session cookie first with a
+constant-time comparison (`TokenMatches`, via `CryptographicOperations.FixedTimeEquals`) so a
+fully anonymous request gets a plain 401, and then - only for state-changing methods, since a
+cross-origin request cannot set a custom header without a CORS preflight and none is
+configured - requires an `X-Admin-Console: 1` header, returning 403 if it's a request with a
+valid cookie but no header (the actual cross-site-form-post case). `/api/login` is excluded
+from both checks so it keeps working before any cookie exists. See also: the environment is
+now pinned to `Production` (the host used to inherit `ASPNETCORE_ENVIRONMENT` from the calling
+shell, so `Development` would leak a stack trace via the developer exception page), an
+`UseExceptionHandler` logs unhandled errors to `MessageQueue.Instance` instead of losing them
+silently under `ClearProviders()`, and `/api/logs/stream` links its cancellation token to
+`IHostApplicationLifetime.ApplicationStopping` so an open browser tab doesn't make host
+shutdown wait out the full 2s timeout.
+
 `Server.Admin/AdminConsole.cs`:
 
 ```csharp
 using System.Security.Cryptography;
 using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
@@ -1520,10 +1545,22 @@ namespace Server.Admin
         public void Start()
         {
             var service = new AdminService(envir);
-            var builder = WebApplication.CreateBuilder();
+            var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+            {
+                ContentRootPath = AppContext.BaseDirectory,
+                EnvironmentName = Environments.Production,
+            });
             builder.Logging.ClearProviders();
             builder.WebHost.UseUrls($"http://127.0.0.1:{port}");
             app = builder.Build();
+
+            app.UseExceptionHandler(errorApp => errorApp.Run(async context =>
+            {
+                var error = context.Features.Get<Microsoft.AspNetCore.Diagnostics.IExceptionHandlerFeature>();
+                if (error != null && error.Error != null) MessageQueue.Instance.Enqueue(error.Error);
+                context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+                await context.Response.WriteAsJsonAsync(new { error = "Internal error; see server log." });
+            }));
 
             // Static page from the copied AdminConsole folder next to the binaries.
             var pageRoot = Path.Combine(AppContext.BaseDirectory, "AdminConsole");
@@ -1540,13 +1577,27 @@ namespace Server.Admin
 
             app.Use(async (context, next) =>
             {
-                var path = context.Request.Path.Value ?? string.Empty;
-                if (path.StartsWith("/api/", StringComparison.Ordinal) && path != "/api/login")
+                // Routing matches paths case-insensitively, so this guard must too.
+                if (context.Request.Path.StartsWithSegments("/api", StringComparison.OrdinalIgnoreCase, out var rest)
+                    && !rest.Equals("/login", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || cookie != token)
+                    if (!context.Request.Cookies.TryGetValue(CookieName, out var cookie) || !TokenMatches(cookie, token))
                     {
                         context.Response.StatusCode = StatusCodes.Status401Unauthorized;
                         await context.Response.WriteAsJsonAsync(new { error = "login required" });
+                        return;
+                    }
+
+                    // CSRF guard: a browser cannot set a custom header on a cross-origin request
+                    // without a CORS preflight, and no CORS policy is configured, so the preflight
+                    // fails. Only state-changing methods need it - GET and HEAD are exempt because
+                    // EventSource cannot set headers, and they are guarded by SameSite cookies plus
+                    // having no side effects.
+                    if (!HttpMethods.IsGet(context.Request.Method) && !HttpMethods.IsHead(context.Request.Method)
+                        && context.Request.Headers["X-Admin-Console"] != "1")
+                    {
+                        context.Response.StatusCode = StatusCodes.Status403Forbidden;
+                        await context.Response.WriteAsJsonAsync(new { error = "missing X-Admin-Console header" });
                         return;
                     }
                 }
@@ -1581,22 +1632,27 @@ namespace Server.Admin
             app.MapGet("/api/stats", () => service.GetStatistics());
 
             app.MapGet("/api/logs", (long? after) => Logs.After(after ?? 0));
-            app.MapGet("/api/logs/stream", async (HttpContext context, long? after) =>
+            app.MapGet("/api/logs/stream", async (HttpContext context, IHostApplicationLifetime lifetime, long? after) =>
             {
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(context.RequestAborted, lifetime.ApplicationStopping);
+                var cancellation = linked.Token;
                 context.Response.Headers.ContentType = "text/event-stream";
                 context.Response.Headers.CacheControl = "no-cache";
                 long cursor = after ?? Math.Max(0, Logs.LastSequence - 200);
-                while (!context.RequestAborted.IsCancellationRequested)
+                try
                 {
-                    foreach (var entry in Logs.After(cursor))
+                    while (!cancellation.IsCancellationRequested)
                     {
-                        cursor = entry.Sequence;
-                        var json = System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions);
-                        await context.Response.WriteAsync($"data: {json}\n\n", context.RequestAborted);
+                        foreach (var entry in Logs.After(cursor))
+                        {
+                            cursor = entry.Sequence;
+                            await context.Response.WriteAsync($"data: {System.Text.Json.JsonSerializer.Serialize(entry, JsonOptions)}\n\n", cancellation);
+                        }
+                        await context.Response.Body.FlushAsync(cancellation);
+                        await Task.Delay(500, cancellation);
                     }
-                    await context.Response.Body.FlushAsync(context.RequestAborted);
-                    try { await Task.Delay(500, context.RequestAborted); } catch (TaskCanceledException) { }
                 }
+                catch (OperationCanceledException) { } // client left or the host is stopping
             });
 
             app.MapPost("/api/players/{name}/give-item", (string name, GiveItemRequest body) => Result(service.GiveItem(name, body.Item, body.Count)));
@@ -1627,6 +1683,14 @@ namespace Server.Admin
         private static readonly System.Text.Json.JsonSerializerOptions JsonOptions =
             new System.Text.Json.JsonSerializerOptions(System.Text.Json.JsonSerializerDefaults.Web);
 
+        private static bool TokenMatches(string candidate, string expected)
+        {
+            if (candidate == null || expected == null) return false;
+            return CryptographicOperations.FixedTimeEquals(
+                System.Text.Encoding.ASCII.GetBytes(candidate),
+                System.Text.Encoding.ASCII.GetBytes(expected));
+        }
+
         private static IResult Result(AdminActionResult result)
         {
             return result.Ok
@@ -1654,6 +1718,20 @@ Run: `dotnet run --project Tests/Regression/Regression.csproj`
 Expected: `32/32 passed`.
 
 If the test fails on `page.IsSuccessStatusCode` because no `AdminConsole/` folder exists yet in the test output, that is expected until Task 8 adds the page; the fallback `MapGet("/")` handles it, so the check should pass either way.
+
+- [ ] **Step 4b (post-review): case-insensitive guard + CSRF header regression test**
+
+Add `HttpGuardIsCaseInsensitive` to `AdminChecks.cs` (registered in `Program.cs` right after
+`HttpRejectsActionsWithoutLogin`): it asserts `/API/overview`, `/Api/Overview`, and
+`/%41PI/overview` all still require login (401); that a cross-origin-shaped form POST to
+`/API/server/reload-drops` with no cookie is rejected before the action runs (401 or 403); that
+an unrelated path like `/apifoo` is not treated as an API path (404, not swept into the guard);
+and - the case the header actually defends - that a request carrying a *valid* session cookie
+but no `X-Admin-Console` header is still rejected with 403 when POSTing to
+`/api/server/reload-drops`. Run the full suite and expect `36/36 passed`, with neither of the
+two pre-existing HTTP tests (`HttpRequiresLogin`, `HttpRejectsActionsWithoutLogin`) modified -
+cookie-first ordering in the guard above is exactly what keeps both of those green while still
+closing the bypass.
 
 - [ ] **Step 5: Commit**
 
@@ -1959,8 +2037,13 @@ git commit -m "Host the admin console from Server.Console"
   const logLines = [];
 
   async function api(path, body) {
+    // Auth hardening (post-review, 2026-09-07): the host now requires this header on every
+    // state-changing (non-GET/HEAD) /api/* request as a CSRF guard - a cross-origin request
+    // cannot set a custom header without a CORS preflight, and none is configured, so the
+    // preflight fails and the request never reaches the server. Send it on every POST here,
+    // including /api/login, where it is accepted but not required.
     const res = await fetch(path, body === undefined ? {} : {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body)
+      method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Admin-Console': '1' }, body: JSON.stringify(body)
     });
     if (res.status === 401) { showLogin(); throw new Error('login required'); }
     const data = await res.json().catch(() => ({}));
