@@ -6,6 +6,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Text.Json.Serialization.Metadata;
+using System.Text.RegularExpressions;
 using C = ClientPackets;
 using S = ServerPackets;
 
@@ -14,6 +15,12 @@ namespace Crystal.Web;
 public static class GameSession
 {
     public static readonly JsonSerializerOptions Json = CreateJson();
+
+    // Mirrors Envir.CharacterReg. char.IsControl misses format characters such as
+    // U+200B and U+202E, which allow visually identical character names.
+    private static readonly Regex CharacterName = new(
+        $"^[\\u4e00-\\u9fa5_A-Za-z0-9]{{{Globals.MinCharacterNameLength},{Globals.MaxCharacterNameLength}}}$",
+        RegexOptions.Compiled);
 
     private static JsonSerializerOptions CreateJson()
     {
@@ -133,9 +140,9 @@ public static class GameSession
             stop.Cancel();
             tcp.Close();
             try { await Task.WhenAll(tasks); }
-            catch (Exception e) when (e is OperationCanceledException or IOException or WebSocketException or SocketException) { }
+            catch (Exception e) when (e is OperationCanceledException or IOException or InvalidDataException or WebSocketException or SocketException) { }
         }
-        catch (Exception e) when (e is SocketException or IOException or JsonException or InvalidOperationException or WebSocketException or OperationCanceledException)
+        catch (Exception e) when (e is SocketException or IOException or InvalidDataException or JsonException or InvalidOperationException or WebSocketException or OperationCanceledException)
         {
             // Credentials and gameplay command bodies must never reach application logs.
         }
@@ -210,9 +217,8 @@ public static class GameSession
             account.SecretQuestion is null || account.SecretQuestion.Length > 30 ||
             account.SecretAnswer is null || account.SecretAnswer.Length > 30 ||
             account.BirthDate == DateTime.MinValue)) throw new InvalidDataException("Invalid registration");
-        if (packet is C.NewCharacter creation && (string.IsNullOrEmpty(creation.Name) ||
-            creation.Name.Length is < Globals.MinCharacterNameLength or > Globals.MaxCharacterNameLength ||
-            creation.Name.Any(char.IsControl) || !Enum.IsDefined(creation.Gender) || !Enum.IsDefined(creation.Class)))
+        if (packet is C.NewCharacter creation && (creation.Name is null || !CharacterName.IsMatch(creation.Name) ||
+            !Enum.IsDefined(creation.Gender) || !Enum.IsDefined(creation.Class)))
             throw new InvalidDataException("Invalid character creation");
         // Character indexes are assigned from 1 upwards; 0 means "no character".
         if (packet is C.DeleteCharacter deletion && deletion.CharacterIndex <= 0)
@@ -258,7 +264,9 @@ public static class GameSession
     private sealed class UInt64Converter : JsonConverter<ulong>
     {
         public override ulong Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
-            reader.TokenType == JsonTokenType.String ? ulong.Parse(reader.GetString()!) : reader.GetUInt64();
+            reader.TokenType == JsonTokenType.String
+                ? (ulong.TryParse(reader.GetString(), out var parsed) ? parsed : throw new JsonException())
+                : reader.GetUInt64();
         public override void Write(Utf8JsonWriter writer, ulong value, JsonSerializerOptions options) => writer.WriteStringValue(value.ToString());
     }
 }

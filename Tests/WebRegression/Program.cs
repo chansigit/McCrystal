@@ -197,4 +197,17 @@ Check(decodedRepair.UniqueID == ulong.MaxValue && repairExtra.Length == 0,
     "Item repair carries the 64-bit item ID to the server");
 Reject("""{"type":"RepairItem","data":{"UniqueID":"0"}}""", "Repair without an item ID rejected");
 Reject("""{"type":"SRepairItem","data":{"UniqueID":"1"}}""", "Special repair is not offered by this client");
+// Character names must clear the same regex the server applies (Envir.CharacterReg), because
+// char.IsControl does not reject format characters that make two names look identical.
+Reject("""{"type":"NewCharacter","data":{"Name":"  ab  ","Gender":0,"Class":0}}""", "Padded character name rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"a b;@[]","Gender":0,"Class":0}}""", "Punctuated character name rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"ab\u200bcd","Gender":0,"Class":0}}""", "Zero-width character name rejected");
+Reject("""{"type":"NewCharacter","data":{"Name":"ab\u202ecd","Gender":0,"Class":0}}""", "Bidi override character name rejected");
+Check(((ClientPackets.NewCharacter)Parse("""{"type":"NewCharacter","data":{"Name":"webtest1","Gender":1,"Class":2}}""")).Name == "webtest1",
+    "Plain character name accepted");
+// A malformed unique id must not surface the attacker's text through a FormatException.
+Reject("""{"type":"DropItem","data":{"UniqueID":"abc","Count":1,"HeroInventory":false}}""", "Non-numeric unique id rejected");
+Reject("""{"type":"DropItem","data":{"UniqueID":"99999999999999999999999","Count":1,"HeroInventory":false}}""", "Overflowing unique id rejected");
+Reject("""{"type":"SplitItem","data":{"Grid":1,"UniqueID":"","Count":1}}""", "Empty unique id rejected");
+
 Console.WriteLine($"{count}/{count} passed");
