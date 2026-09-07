@@ -59,9 +59,9 @@ These stop a player from doing something normal. Roughly in order of severity.
    five quest packets are dropped.
 7. **No group or party.** Invites arrive as unhandled packets, so the player is
    never even told they were invited.
-8. **No character stat panel.** AC/MAC/DC/MC/SC, experience and weight are
-   invisible, so gear cannot be compared. `CharacterDialog` exists only as an
-   equipment grid.
+8. ~~**No character stat panel.**~~ Shipped: the equipment window now has a
+   stats tab with the native field list (`src/stats.js`). Note this one is *not*
+   render-only -- see below.
 9. **No buff, debuff or poison display.** Neither the icon strip
    (`BuffDialog.cs:79`) nor the in-world auras (`MapObject.cs:210-298`) nor the
    poison status dots (`MapObject.cs:508-568`).
@@ -196,15 +196,30 @@ browser side is missing.
 `NewRecipeInfo`, `CompleteQuest`, `ReceiveMail`, `FriendUpdate`, `LoverUpdate`,
 `MentorUpdate`, `SwitchGroup`, `GuildBuffList`, `DefaultNPC`, `Connected`.
 
-That makes the experience bar, the character stat panel and the buff display
-cheaper than the original estimate: the data arrives already, so they are
-render-only work with no gateway change.
+That makes the experience bar and the buff display cheaper than the original
+estimate: the data arrives already, so they are render-only work with no gateway
+change.
+
+The character stat panel is the exception, and the packet list above is what
+misled the estimate. `S.BaseStatsInfo` does arrive, but it is the per-class
+*growth table*, not the character's stats. No packet the server sends a player
+carries their computed stats at all: `S.UserInformation`
+(`Shared/ServerPackets.cs:587`) has Level, HP, MP, Experience and the bags and no
+`Stats` field, and `PlayerObject.RefreshStats` enqueues nothing. The native
+client derives every number in the character window itself, in
+`UserObject.RefreshStats` (`Client/MirObjects/UserObject.cs:144-700`), from the
+growth table plus equipment, sockets, item sets, passive skills and buffs. The
+browser panel is a port of that computation (`Client.Web/src/stats.js`), not a
+display of received values -- still no gateway change, but not free either. Two
+contributions stay out of reach and the panel says so rather than under-reporting
+silently: awakening bonuses (`Awake.listAwake` is a private field, so the
+serializer never sees the values) and guild buffs (this client has no guild
+support).
 
 ## Suggested order for what remains
 
-1. The read-only displays whose data already arrives: experience bar, character
-   stat panel (`BaseStatsInfo`), buff and poison icons (`AddBuff`), day and night
-   (`TimeOfDay`).
+1. The read-only displays whose data already arrives: experience bar, buff and
+   poison icons (`AddBuff`), day and night (`TimeOfDay`).
 2. Quests and groups, the two remaining Tier 1 systems that are real feature
    work.
 3. Presentation, in the order players notice it: lighting, the missing character
