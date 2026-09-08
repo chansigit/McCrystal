@@ -22,7 +22,10 @@ var login = Parse("""{"type":"Login","data":{"AccountID":"tester","Password":"ex
 Packet.IsServer = true;
 var decoded = (ClientPackets.Login)Packet.ReceivePacket(login.GetPacketBytes().ToArray(), out var extra);
 Check(decoded.AccountID == "tester" && decoded.Password == "example123" && extra.Length == 0, "Browser command uses real binary login protocol");
-Reject("""{"type":"DepositTradeItem","data":{"From":0,"To":0}}""", "Unsupported transaction rejected");
+// Trading is supported now, so this stands in for the systems that still are not: the
+// auction house, mail, awakening, heroes and the rest are absent from the whitelist and a
+// command naming one has to bounce rather than reach the server.
+Reject("""{"type":"ConsignItem","data":{"UniqueID":"1","Price":1}}""", "Unsupported transaction rejected");
 Reject("""{"type":"Walk","data":{"Direction":8}}""", "Invalid direction rejected");
 Reject("""{"type":"Login","data":{"AccountID":null,"Password":null}}""", "Null credentials rejected");
 Reject("""{"type":"Login","data":{"AccountID":"tester","Password":"1234567890123456"}}""", "Oversized credentials rejected");
@@ -207,7 +210,6 @@ var decodedRepair = (ClientPackets.RepairItem)Packet.ReceivePacket(repair.GetPac
 Check(decodedRepair.UniqueID == ulong.MaxValue && repairExtra.Length == 0,
     "Item repair carries the 64-bit item ID to the server");
 Reject("""{"type":"RepairItem","data":{"UniqueID":"0"}}""", "Repair without an item ID rejected");
-Reject("""{"type":"SRepairItem","data":{"UniqueID":"1"}}""", "Special repair is not offered by this client");
 // Character names must clear the same regex the server applies (Envir.CharacterReg), because
 // char.IsControl does not reject format characters that make two names look identical.
 Reject("""{"type":"NewCharacter","data":{"Name":"  ab  ","Gender":0,"Class":0}}""", "Padded character name rejected");
@@ -391,6 +393,54 @@ using (var other = JsonDocument.Parse(JsonSerializer.Serialize(
         other.RootElement.GetProperty("ObjectID").GetUInt32() == 11 &&
         other.RootElement.GetProperty("Location").GetProperty("Y").GetInt32() == 34,
         "A push carries the cell it lands on for the local player and for everyone else");
+// Player trading, parties and refining all reach the gateway now, and each has bounds the
+// server checks with a bare failure. Refusing them here costs a round trip instead of
+// producing silence.
+Check(Parse("""{"type":"TradeRequest","data":{}}""") is ClientPackets.TradeRequest, "Trade request accepted");
+Check(Parse("""{"type":"TradeReply","data":{"AcceptInvite":true}}""") is ClientPackets.TradeReply, "Trade reply accepted");
+Check(Parse("""{"type":"TradeConfirm","data":{"Locked":true}}""") is ClientPackets.TradeConfirm, "Trade lock accepted");
+Check(Parse("""{"type":"TradeCancel","data":{}}""") is ClientPackets.TradeCancel, "Trade cancellation accepted");
+var tradeGold = (ClientPackets.TradeGold)Parse("""{"type":"TradeGold","data":{"Amount":4294967295}}""");
+Check(tradeGold.Amount == uint.MaxValue, "A gold offer keeps the full uint range");
+// PlayerObject.TradeGold: `if (amount < 1 ...) return;` and nothing is said.
+Reject("""{"type":"TradeGold","data":{"Amount":0}}""", "Empty gold offer rejected");
+var tradeDeposit = (ClientPackets.DepositTradeItem)Parse("""{"type":"DepositTradeItem","data":{"From":3,"To":9}}""");
+Check(tradeDeposit.From == 3 && tradeDeposit.To == 9, "The last trade slot is carried to the server");
+Reject("""{"type":"DepositTradeItem","data":{"From":3,"To":10}}""", "Trade slot beyond the tenth rejected");
+Reject("""{"type":"DepositTradeItem","data":{"From":-1,"To":0}}""", "Negative bag slot in a trade deposit rejected");
+Reject("""{"type":"RetrieveTradeItem","data":{"From":10,"To":0}}""", "Trade slot beyond the tenth in a retrieval rejected");
+
+var refineDeposit = (ClientPackets.DepositRefineItem)Parse("""{"type":"DepositRefineItem","data":{"From":0,"To":15}}""");
+Check(refineDeposit.To == 15, "The last refine slot is carried to the server");
+Reject("""{"type":"DepositRefineItem","data":{"From":0,"To":16}}""", "Refine slot beyond the sixteenth rejected");
+Reject("""{"type":"RetrieveRefineItem","data":{"From":16,"To":0}}""", "Refine slot beyond the sixteenth in a retrieval rejected");
+var refineStart = (ClientPackets.RefineItem)Parse("""{"type":"RefineItem","data":{"UniqueID":"18446744073709551615"}}""");
+Check(refineStart.UniqueID == ulong.MaxValue, "Refining preserves 64-bit item ids");
+Reject("""{"type":"RefineItem","data":{"UniqueID":"0"}}""", "Refine without an item rejected");
+Reject("""{"type":"CheckRefine","data":{"UniqueID":"0"}}""", "Refine check without an item rejected");
+var special = (ClientPackets.SRepairItem)Parse("""{"type":"SRepairItem","data":{"UniqueID":"7"}}""");
+Check(special.UniqueID == 7, "Special repair reaches the server as its own command");
+Reject("""{"type":"SRepairItem","data":{"UniqueID":"0"}}""", "Special repair without an item rejected");
+
+var invite = (ClientPackets.AddMember)Parse("""{"type":"AddMember","data":{"Name":"Someone"}}""");
+Check(invite.Name == "Someone", "A party invite carries the character name");
+Reject("""{"type":"AddMember","data":{"Name":""}}""", "Empty party invite rejected");
+Reject("""{"type":"AddMember","data":{"Name":"a b"}}""", "Party invite with an invalid name rejected");
+Check(Parse("""{"type":"DelMember","data":{"Name":"Someone"}}""") is ClientPackets.DelMember, "Party removal accepted");
+Check(Parse("""{"type":"GroupInvite","data":{"AcceptInvite":false}}""") is ClientPackets.GroupInvite, "Party invite answer accepted");
+Check(Parse("""{"type":"SwitchGroup","data":{"AllowGroup":false}}""") is ClientPackets.SwitchGroup, "Grouping toggle accepted");
+
+// S.TradeItem is the partner's whole offer in one array, and S.TradeGold their running total.
+using (var offer = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.TradeItem { TradeItems = new UserItem[10] }, GameSession.Json)))
+    Check(offer.RootElement.GetProperty("TradeItems").GetArrayLength() == 10,
+        "The partner's ten trade slots reach the browser, empty ones included");
+using (var refineWindow = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.NPCRefine { Rate = 2.5F, Refining = true }, GameSession.Json)))
+    Check(Math.Abs(refineWindow.RootElement.GetProperty("Rate").GetSingle() - 2.5F) < 0.001F &&
+        refineWindow.RootElement.GetProperty("Refining").GetBoolean(),
+        "The refine window's rate and its already-refining flag reach the browser");
+
 
 
 Console.WriteLine($"{count}/{count} passed");

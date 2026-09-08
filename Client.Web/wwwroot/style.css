@@ -1089,3 +1089,62 @@ progress::-moz-progress-bar {
 .dialog-actions button.danger { color: #1d0f0e; background: #e08d84; border-color: #9b7979; }
 .dialog-actions button[disabled] { opacity: 0.55; }
 #create-status, #delete-status { min-height: 18px; margin: 8px 0 0; font-size: 13px; color: #e2cc92; }
+
+/* Player trade, party and refine: three panels that are all grids of inventory slots. */
+.item-grid { display: grid; grid-template-columns: repeat(8, 32px); gap: 1px; }
+/* CharacterInfo.Trade is ten slots and CharacterInfo.Refine sixteen, so each grid gets the
+   column count that makes its own size read as one shape rather than a row plus a remainder. */
+#trade-mine, #trade-theirs { grid-template-columns: repeat(10, 32px); }
+#trade-window, #refine-panel {
+  position: fixed; z-index: 13; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(560px, calc(100% - 24px)); max-height: calc(100dvh - 120px); overflow: auto;
+  padding: 12px 14px; background: #17211af5; border: 1px solid #829879; border-radius: 6px;
+}
+#trade-window[hidden], #refine-panel[hidden], #group-panel[hidden] { display: none; }
+#trade-window header, #refine-panel header, #group-panel header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 8px;
+}
+#trade-window h2, #refine-panel h2, #group-panel h2 { flex: 1; font-size: 17px; margin: 0; }
+#trade-window h3, #refine-panel h3, #group-panel h3 { font-size: 14px; margin: 10px 0 4px; color: #cfd8d4; }
+#trade-window h3 small, #group-panel h2 small { color: #e2cc92; font-weight: normal; }
+.trade-sides, #refine-materials-block { display: flex; flex-wrap: wrap; gap: 16px; align-items: flex-start; }
+#refine-materials-block[hidden] { display: none; }
+.trade-actions, .group-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 10px; }
+.trade-actions input, .group-actions input {
+  width: 120px; height: 34px; font: inherit; padding: 0 8px; color: #fff;
+  background: #101917; border: 1px solid #849d977a; border-radius: 4px; text-shadow: none;
+}
+.trade-actions button, .group-actions button, .group-row button {
+  min-height: 34px; padding: 4px 14px; font: inherit; color: #f1f4f3;
+  background: #263c31; border: 1px solid #829879; border-radius: 4px;
+}
+.trade-actions button[aria-pressed="true"], .group-actions button[aria-pressed="true"] {
+  color: #10241c; background: #76d1b6;
+}
+.trade-actions .danger, .group-row button { color: #f0b9b0; background: #241716ee; border-color: #8f6b6b80; }
+#trade-slot-hint, #refine-hint, #group-hint { font-size: 13px; color: #cfd8d4; margin: 8px 0 2px; }
+#trade-window-status, #refine-status, #group-status { font-size: 13px; color: #e2cc92; margin: 2px 0; min-height: 18px; }
+#group-panel {
+  position: fixed; z-index: 12; right: 12px; top: 120px; width: min(300px, calc(100% - 24px));
+  max-height: calc(100dvh - 260px); overflow: auto; padding: 10px 12px;
+  background: #17211af0; border: 1px solid #829879; border-radius: 6px;
+}
+.group-row { display: flex; align-items: center; gap: 8px; padding: 3px 0; font-size: 14px; }
+.group-row span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+#group-list p { margin: 4px 0; font-size: 13px; color: #cfd8d4; }
+#trade-invite, #group-invite {
+  position: fixed; z-index: 15; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  display: grid; justify-items: center; gap: 12px; width: min(320px, calc(100% - 24px));
+  padding: 20px 16px; background: #17211af5; border: 1px solid #829879; border-radius: 6px; text-align: center;
+}
+#trade-invite[hidden], #group-invite[hidden] { display: none; }
+#trade-invite h2, #group-invite h2 { font-size: 17px; margin: 0; }
+#trade-invite button, #group-invite button {
+  min-height: 40px; padding: 6px 20px; font: inherit; color: #f1f4f3;
+  background: #263c31; border: 1px solid #829879; border-radius: 4px;
+}
+#trade-accept, #group-accept { color: #10241c; background: #76d1b6; }
+@media (max-width: 650px) {
+  #group-panel { right: 8px; top: 100px; width: calc(100% - 16px); }
+  .item-grid { grid-template-columns: repeat(6, 32px); }
+}

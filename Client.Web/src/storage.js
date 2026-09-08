@@ -1,4 +1,5 @@
 import { BELT_SIZE, emptyBagSlot } from "./inventory.js";
+import { applyGridMove, firstEmptySlot as firstEmpty } from "./grid-transfer.js";
 
 const $ = (id) => document.getElementById(id);
 // Shared/Enums.cs BindMode. PlayerObject.StoreItem refuses an item whose definition or whose
@@ -21,11 +22,7 @@ export function blockedFromStorage(item, info) {
 // Neither transfer swaps and neither merges: the server only fills a slot it finds empty.
 // A vault whose rental has lapsed keeps its second page in the array while the server refuses
 // those indexes again, so the search stops at the slots that are actually usable.
-export function firstEmptySlot(grid, limit = Infinity) {
-  if (!grid) return -1;
-  for (let index = 0; index < Math.min(grid.length, limit); index++) if (!grid[index]) return index;
-  return -1;
-}
+export const firstEmptySlot = firstEmpty;
 
 // S.StoreItem and S.TakeBackItem echo the From and To of the request plus the outcome.
 // Nothing is applied before the answer arrives, exactly as the bag model in inventory.js
@@ -37,13 +34,11 @@ export function applyStorageMove(bag, storage, type, p) {
   if (type !== "StoreItem" && type !== "TakeBackItem") return false;
   if (!p?.Success) return false;
   const [source, target] = type === "StoreItem" ? [bag, storage] : [storage, bag];
-  if (!Number.isInteger(p.From) || p.From < 0 || p.From >= source.length ||
-      !Number.isInteger(p.To) || p.To < 0 || p.To >= target.length)
-    throw new Error("仓库位置同步异常，请刷新页面");
-  if (!source[p.From]) throw new Error("仓库物品同步异常，请刷新页面");
-  if (target[p.To]) throw new Error("仓库目标格同步异常，请刷新页面");
-  target[p.To] = source[p.From];
-  source[p.From] = null;
+  applyGridMove(source, target, p.From, p.To, {
+    slot: "仓库位置同步异常，请刷新页面",
+    source: "仓库物品同步异常，请刷新页面",
+    target: "仓库目标格同步异常，请刷新页面",
+  });
   return true;
 }
 

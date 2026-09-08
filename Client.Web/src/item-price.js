@@ -76,6 +76,17 @@ export function repairCost(item, info, rate) {
   return bounded(Math.trunc(f(base * f(applied))));
 }
 
+// Special repair charges three times as much and, unlike an ordinary repair, does not shave
+// MaxDura by a thirtieth of the wear -- which is the whole reason to pay for it
+// (PlayerObject.RepairItem: `temp.RepairPrice() * 3 * script.PriceRate(this)`, and the
+// MaxDura line is guarded by `if (!special)`).
+export function specialRepairCost(item, info, rate) {
+  const base = repairPrice(item, info);
+  if (base === null) return null;
+  const applied = Number.isFinite(rate) && rate >= 0 ? rate : 1;
+  return bounded(Math.trunc(f(base * 3 * f(applied))));
+}
+
 // PlayerObject.SellItem pays temp.Price() / 2 and never applies the NPC rate. Selling part of a
 // stack prices a fresh item of that count instead (Envir.CreateFreshItem: full durability, no
 // added stats), so quote the same thing the server will pay.

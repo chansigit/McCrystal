@@ -23,6 +23,9 @@ public static class GameSession
 
     // Mirrors Envir.CharacterReg. char.IsControl misses format characters such as
     // U+200B and U+202E, which allow visually identical character names.
+    // CharacterInfo.Trade and CharacterInfo.Refine, whose lengths the server checks directly.
+    private const int TradeSlots = 10, RefineSlots = 16;
+
     private static readonly Regex CharacterName = new(
         $"^[\\u4e00-\\u9fa5_A-Za-z0-9]{{{Globals.MinCharacterNameLength},{Globals.MaxCharacterNameLength}}}$",
         RegexOptions.Compiled);
@@ -190,6 +193,7 @@ public static class GameSession
             "NPCConfirmInput" => typeof(C.NPCConfirmInput),
             "BuyItem" => typeof(C.BuyItem), "ChangeAMode" => typeof(C.ChangeAMode),
             "SellItem" => typeof(C.SellItem), "RepairItem" => typeof(C.RepairItem),
+            "SRepairItem" => typeof(C.SRepairItem),
             "RequestMapInfo" => typeof(C.RequestMapInfo),
             "Chat" => typeof(C.Chat), "KeepAlive" => typeof(C.KeepAlive),
             "LogOut" => typeof(C.LogOut), "NewCharacter" => typeof(C.NewCharacter),
@@ -197,6 +201,19 @@ public static class GameSession
             "TownRevive" => typeof(C.TownRevive),
             "StoreItem" => typeof(C.StoreItem), "TakeBackItem" => typeof(C.TakeBackItem),
             "MagicKey" => typeof(C.MagicKey),
+            // Player-to-player trading.
+            "TradeRequest" => typeof(C.TradeRequest), "TradeReply" => typeof(C.TradeReply),
+            "TradeGold" => typeof(C.TradeGold), "TradeConfirm" => typeof(C.TradeConfirm),
+            "TradeCancel" => typeof(C.TradeCancel),
+            "DepositTradeItem" => typeof(C.DepositTradeItem),
+            "RetrieveTradeItem" => typeof(C.RetrieveTradeItem),
+            // Parties.
+            "AddMember" => typeof(C.AddMember), "DelMember" => typeof(C.DelMember),
+            "GroupInvite" => typeof(C.GroupInvite), "SwitchGroup" => typeof(C.SwitchGroup),
+            // Refining, and the appraisal that follows it.
+            "RefineItem" => typeof(C.RefineItem), "CheckRefine" => typeof(C.CheckRefine),
+            "DepositRefineItem" => typeof(C.DepositRefineItem),
+            "RetrieveRefineItem" => typeof(C.RetrieveRefineItem),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -207,10 +224,36 @@ public static class GameSession
         // with a bare failure, so refuse it here rather than spending a round trip on it.
         if (packet is C.SellItem sale && (sale.UniqueID == 0 || sale.Count == 0))
             throw new InvalidDataException("Invalid sale");
-        // Special repair (C.SRepairItem) is a separate NPC service this client does not offer.
         if (packet is C.RepairItem repair && repair.UniqueID == 0)
             throw new InvalidDataException("Invalid repair");
+        // Special repair costs three times as much and spares the item's maximum durability;
+        // the server runs it through the same PlayerObject.RepairItem with special = true.
+        if (packet is C.SRepairItem specialRepair && specialRepair.UniqueID == 0)
+            throw new InvalidDataException("Invalid special repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
+        // Both trade grids and the refine grid are fixed-size arrays on CharacterInfo, and the
+        // server answers an index outside them with a bare failure. Refusing here costs the
+        // player a round trip rather than a silent nothing.
+        if (packet is C.DepositTradeItem tradeIn && (tradeIn.From is < 0 or > 255 ||
+            tradeIn.To < 0 || tradeIn.To >= TradeSlots)) throw new InvalidDataException("Invalid trade slot");
+        if (packet is C.RetrieveTradeItem tradeOut && (tradeOut.From < 0 || tradeOut.From >= TradeSlots ||
+            tradeOut.To is < 0 or > 255)) throw new InvalidDataException("Invalid trade slot");
+        if (packet is C.DepositRefineItem refineIn && (refineIn.From is < 0 or > 255 ||
+            refineIn.To < 0 || refineIn.To >= RefineSlots)) throw new InvalidDataException("Invalid refine slot");
+        if (packet is C.RetrieveRefineItem refineOut && (refineOut.From < 0 || refineOut.From >= RefineSlots ||
+            refineOut.To is < 0 or > 255)) throw new InvalidDataException("Invalid refine slot");
+        // PlayerObject.TradeGold adds to the offer and refuses anything under 1 without a word.
+        if (packet is C.TradeGold tradeGold && tradeGold.Amount < 1)
+            throw new InvalidDataException("Invalid trade gold");
+        if (packet is C.RefineItem refine && refine.UniqueID == 0)
+            throw new InvalidDataException("Invalid refine");
+        if (packet is C.CheckRefine check && check.UniqueID == 0)
+            throw new InvalidDataException("Invalid refine check");
+        // A character name is the only thing either party command carries.
+        if (packet is C.AddMember invite && !CharacterName.IsMatch(invite.Name ?? string.Empty))
+            throw new InvalidDataException("Invalid group invite");
+        if (packet is C.DelMember kick && !CharacterName.IsMatch(kick.Name ?? string.Empty))
+            throw new InvalidDataException("Invalid group removal");
         // A player's own keys are 1..16, F1..F8 then Ctrl+F1..F8; 0 clears the binding.
         // MirConnection.MagicKey routes anything above 16 to a hero this client never
         // spawns (Server/MirNetwork/MirConnection.cs:1543-1553).

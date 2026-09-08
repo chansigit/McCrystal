@@ -14,6 +14,8 @@ import {
   Map as MapIcon,
   ChevronUp,
   Blend,
+  Users,
+  Handshake,
 } from "lucide";
 import { World, directions, directionTo } from "./world.js";
 import { movementLength, beginMotion, resetMotion, MOVE_INTERVAL, blockedTurn } from "./movement.js";
@@ -26,6 +28,9 @@ import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
 import { NPCTrade } from "./npc-trade.js";
+import { PlayerTrade } from "./player-trade.js";
+import { GroupPanel } from "./group.js";
+import { RefinePanel } from "./refine.js";
 import { StorageUI } from "./storage.js";
 import { ReviveOverlay } from "./revive.js";
 import { CharacterScreen, CLASS_NAMES } from "./characters.js";
@@ -57,6 +62,8 @@ const icons = {
   Map: MapIcon,
   ChevronUp,
   Blend,
+  Users,
+  Handshake,
 };
 createIcons({ icons });
 const gameAudio = new GameAudio();
@@ -90,10 +97,17 @@ const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), 
 // The server sends no player stats at all, so this panel derives them the way the native
 // client does; see src/stats.js.
 const characterStats = new CharacterStats(() => state.user, () => state.items);
+// Player-to-player trading, parties and the refine workshop. Each keeps the grid the server
+// keeps for it, because none of them is described in S.UserInformation: the server clears all
+// three on logout (PlayerObject.Despawn calls LeaveGroup, TradeCancel and RefineCancel), so
+// starting empty is starting correct.
+const playerTrade = new PlayerTrade(() => state.user, (index) => state.items.get(index), send);
+const group = new GroupPanel(() => state.user, send);
+const refine = new RefinePanel(() => state.user, (index) => state.items.get(index), send);
 const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
-npc.onChange = () => { shop.close(); trade.close(); storage.close(); };
+npc.onChange = () => { shop.close(); trade.close(); storage.close(); refine.close(); };
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
   const pointer = world.attackInput.pointer;
@@ -240,6 +254,9 @@ function leaveWorld() {
   $("equipment").hidden = true;
   // The growth table is per class, so the next character starts from its own S.BaseStatsInfo.
   characterStats.reset();
+  playerTrade.reset();
+  group.reset();
+  refine.reset();
   experience.reset();
   showCharacterTab("equipment");
   inventory.reset();
@@ -309,11 +326,39 @@ function receive(type, p) {
         $("attack-mode").disabled = false;
       }
       break;
+    case "NPCRefine":
+    case "NPCCheckRefine":
+    case "NPCCollectRefine":
+    case "RefineItem":
+    case "DepositRefineItem":
+    case "RetrieveRefineItem":
+      refine.receive(type, p);
+      break;
+    case "TradeRequest":
+    case "TradeAccept":
+    case "TradeGold":
+    case "TradeItem":
+    case "TradeConfirm":
+    case "TradeCancel":
+    case "DepositTradeItem":
+    case "RetrieveTradeItem":
+      playerTrade.receive(type, p);
+      break;
+    case "GroupInvite":
+    case "AddMember":
+    case "DeleteMember":
+    case "DeleteGroup":
+    case "SwitchGroup":
+    case "GroupMembersMap":
+    case "SendMemberLocation":
+      group.receive(type, p);
+      break;
     case "NPCSell":
+    case "NPCSRepair":
     case "NPCRepair":
       if (!npc.objectID) break;
       clearTimeout(npc.timer); $("npc-status").textContent = "";
-      trade.open(type === "NPCSell" ? "sell" : "repair", p.Rate);
+      trade.open(type === "NPCSell" ? "sell" : type === "NPCSRepair" ? "srepair" : "repair", p.Rate);
       break;
     // AccountInfo.ExpandStorage doubles the vault and the server announces the new length
     // here, so a rental bought mid-session grows the grid instead of waiting for a reload.
@@ -788,6 +833,9 @@ function receive(type, p) {
         state.user.Gold -= p.Gold;
         updateInventory();
       }
+      // The receipt for a gold offer during a trade -- the server takes the gold out of the
+      // account when the offer is made, and says nothing else about the offer's own total.
+      playerTrade.receive(type, p);
       break;
     case "Chat":
       addMessage(p.Message, p.Type);
@@ -907,6 +955,8 @@ function updateInventory() {
   updateWeight();
   if (shop.goods) shop.details();
   trade.refresh();
+  playerTrade.render();
+  refine.refresh();
   storage.refresh();
   inventory.render();
 }
@@ -1032,6 +1082,25 @@ $("open-skills").onclick = () => {
   skills.render();
 };
 $("close-skills").onclick = () => { $("skills-panel").hidden = true; };
+$("open-group").onclick = () => group.toggle();
+$("group-close").onclick = () => { $("group-panel").hidden = true; };
+$("group-add").onclick = () => group.invite($("group-name").value);
+$("group-name").addEventListener("keydown", (event) => {
+  if (event.key === "Enter") { event.preventDefault(); group.invite($("group-name").value); }
+});
+$("group-allow").onclick = () => group.setAllow(!group.allow);
+$("group-accept").onclick = () => group.answer(true);
+$("group-decline").onclick = () => group.answer(false);
+// C.TradeRequest names nobody: the server trades with whoever is standing on the cell the
+// player faces, so this is "ask the person in front of me".
+$("start-trade").onclick = () => playerTrade.invite();
+$("trade-accept").onclick = () => playerTrade.answer(true);
+$("trade-decline").onclick = () => playerTrade.answer(false);
+$("trade-add-gold").onclick = () => playerTrade.addGold($("trade-gold").value);
+$("trade-lock").onclick = () => (playerTrade.locked ? playerTrade.unlock() : playerTrade.lock());
+$("trade-cancel").onclick = () => playerTrade.cancel();
+$("trade-close").onclick = () => playerTrade.cancel();
+$("refine-close").onclick = () => refine.close();
 $("close-inventory").onclick = () => {
   $("inventory").hidden = true;
   if ($("equipment").hidden) inventory.hideDetails();

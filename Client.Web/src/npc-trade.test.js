@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { NPCTrade, sellCount, sellList, repairList, DONT_SELL, DONT_REPAIR } from "./npc-trade.js";
+import { NPCTrade, sellCount, sellList, repairList, DONT_SELL, DONT_REPAIR, NO_SREPAIR } from "./npc-trade.js";
+import { repairCost, specialRepairCost } from "./item-price.js";
 import { applyInventoryPacket } from "./inventory.js";
 
 const item = (id, extra = {}) => ({ UniqueID: String(id), ItemIndex: 1, Count: 1, ...extra });
@@ -132,4 +133,23 @@ test("an item whose definition has not arrived is listed without inventing a pri
     ui.open("sell");
     assert.match(detail(0), /价格未就绪/);
   });
+});
+
+test("special repair costs triple and refuses the items marked against it", () => {
+  // PlayerObject.RepairItem: `temp.RepairPrice() * 3 * script.PriceRate(this)`, and the
+  // MaxDura line above it is guarded by `if (!special)` -- the triple fee buys the item's
+  // maximum durability rather than a bigger restore.
+  const info = { Price: 1000, Durability: 10000, Bind: 0, StackSize: 1 };
+  const worn = { Count: 1, MaxDura: 10000, CurrentDura: 4000, AddedStats: {} };
+  const ordinary = repairCost(worn, info, 1);
+  assert.equal(specialRepairCost(worn, info, 1), ordinary * 3);
+  // The NPC's own rate still applies on top.
+  assert.equal(specialRepairCost(worn, info, 2), ordinary * 6);
+
+  const bag = [{ ...worn, ItemIndex: 1 }, { ...worn, ItemIndex: 2 }];
+  const infos = new Map([[1, { ...info, Bind: NO_SREPAIR }], [2, { ...info, Bind: DONT_REPAIR }]]);
+  const get = (index) => infos.get(index);
+  // NoSRepair blocks only the special service; DontRepair blocks both.
+  assert.deepEqual(repairList(bag, get, false).map((r) => r.blocked), [false, true]);
+  assert.deepEqual(repairList(bag, get, true).map((r) => r.blocked), [true, true]);
 });

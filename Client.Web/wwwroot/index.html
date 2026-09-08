@@ -149,6 +149,52 @@
         <div class="npc-input-actions"><button type="button" id="npc-input-cancel">取消</button><button type="submit">确认</button></div>
       </form>
     </section>
+    <section id="trade-window" hidden aria-label="交易">
+      <header><h2>交易 · <span id="trade-partner"></span></h2><button id="trade-close" class="icon" title="取消交易" aria-label="取消交易"><i data-lucide="x"></i></button></header>
+      <div class="trade-sides">
+        <section aria-label="我方"><h3>我方 <small id="trade-my-gold">0</small></h3><div id="trade-mine" class="item-grid"></div></section>
+        <section aria-label="对方"><h3>对方 <small id="trade-their-gold">0</small></h3><div id="trade-theirs" class="item-grid"></div></section>
+      </div>
+      <section aria-label="背包"><h3>背包 <small>金币 <span id="trade-wallet">0</span></small></h3><div id="trade-bag" class="item-grid"></div></section>
+      <div class="trade-actions">
+        <label for="trade-gold">加入金币</label>
+        <input id="trade-gold" type="number" min="1" step="1" value="1000" />
+        <button id="trade-add-gold" type="button">加入</button>
+        <button id="trade-lock" type="button" aria-pressed="false">锁定</button>
+        <button id="trade-cancel" type="button" class="danger">取消交易</button>
+      </div>
+      <p id="trade-slot-hint"></p>
+      <p id="trade-window-status" role="status"></p>
+    </section>
+    <section id="trade-invite" hidden role="alertdialog" aria-labelledby="trade-invite-name">
+      <h2 id="trade-invite-name"></h2>
+      <div class="dialog-actions"><button id="trade-decline" type="button">拒绝</button><button id="trade-accept" type="button">接受</button></div>
+    </section>
+    <aside id="group-panel" hidden aria-label="队伍">
+      <header><h2>队伍 <small id="group-count"></small></h2><button id="group-close" class="icon" title="关闭队伍" aria-label="关闭队伍"><i data-lucide="x"></i></button></header>
+      <div id="group-list"></div>
+      <div class="group-actions">
+        <input id="group-name" maxlength="15" placeholder="角色名" autocomplete="off" spellcheck="false" aria-label="邀请角色名" />
+        <button id="group-add" type="button">邀请</button>
+        <button id="group-allow" type="button" aria-pressed="true">允许组队：开</button>
+      </div>
+      <p id="group-hint"></p>
+      <p id="group-status" role="status"></p>
+    </aside>
+    <section id="group-invite" hidden role="alertdialog" aria-labelledby="group-invite-name">
+      <h2 id="group-invite-name"></h2>
+      <div class="dialog-actions"><button id="group-decline" type="button">拒绝</button><button id="group-accept" type="button">接受</button></div>
+    </section>
+    <section id="refine-panel" hidden aria-label="修炼">
+      <header><h2 id="refine-title">修炼</h2><button id="refine-close" class="icon" title="关闭" aria-label="关闭修炼"><i data-lucide="x"></i></button></header>
+      <div id="refine-materials-block">
+        <section aria-label="材料"><h3>材料</h3><div id="refine-grid" class="item-grid"></div></section>
+        <section aria-label="背包"><h3>背包</h3><div id="refine-bag" class="item-grid"></div></section>
+      </div>
+      <div id="refine-list" aria-label="可修炼物品"></div>
+      <p id="refine-hint"></p>
+      <p id="refine-status" role="status"></p>
+    </section>
     <section id="revive-panel" hidden role="alertdialog" aria-labelledby="revive-title">
       <h2 id="revive-title">你已经死亡</h2>
       <button id="revive-town" type="button">回城复活</button>
@@ -242,6 +288,8 @@
       <div class="actions">
         <button id="open-equipment" class="icon" title="装备" aria-label="装备"><i data-lucide="shirt"></i></button>
         <button id="open-skills" class="icon" title="技能" aria-label="技能"><i data-lucide="wand-sparkles"></i></button>
+        <button id="open-group" class="icon" title="队伍" aria-label="队伍"><i data-lucide="users"></i></button>
+        <button id="start-trade" class="icon" title="与面前的人交易" aria-label="与面前的人交易"><i data-lucide="handshake"></i></button>
         <button
           id="open-inventory"
           class="icon"
