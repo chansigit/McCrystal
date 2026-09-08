@@ -1,0 +1,13 @@
+id: mir-176
+name: 传奇 1.76
+version: 0.1.0
+engine: crystal
+databaseSchema: 117
+locale: zh-CN
+clientAssets: crystal-classic-assets@1
+contentRoot: .
+paths:
+  configs: Configs
+  envir: Envir
+  maps: Maps
+  database: Server.MirDB

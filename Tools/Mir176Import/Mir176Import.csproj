@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <RootNamespace>Mir176Import</RootNamespace>
+    <AssemblyName>Mir176Import</AssemblyName>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Data.Sqlite" Version="8.0.10" />
+    <ProjectReference Include="../../Server/Server.Library.csproj" />
+  </ItemGroup>
+</Project>
