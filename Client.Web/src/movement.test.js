@@ -38,12 +38,12 @@ test("Running covers twice the walking distance over the same interpolation inte
     assert.equal(motionPosition(run, time).X, 2 * motionPosition(walk, time).X);
 });
 test("Map changes snap to the new location and clear old movement/action animation", () => {
-  const actor = { Location: { X: 328, Y: 328 }, from: { X: 327, Y: 328 }, movedAt: 10, running: true, attackUntil: 1000, castUntil: 1000 };
+  const actor = { Location: { X: 328, Y: 328 }, from: { X: 327, Y: 328 }, movedAt: 10, running: true, attackStartedAt: 1000, castUntil: 1000 };
   resetMotion(actor, { X: 51, Y: 64 }, 3);
   assert.deepEqual(motionPosition(actor, 200), { X: 51, Y: 64, moving: false });
   assert.equal(actor.running, false);
   assert.equal(actor.Direction, 3);
-  assert.equal(actor.attackUntil, 0);
+  assert.equal(actor.attackStartedAt, null);
 });
 test("Pathfinding rejects old-map coordinates and unavailable grids during transfer", () => {
   const grid = new PF.Grid(100, 100);

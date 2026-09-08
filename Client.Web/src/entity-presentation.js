@@ -12,12 +12,14 @@ export function showName(entity, nameView, hovered) {
   return nameView && !entity.Dead;
 }
 
-export function beginAttackAnimation(entity, now) {
-  const pacedGuard = entity.kind === "monster" && (entity.Image === 0 || entity.Image === 1);
-  if (pacedGuard && now < (entity.nextAttackAnimationAt || 0)) return false;
-  if (pacedGuard) entity.nextAttackAnimationAt = now + 2600;
+// A 2600 ms lockout used to sit here for monster images 0 and 1. It was a workaround
+// for frames being driven off a shared wall clock, where a fresh swing could start
+// mid-animation; every action now carries its own start timestamp, so the swing plays
+// from frame zero each time and the lockout is gone. The action's own length, taken
+// from the library's frame table, ends it instead of a hardcoded 600 ms.
+export function beginAttackAnimation(entity, now, action = "Attack1") {
   entity.attackStartedAt = now;
-  entity.attackUntil = now + 600;
+  entity.attackAction = action;
   return true;
 }
 

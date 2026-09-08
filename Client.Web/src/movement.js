@@ -22,7 +22,9 @@ export function resetMotion(object, location, direction) {
   object.from = null;
   object.movedAt = 0;
   object.running = false;
-  object.attackUntil = 0;
+  object.attackStartedAt = null;
+  object.struckStartedAt = null;
+  object.reviveStartedAt = null;
   object.castUntil = 0;
   object.harvestUntil = 0;
 }
