@@ -1,7 +1,7 @@
 [@main]
 你是来炼什么药？
 <挑战/@h1>幻境
- <炼/@makedrug>药
+ <炼/@CRAFT>药
  有关毒药<听说明./@helpmakedrug>
  <进行对话./@talkwith>
 <退出/@exit>
@@ -22,7 +22,7 @@
 #ACT
 MOVE H001 73 67
 
-[@makedrug]
+[@CRAFT]
 请选择想炼什么药。
 所需材料应该带来了吧？
  <返回/@main>
@@ -67,9 +67,9 @@ MOVE H001 73 67
 长得像圆圆的茧。
  <返回/@helpmakedrug2>
 
-[TRADE]
-灰色药粉(少量) 1
-黄色药粉(少量) 1
+[RECIPE]
+灰色药粉(少量)
+黄色药粉(少量)
 
 [TYPES]
 13

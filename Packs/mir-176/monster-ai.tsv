@@ -46,6 +46,7 @@ race	115	13	RedMoonEvil	crystalm2:赤月恶魔 ×2
 race	116	39	RootSpider	crystalm2:幻影蜘蛛
 race	117	40	BombSpider	名字与类名对上：爆裂蜘蛛 52 级 10 血，是自爆怪
 race	120	3	Tree	场景物族（飞火流星/雪球/圣诞驯鹿），0 攻击，mongen 不刷
+name	弓箭手	80	ConquestArcher	沙巴克 Archer_N_Name 就是它，而 ConquestGuildArcherInfo.Spawn 只认 AI 80；mongen 不刷它，同 Race112 的弓箭守卫才是城门口那些
 name	沙虫	35	SandWorm	crystalm2:沙虫；Crystal 的类名就是它，行为是不带毒的直线攻击
 name	宝箱	3	Tree	宝箱不动也不攻击，与同 Race 的触龙神不同
 name	宝箱1	3	Tree	同 宝箱

@@ -89,7 +89,7 @@ public static class NpcStage
     private const string GoldName = "金币";
 
     public static Result Convert(List<Merchant> merchants, List<SpecialNpc> specials,
-        string scriptDirectory, List<MapInfo> maps, List<ItemInfo> items)
+        string scriptDirectory, List<MapInfo> maps, List<ItemInfo> items, HashSet<string> recipeProducts)
     {
         var report = new StringBuilder();
         var npcs = new List<NPCInfo>();
@@ -106,6 +106,7 @@ public static class NpcStage
         var missingScripts = new List<string>();
         var missingMaps = new List<string>();
         int goods = 0, types = 0, getbackPages = 0, errors = 0;
+        var crafters = new List<string>();
 
         var mapIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
         foreach (var map in maps) mapIndex[map.FileName] = map.Index;
@@ -133,7 +134,7 @@ public static class NpcStage
                 continue;
             }
 
-            var translated = Translate(GeeM2Source.ReadGbk(path).ToList(), itemNames);
+            var translated = Translate(GeeM2Source.ReadGbk(path).ToList(), itemNames, recipeProducts);
             foreach (var (command, count) in translated.Unknown)
                 unknownCommands[command] = unknownCommands.GetValueOrDefault(command) + count;
             foreach (var (command, count) in translated.Unsupported)
@@ -155,6 +156,7 @@ public static class NpcStage
             {
                 if (translated.MissingItems.Count > 0) lostShops++; else emptyShops++;
             }
+            if (translated.Crafting) crafters.Add($"{merchant.Name}（{merchant.ScriptId}）");
             goods += translated.Goods;
             types += translated.Types;
             getbackPages += translated.GetBackPages;
@@ -219,6 +221,9 @@ public static class NpcStage
         if (lostShops > 0)
             report.AppendLine($"- **{lostShops} 个商店的存货全丢了**：源脚本写的商品名在 176 物品表里"
                 + "查不到，见下面的缺物品清单");
+        if (crafters.Count > 0)
+            report.AppendLine($"- {crafters.Count} 个合成 NPC 的 `[goods]` 段按 `[RECIPE]` 而不是 `[TRADE]` 写出"
+                + $"，`@makedrug` 页改名 `@CRAFT`：{string.Join("、", crafters)}");
         if (getbackPages > 0)
             report.AppendLine($"- {getbackPages} 个 `[@getback]` 取物页并入 `[@STORAGE]`："
                 + "Crystal 的仓库窗口存取合一，指向它的链接已改写，原页文字丢弃");
@@ -289,6 +294,9 @@ public static class NpcStage
         public string Text;
         public ushort Rate = 100;
         public int Goods, Types, GetBackPages;
+        public bool Crafting;
+        // Renames that apply to one script only, unlike the engine-wide PageRenames.
+        public readonly Dictionary<string, string> ScriptRenames = new(StringComparer.OrdinalIgnoreCase);
         public readonly SortedDictionary<string, int> Unknown = new(StringComparer.OrdinalIgnoreCase);
         public readonly SortedDictionary<string, int> Unsupported = new(StringComparer.OrdinalIgnoreCase);
         public readonly SortedDictionary<string, int> UnknownVariables = new(StringComparer.OrdinalIgnoreCase);
@@ -300,9 +308,15 @@ public static class NpcStage
 
     private enum Mode { Header, Say, Command, Goods }
 
-    private static Translated Translate(List<string> lines, HashSet<string> items)
+    private static Translated Translate(List<string> lines, HashSet<string> items, HashSet<string> recipes)
     {
         var result = new Translated();
+        // M2's crafting NPCs declare what they make in the same [goods] block a shop uses
+        // to declare what it sells, and the only thing telling them apart is the @makedrug
+        // page the engine answers itself. Reading one as the other puts 赤血魔剑 -- a
+        // craft-only sword -- on a shop counter for gold.
+        result.Crafting = Crafts(lines, recipes);
+        if (result.Crafting) result.ScriptRenames["@makedrug"] = "@CRAFT";
         var body = new StringBuilder();
         var typeList = new List<int>();
         var mode = Mode.Header;
@@ -354,11 +368,12 @@ public static class NpcStage
                 {
                     mode = Mode.Goods;
                     body.AppendLine();
-                    body.AppendLine("[TRADE]");
+                    body.AppendLine(result.Crafting ? "[RECIPE]" : "[TRADE]");
                     continue;
                 }
                 string inner = key.Trim('[', ']');
-                if (PageRenames.TryGetValue(inner, out string renamed))
+                if (result.ScriptRenames.TryGetValue(inner, out string scriptRenamed)) key = "[" + scriptRenamed + "]";
+                else if (PageRenames.TryGetValue(inner, out string renamed))
                 {
                     if (renamed.Equals("@storage", StringComparison.OrdinalIgnoreCase))
                     {
@@ -394,7 +409,9 @@ public static class NpcStage
                     body.AppendLine("; [缺物品] " + trimmed);
                     continue;
                 }
-                body.AppendLine($"{f[0]} {f[1]}");
+                // ParseCrafting reads only the name; a count after it is a second recipe
+                // that does not exist.
+                body.AppendLine(result.Crafting ? f[0] : $"{f[0]} {f[1]}");
                 result.Goods++;
                 continue;
             }
@@ -452,7 +469,7 @@ public static class NpcStage
     // newlines as incidental, so one source line can be several displayed lines.
     private static IEnumerable<string> SayLines(string line, Translated result)
     {
-        string text = RedirectLinks(ReplaceVariables(line, result));
+        string text = RedirectLinks(ReplaceVariables(line, result), result);
         var parts = text.Split('\\');
         int last = parts.Length - 1;
         while (last > 0 && parts[last].Trim().Length == 0) last--;
@@ -467,10 +484,40 @@ public static class NpcStage
 
     // A page that was renamed or folded into another has to be renamed everywhere it is
     // jumped to as well, or the link lands on a page that is no longer there.
-    private static string RedirectLinks(string line)
+    private static string RedirectLinks(string line, Translated result)
     {
         return System.Text.RegularExpressions.Regex.Replace(line, @"@[A-Za-z_][A-Za-z0-9_]*", m =>
-            PageRenames.TryGetValue(m.Value, out string renamed) ? renamed : m.Value);
+            result.ScriptRenames.TryGetValue(m.Value, out string scriptRenamed) ? scriptRenamed
+                : PageRenames.TryGetValue(m.Value, out string renamed) ? renamed : m.Value);
+    }
+
+    /// <summary>Whether a script is a crafting NPC rather than a shop.</summary>
+    /// <remarks>
+    /// Both conditions are needed. A shop can stock a craftable item -- three of these
+    /// scripts sell the powders alongside sixteen other things -- and a script could name a
+    /// @makedrug page without listing anything. A crafting NPC has the page and every line
+    /// of its [goods] block is something MakeItem.txt knows how to make.
+    /// </remarks>
+    private static bool Crafts(List<string> lines, HashSet<string> recipes)
+    {
+        bool page = false, goods = false, all = true;
+        bool inGoods = false;
+        foreach (var raw in lines)
+        {
+            string trimmed = raw.Replace('\t', ' ').Trim();
+            if (trimmed.StartsWith("["))
+            {
+                if (trimmed.Equals("[@makedrug]", StringComparison.OrdinalIgnoreCase)) page = true;
+                inGoods = trimmed.Equals("[goods]", StringComparison.OrdinalIgnoreCase);
+                continue;
+            }
+            if (!inGoods || trimmed.Length == 0 || trimmed.StartsWith(";")) continue;
+            var f = trimmed.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            if (f.Length < 2 || !int.TryParse(f[1], out _)) continue;
+            goods = true;
+            if (!recipes.Contains(f[0])) all = false;
+        }
+        return page && goods && all;
     }
 
     private static string ReplaceVariables(string line, Translated result)
@@ -517,7 +564,7 @@ public static class NpcStage
             case "CHECKBAGGAGE" when f.Length == 2:
                 return $"HASBAGSPACE >= {f[1]}";
             case "GOTO" when f.Length >= 2:
-                return $"GOTO {RedirectLinks(f[1])}";
+                return $"GOTO {RedirectLinks(f[1], result)}";
             // Fourteen lines write the fee as one token, 金币100, where every sibling line
             // in the same page writes 金币 100 and the #IF above them checks CHECKGOLD 100.
             // 金币1 is a real item so only a token that is not itself an item is split.

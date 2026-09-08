@@ -47,10 +47,13 @@ dotnet Server.Console.dll --pack /path/to/Packs/mir-176/pack.yaml --state state-
 | Monsters | `GEEM2.db` `Monster` | done, 388 of 389 |
 | Drops | `Envir/MonItems/` | done, 336 tables |
 | Spawns | `Envir/mongen.txt` | done, 3,438 of 3,442 lines |
-| Quests, recipes, castles | `MapQuest_def/`, `MakeItem.txt`, `Castle/` | not started |
+| Recipes | `Envir/MakeItem.txt` | done, 13 of 13 |
+| Conquest | `Envir/Castle/` | done, 1 castle, 16 parts |
+| Quests | `Envir/MapQuest_def/` | nothing to import, see below |
 
-The pack boots and runs: 386 maps, 172 NPCs, 388 monsters and 53,926 of them
-alive at once on a 14ms loop. `--validate-pack` reports 0 errors.
+The pack boots and runs: 386 maps, 172 NPCs, 388 monsters and 53,942 of them
+alive at once on a 14ms loop, 13 recipes, and Sabuk with its gate, three walls
+and twelve wall archers. `--validate-pack` reports 0 errors.
 
 ## Client assets
 
@@ -87,9 +90,12 @@ Two things that were expensive to learn and should not be re-litigated:
   which is most of a castle siege. `SabukDoor` is `SabukGate` 950 in
   `Data/Gate/00.Lib`, and `SabukW1` to `SabukW3` are 957 to 959.
 
-Still open for the siege stage: M2Server models the gate and walls as monsters
-with hit points, while Crystal has a conquest system where they are
-`ConquestGuildGateInfo` and `ConquestWalls` rather than spawns.
+That question about the siege is settled, and the answer is that there was no
+question: M2Server models the gate and walls as monsters with hit points, and so
+does Crystal. `ConquestGateInfo` and `ConquestWallInfo` each hold a `MobIndex`
+pointing at a `MonsterInfo`, and `ConquestGuildInfo.Spawn` builds them through
+`MonsterObject.GetMonster` like any other creature. The 沙巴克 section below has
+the details.
 
 ## 怪物行为：`Race` 是 M2 的行为类
 
@@ -141,6 +147,52 @@ MOTO手机…），报告里逐个列了次数。唯一做的归一化是全角�
 这个检查是照着引擎自己的判断写的：`Map.cs:479` 把可站立格子按半径框过滤，所以关键不是
 中心点能不能站，而是**框里有没有一格能站**。第一版只查中心点，报了 22 个错，其中 13 个
 是好的——1.76 的表里经常把中心写在图外，靠半径伸回来，M2 和 Crystal 都照样刷得出来。
+
+## 合成、攻城、任务
+
+**合成**（`Envir/MakeItem.txt` → `Envir/Recipe/`）。M2 把全部配方放一个文件里，
+`[产物]` 后面跟 `材料 数量`；Crystal 一条配方一个文件、产物取自文件名。13 条全部导入。
+手工费不在这里——合成师收的 100 金和一根金条是它自己脚本里的 `TAKE` 行，NPC 阶段已经带过来了。
+
+真正要紧的是**这两件事在 M2 里长得一样**：合成 NPC 用 `[goods]` 段声明"我能做什么"，
+商店用同一个段声明"我卖什么"，唯一的区别是引擎自己应答的 `@makedrug` 页。按商店读进来的
+后果是**赤血魔剑摆上了柜台按金币卖**——上一版就是这样的，7 个 NPC 全中，其中合成师
+（9maker）连魔血/虹魔三件套一起在卖。
+
+现在的判据要两个条件同时成立：脚本里有 `@makedrug` 页，**并且** `[goods]` 段每一行都是
+`MakeItem.txt` 会做的东西。只满足一个不算——有三个是正经商店，货架上十八样里夹着两样药粉，
+它们没有 `@makedrug`，仍然照卖。命中的 7 个改写成 `[RECIPE]`，`@makedrug` 页连带指向它的
+链接一起改名 `@CRAFT`，页面文字原样保留。
+
+**攻城**（`Envir/Castle/` → `ConquestInfo`）。这一段短，是因为两边的模型本来就一样：
+M2 把沙巴克的门和墙做成有血的怪，Crystal 也是——`ConquestGateInfo` / `ConquestWallInfo` /
+`ConquestArcherInfo` 各自持一个 `MobIndex` 和一个 `Location`，由 `ConquestGuildInfo` 通过
+`MonsterObject.GetMonster` 刷出来。
+
+**AI 号在这里是硬要求，而且不匹配时是静默的**：`ConquestGuildInfo.Spawn` 检查
+`if (monsterInfo.AI != 81) return;`（门）、`!= 82`（墙）、`!= 80`（弓箭手），不打日志。
+所以 `SabukDoor` 必须 81 Gate、`SabukW1..3` 必须 82 Wall——这两个由 Race 110/111 自然对上；
+`弓箭手` 得单独覆盖成 80 ConquestArcher，因为它同 Race 的兄弟 `弓箭守卫` 是城门口那 67 个
+守卫，要留在 57 TownArcher。
+
+城池文件是**存档和布局混在一起**的：同一个键出现两次，先是作者写的值，后面是运行中的服务端
+写回的状态。所以只读每个键的**第一次**出现——读最后一次会导入一座门血量为 0 的城。
+弓箭手和守卫的岗位同理：M2 先用本地化键写了布局（`弓箭卫士_N_X`、`卫士_N_X`），
+后面又追加了一批清零的英文键（`Archer_N_X`、`Guard_N_X`），有坐标的是前者。
+
+导进来的是：门 1（672,330）、墙 3、守城弓箭手 12。**4 个近战守卫岗位没有导入**——Crystal
+只有一份守城名单，而它的 `Spawn` 要求 AI 80，把一个 AI 6 的卫士放进去会静默不刷，
+所以宁可记在报告里。攻城时间表 1.76 的文件里没有（M2 是靠 NPC 申请开战的），
+保持 Crystal 的 `Request` 类型、不设固定星期。
+
+服务端起来后在线怪物从 53,926 变成 53,942，正好是 1 门 + 3 墙 + 12 弓箭手。
+
+**任务：没有可导的。** `Envir/MapQuest_def/` 里那 9 个文件不是 Crystal 意义上的任务
+（`QuestInfo` 是有描述、步骤、奖励的结构），而是 M2 的怪物死亡触发脚本，用 `#IF/#ACT/#SAY`
+和 `[401]`、`[402]` 这样的标志位工作，文字还是英文原版的。更要紧的是**整个 1.76 快照里没有
+任何文件引用它们**——搜过了，一处都没有，连 `mapinfo.txt` 和 `Npc_def/` 都不提。
+它们是孤立的。真正的 1.76 任务内容在 NPC 脚本里，也就是 `market_def/` 里那 254 个还没导入的
+脚本（问答、行会、迷宫引路人那类），那是 NPC 阶段的后续，不是一个独立的任务阶段。
 
 ## 网关必须用 `--maps` 指向包里的地图
 

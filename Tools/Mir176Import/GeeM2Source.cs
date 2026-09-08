@@ -271,6 +271,10 @@ public sealed class GeeM2Source
 
     public string DropDirectory => Path.Combine(root, "Envir", "MonItems");
 
+    public string MakeItemPath => Path.Combine(root, "Envir", "MakeItem.txt");
+
+    public string CastleDirectory => Path.Combine(root, "Envir", "Castle");
+
     public string MapDirectory => Path.Combine(root, "Map");
 
     internal static IEnumerable<string> ReadGbk(string path)

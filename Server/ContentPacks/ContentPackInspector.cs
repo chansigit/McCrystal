@@ -209,6 +209,7 @@ namespace Server.ContentPacks
             }
 
             int blockedNpcs = 0, blockedMovements = 0, offMapZones = 0, blockedRespawns = 0;
+            int conquestParts = 0, blockedConquest = 0;
             foreach (var map in environment.MapInfoList)
             {
                 if (Open(map.Index) is not { } loadedMap) continue;
@@ -256,6 +257,28 @@ namespace Server.ContentPacks
                 // whether the centre itself does. A centre outside the map is normal in the
                 // 1.76 tables and still works when the spread reaches back in. An empty box
                 // never spawns anything, and Map.cs only logs that after five failures.
+                // A conquest structure has no spread to fall back on: ConquestGuildInfo
+                // spawns it at exactly its Location through MonsterObject.Spawn, which
+                // returns false on an invalid point and says nothing. A castle whose gate
+                // sits in a wall simply has no gate.
+                foreach (var conquest in environment.ConquestInfoList)
+                {
+                    if (conquest.MapIndex != map.Index) continue;
+                    foreach (var (kind, name, at) in conquest.ConquestGates
+                            .Select(g => ("gate", g.Name, g.Location))
+                        .Concat(conquest.ConquestWalls.Select(w => ("wall", w.Name, w.Location)))
+                        .Concat(conquest.ConquestGuards.Select(a => ("archer", a.Name, a.Location))))
+                    {
+                        conquestParts++;
+                        if (Valid(loadedMap, at)) continue;
+                        blockedConquest++;
+                        Add(report, ContentIssueSeverity.Error, "CONQUEST_PART_BLOCKED",
+                            $"Conquest '{conquest.Name}' places its {kind} '{name}' at {at.X},{at.Y} "
+                            + $"on '{map.FileName}', which is off the map or a wall, so it will not spawn.",
+                            entity: conquest.Name);
+                    }
+                }
+
                 foreach (var respawn in map.Respawns)
                 {
                     if (AnyWalkable(loadedMap, respawn.Location, respawn.Spread)) continue;
@@ -275,6 +298,8 @@ namespace Server.ContentPacks
             report.Inventory["geometry.movements.blocked"] = blockedMovements;
             report.Inventory["geometry.safezones.blocked"] = offMapZones;
             report.Inventory["geometry.respawns.blocked"] = blockedRespawns;
+            report.Inventory["conquest.parts"] = conquestParts;
+            report.Inventory["conquest.parts.blocked"] = blockedConquest;
         }
 
         private static void CheckNpcs(ContentPack pack, Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,

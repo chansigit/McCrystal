@@ -3,7 +3,7 @@
 对于<$OWNERGUILD>的成员我们有20%的折扣
 因为这座城堡是属于 <$OWNERGUILD>的。
 <挑战/@h1>幻境
- <制作/@makedrug> 药品
+ <制作/@CRAFT> 药品
  <打听/@helpmakedrug> 药品的解释
 <退出/@exit>
 
@@ -23,7 +23,7 @@
 #ACT
 MOVE H001 73 67
 
-[@makedrug]
+[@CRAFT]
 请选择你要制作的药品。
 你肯定没忘了带做药的原料,对吗？
  <返回/@main>
@@ -71,9 +71,9 @@ MOVE H001 73 67
 长得像圆圆的茧。
  <返回/@helpmakedrug2>
 
-[TRADE]
-灰色药粉(少量) 1
-黄色药粉(少量) 1
+[RECIPE]
+灰色药粉(少量)
+黄色药粉(少量)
 
 [TYPES]
 13

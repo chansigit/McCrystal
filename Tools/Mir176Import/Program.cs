@@ -61,8 +61,12 @@ public static class Program
         var magics = MagicStage.Convert(rawMagics);
         var items = ItemStage.Convert(geeM2.Items(), rawMagics);
         var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MapDirectory);
+        // Recipes come before the NPCs because a crafting NPC declares what it makes in
+        // the same [goods] block a shop uses to declare what it sells, and only the set of
+        // recipe products tells the two apart.
+        var recipes = RecipeStage.Convert(geeM2.MakeItemPath, items.Items);
         var npcs = NpcStage.Convert(geeM2.Merchants(), geeM2.SpecialNpcs(), geeM2.ScriptDirectory,
-            maps.Maps, items.Items);
+            maps.Maps, items.Items, recipes.Products);
         // The sprite and AI tables sit beside the manifest, not inside Envir: they are the
         // import's own working notes rather than content the server reads.
         var packDirectory = Path.GetDirectoryName(Path.GetFullPath(pack));
@@ -71,10 +75,11 @@ public static class Program
         // Spawns attach respawns to the MapInfo records the map stage already built, so this
         // has to run after both maps and monsters.
         var spawns = SpawnStage.Convert(geeM2.Spawns(), maps.Maps, monsters.Monsters);
+        var conquests = ConquestStage.Convert(geeM2.CastleDirectory, maps.Maps, monsters.Monsters);
         int errors = magics.Errors + items.Errors + maps.Errors + npcs.Errors
-            + monsters.Errors + drops.Errors + spawns.Errors;
+            + monsters.Errors + drops.Errors + spawns.Errors + recipes.Errors + conquests.Errors;
 
-        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}\n{npcs.Report}\n{monsters.Report}\n{drops.Report}\n{spawns.Report}";
+        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}\n{npcs.Report}\n{monsters.Report}\n{drops.Report}\n{spawns.Report}\n{recipes.Report}\n{conquests.Report}";
         if (report != null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
@@ -113,6 +118,8 @@ public static class Program
         envir.MonsterInfoList.AddRange(monsters.Monsters);
         envir.MonsterIndex = monsters.Monsters.Count;
         envir.RespawnIndex = spawns.Count;
+        envir.ConquestInfoList.AddRange(conquests.Conquests);
+        envir.ConquestIndex = conquests.Conquests.Count;
         envir.SaveDB();
 
         // Scripts live beside the database in the pack, and the whole set is rewritten so a
@@ -139,6 +146,14 @@ public static class Program
         foreach (var file in drops.Files)
             File.WriteAllText(Path.Combine(dropTarget, file.Path), file.Text);
 
+        // Recipes are keyed by file name, the same way drops are, so the same reasoning
+        // applies: rewrite the whole directory rather than leave a stale product behind.
+        var recipeTarget = Path.Combine(ContentPack.Current.EnvirPath, "Recipe");
+        Directory.CreateDirectory(recipeTarget);
+        foreach (var stale in Directory.GetFiles(recipeTarget, "*.txt")) File.Delete(stale);
+        foreach (var file in recipes.Files)
+            File.WriteAllText(Path.Combine(recipeTarget, file.Path), file.Text);
+
         // The pack keeps its own copy of every map it declares, so it stays self-contained
         // and nothing reaches back into ThirdParty at run time.
         var mapTarget = ContentPack.Current.MapPath;
@@ -148,8 +163,9 @@ public static class Program
         Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：" +
             $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品，{maps.Maps.Count} 张地图" +
             $"，{npcs.Npcs.Count} 个 NPC，{monsters.Monsters.Count} 只怪，{spawns.Count} 个刷怪点" +
+            $"，{conquests.Conquests.Count} 座城" +
             $"（复制了 {maps.MapFiles.Count} 个地图文件，{npcs.Scripts.Count} 个脚本，" +
-            $"{drops.Files.Count} 张爆率表）");
+            $"{drops.Files.Count} 张爆率表，{recipes.Files.Count} 条配方）");
         return 0;
     }
 
