@@ -38,6 +38,8 @@ import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor, preloadDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
 import { attackAction, rangeAttackAction, stonedAtSpawn } from "./entity-action.js";
+import { spellObject, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
+const spellObjectSound = (spell) => SPELL_OBJECT_SOUNDS[spell] ?? spellObject(spell)?.sound ?? null;
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -514,6 +516,11 @@ function receive(type, p) {
       npc.remove(p.ObjectID);
       if (state.attackTarget === p.ObjectID) cancelAttack();
       world.entities.delete(p.ObjectID);
+      world.removeSpellObject(p.ObjectID);
+      break;
+    case "ObjectSpell":
+      world.addSpellObject(p);
+      if (spellObjectSound(p.Spell)) gameAudio.play(spellObjectSound(p.Spell));
       break;
     case "ObjectDied": {
       if (p.ObjectID === state.user?.ObjectID) skills.cancel();

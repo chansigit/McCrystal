@@ -110,8 +110,14 @@ packet receipt. Structurally out of reach:
   randomness.
 - Weapon swing trails, which are inline overlays with no independent lifetime.
 
-`S.ObjectEffect`, `S.ObjectProjectile` and `S.ObjectSpell` are not handled at
-all, so ground spells such as fire walls and poison clouds do not exist.
+`S.ObjectEffect` and `S.ObjectProjectile` are still not handled at all.
+`S.ObjectSpell` **is** now: `src/spell-object.js` is `SpellObject.Load`'s switch
+as data, so the fire wall, the poison cloud, blizzard, meteor strike, the traps,
+the portal, the healing circle and the boss ground attacks stand on their cell
+until an `ObjectRemove`, additive at native's 0.8 where `Blend` is set. Direction
+strides, the explosive trap's armed/detonating flag, `AnimationOffset` and the
+companion effects several entries add beside themselves are all carried across.
+This needed no gateway change: the packet was always arriving and being dropped.
 
 ## Timing
 

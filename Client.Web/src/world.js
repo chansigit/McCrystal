@@ -9,6 +9,7 @@ import { AttackInput } from "./attack-input.js";
 import { Footsteps } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
+import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
   liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
 
@@ -47,6 +48,7 @@ export class World {
     this.user = null;
     this.damageEvents = [];
     this.spellEffects = [];
+    this.spellObjects = new Map();
     this.effectID = 0;
     this.attackInput = new AttackInput();
     this.footsteps = new Footsteps();
@@ -236,6 +238,8 @@ export class World {
   clearNodes() {
     this.damageEvents = [];
     this.spellEffects = [];
+    this.spellObjects.clear();
+    this.spellObjects = new Map();
     for (const n of this.nodes.values()) n.destroy();
     for (const n of this.labels.values()) n.destroy();
     this.nodes.clear();
@@ -286,6 +290,25 @@ export class World {
         for (let i = 0; i < count; i++) if (this.manifests.get(library)?.frames[start + i]) this.texture(library, start + i, true);
       });
     }
+  }
+  // S.ObjectSpell: a standing effect on a cell -- the fire wall, the poison cloud, a
+  // trap. Native makes a SpellObject and keeps it until an ObjectRemove
+  // (Client/MirObjects/SpellObject.cs:29-289).
+  addSpellObject(packet) {
+    const definition = spellObject(packet.Spell, packet.Direction || 0, !!packet.Param);
+    for (const effect of spellObjectEffects(packet.Spell))
+      this.addSpellEffect(effect, null, packet.Location);
+    if (!definition || !packet.Location) return;
+    this.spellObjects.set(packet.ObjectID, { ...packet, definition, started: performance.now() });
+    this.manifest(definition.library);
+    this.manifestLoads.get(definition.library)?.then(() => {
+      for (let i = 0; i < definition.count; i++)
+        if (this.manifests.get(definition.library)?.frames[definition.start + i])
+          this.texture(definition.library, definition.start + i, true);
+    });
+  }
+  removeSpellObject(objectID) {
+    this.spellObjects.delete(objectID);
   }
   addSpellEffect(effect, targetID, location) {
     if (!effect || !location) return;
@@ -757,6 +780,21 @@ export class World {
         if (chat.text !== e.chatText) chat.text = e.chatText;
         chat.scale.set(1 / scale); chat.position.set(x + 24, actorTop - 20 / scale);
         chat.zIndex = y + 102; chat.visible = true; chat.seen = this.tick;
+      }
+    }
+    // Ground spells draw below everything else standing on the same row, and additively
+    // where SpellObject sets Blend, at native's 0.8 (SpellObject.cs:328-348).
+    for (const [objectID, object] of this.spellObjects) {
+      const { definition } = object;
+      const index = spellObjectFrame(definition, now - object.started);
+      if (index == null) continue;
+      const offset = definition.offset || { x: 0, y: 0 };
+      const sprite = this.sprite(`entity:spell:${objectID}`, definition.library, index,
+        object.Location.X * 48 + offset.x, object.Location.Y * 32 + offset.y,
+        object.Location.Y * 32 + 32.05, this.objects, true);
+      if (sprite) {
+        sprite.blendMode = definition.blend ? "add" : "normal";
+        sprite.alpha = definition.blend ? 0.8 : 1;
       }
     }
     this.spellEffects = this.spellEffects.filter((effect) => now - effect.started < effect.effect[3]);
