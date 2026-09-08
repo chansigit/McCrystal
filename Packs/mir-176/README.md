@@ -50,10 +50,13 @@ dotnet Server.Console.dll --pack /path/to/Packs/mir-176/pack.yaml --state state-
 | Recipes | `Envir/MakeItem.txt` | done, 13 of 13 |
 | Conquest | `Envir/Castle/` | done, 1 castle, 16 parts |
 | Quests | `Envir/MapQuest_def/` | nothing to import, see below |
+| Illusion (H001-H010) | `mapinfo.txt` + 105 NPC scripts | done, entered by script `MOVE`, see below |
 
 The pack boots and runs: 386 maps, 172 NPCs, 388 monsters and 53,942 of them
 alive at once on a 14ms loop, 13 recipes, and Sabuk with its gate, three walls
-and twelve wall archers. `--validate-pack` reports 0 errors.
+and twelve wall archers. `--validate-pack` reports 0 errors and 19 warnings, all
+of them faults in 1.76's own tables, and confirms all 154 script teleports land
+on a real map and a cell that can be stood on.
 
 ## Client assets
 
@@ -221,6 +224,33 @@ Crystal 用聊天消息回答，所以这些页去掉 `~` 后留着但没人走�
 它们是孤立的。真正的 1.76 任务内容在 NPC 脚本里，也就是 `market_def/` 里那 254 个还没导入的
 脚本（问答、行会、迷宫引路人那类），那是 NPC 阶段的后续，不是一个独立的任务阶段。
 
+## 幻境（H001–H010）：进得去，但入口不在地图表里
+
+`mapinfo.txt` 里有十张：幻境一层到九层，加屠龙殿（`H010`）。十张的 `.map` 都在包里，
+`mongen.txt` 给它们 229 行刷怪，用的是名字带 `8` 后缀的双倍经验/双倍爆率变体
+（`恶灵僵尸8`、`尸王8`、`暗之牛魔王8`……），这类怪包里有 58 只。地图属性也都接上了：
+十张全是 `NORECALL`，`H007` 额外 `NEEDHOLE`，`H008/H009/H010` 是 `NORECONNECT(H007)`。
+
+**但它的入口一格都不在地图表里。** 幻境不靠传送格进，靠 NPC 脚本里的一行
+`MOVE H001 73 67`——`9worteach-11`、`1Bme-0102`、`8Mri-0158` 等 **105 个已导入的 NPC**
+都挂着这个「挑战/@h1」页。所以之前所有的传送检查都检不到它：`MOVEMENT_*` 那三条只看
+`MapInfo.Movements`，而脚本里的 MOVE 不在那张表上。
+
+而脚本 MOVE 的两种失败方式**都不出声**：地图名对不上，`NPCSegment` 的
+`ActionType.Move` 直接 `return`；坐标落在墙里，`MapObject.Teleport` 返回 `false`
+而没人读。玩家点一下"同意"，NPC 什么也不做，日志里什么也没有。
+
+所以加了 `SCRIPT_MOVE_MAP_MISSING` 和 `SCRIPT_MOVE_BLOCKED` 两条检查，扫 `Envir/NPCs`
+和 `Envir/Quests` 里所有的 MOVE 行。按引擎自己的规则判：地图名照
+`Envir.GetMapByNameAndInstance` 按 `FileName` 不分大小写匹配；只有四段的 MOVE 才读坐标，
+任一轴为 0 是"随机落点"（走 `TeleportRandom`），不算错。
+
+现在的结果：**154 行 MOVE，0 个地图名对不上，0 个落点在墙里**。包括那 105 个幻境入口。
+
+屠龙殿有一行永远不出怪：`H010` 的 `牛头侍卫8` 在 1.76 的 `Monster` 表里根本不存在——
+同一段里另外两行写的是 `牛魔侍卫8`（`Race 81 / Appr 176`，表里有），所以这是 1.76 自己的错字。
+另外 `楔蛾0`（2 行）和 `剧毒蜘蛛0`（1 行）同理：表里只有本体和 `8` 变体，没有 `0` 变体。
+
 ## `market_def` 里那 257 个未引用的脚本：没有可导的
 
 我上一轮说过"1.76 的任务、行会、迷宫引路人、幻境入口都在剩下那 254 个脚本里，要不要接着做"。
@@ -295,6 +325,9 @@ Crystal 认识的全部法术。多出来的 76 个没有对应的技能书（�
 
 **17 行爆率被丢掉。** 点名的 11 种物品 1.76 的 `StdItems` 里没有。
 
+**4 行刷怪点名了不存在的怪。** `牛头侍卫8`（屠龙殿，1.76 自己把 `牛魔侍卫8` 写错了字）、
+`楔蛾0`（2 行）、`剧毒蜘蛛0`——三个名字在 `Monster` 表里都查不到。
+
 
 ## 怪物贴图：`(Race, Appr)` 是那把钥匙
 
@@ -363,6 +396,12 @@ Crystal 认识的全部法术。多出来的 76 个没有对应的技能书（�
 `mongen.txt:671` 把它刷在盟重省（map 3）；那张图的野怪是羊、狼、盔甲虫、多角虫、猎鹰、
 沙虫，对应 `Image 103 / 104 / 105 / 106 / 108 / 109`，块里唯一没被认领的是 **110
 VisceralWorm**；而「威思而」正是 Visceral 的音译。
+
+### 恶灵尸王：88 ToxicGhoul（已确认）
+
+一度有过 152 GhastlyLeeche 的提法。留在这里的是 88，两条依据：这一行是 `crystalm2`
+锚点（247 个同名记录之一，本表最强的一类依据），而 `Appr 143` 又正好是
+142..148 那段连号的第二步，那段连号被六个同名锚点分别验证过。用户看过渲图后确认按 88。
 
 ### 还剩一只
 

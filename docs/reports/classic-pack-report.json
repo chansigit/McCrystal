@@ -1,7 +1,7 @@
 {
   "packId": "crystal-classic",
   "packVersion": "1.0.0",
-  "generatedAtUtc": "2026-09-07T08:33:15.679365Z",
+  "generatedAtUtc": "2026-09-08T22:25:21.681543Z",
   "inventory": {
     "files.configs": 37,
     "files.maps": 1704,
@@ -23,6 +23,15 @@
     "database.npcs": 375,
     "database.quests": 154,
     "database.magic": 111,
+    "geometry.npcs.blocked": 0,
+    "geometry.movements.blocked": 87,
+    "geometry.safezones.blocked": 3,
+    "geometry.respawns.blocked": 48,
+    "conquest.parts": 16,
+    "conquest.parts.blocked": 0,
+    "scripts.moves": 682,
+    "scripts.moves.unknownMap": 27,
+    "scripts.moves.blocked": 3,
     "files.drops.active": 556
   },
   "issues": [
@@ -39,6 +48,1182 @@
       "message": "Map \u00274\u0027 movement at 71,190 targets unknown map index 388 at 77,74.",
       "path": null,
       "entity": "4"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00270\u0027 has a movement whose source 399,225 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00270\u0027 has a movement whose source 403,221 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00270\u0027 sends 322,473 to 0,0 on map 387, which is off the map or a wall.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00270\u0027 sends 323,474 to 0,0 on map 387, which is off the map or a wall.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00270\u0027 sends 414,243 to 0,0 on map 22, which is off the map or a wall.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Warning",
+      "code": "SAFEZONE_CENTRE_BLOCKED",
+      "message": "Map \u00270\u0027 has a safe zone centred on 650,629, which is off the map or a wall.",
+      "path": null,
+      "entity": "0"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00270132\u0027 sends 14,16 to 283,638 on map 1, which is off the map or a wall.",
+      "path": null,
+      "entity": "0132"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00270132\u0027 sends 15,15 to 283,638 on map 1, which is off the map or a wall.",
+      "path": null,
+      "entity": "0132"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D011\u0027 has a movement whose source 147,201 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D011"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D401\u0027 has a movement whose source 176,109 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D401"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D402\u0027 sends 93,108 to 9,10 on map 59, which is off the map or a wall.",
+      "path": null,
+      "entity": "D402"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D402\u0027 sends 137,108 to 9,10 on map 59, which is off the map or a wall.",
+      "path": null,
+      "entity": "D402"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00271\u0027 has a movement whose source 46,170 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "1"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00271\u0027 has a movement whose source 157,404 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "1"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00274\u0027 has a movement whose source 70,191 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "4"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00274\u0027 has a movement whose source 71,190 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "4"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D2004\u0027 sends 77,77 to 30,92 on map 87, which is off the map or a wall.",
+      "path": null,
+      "entity": "D2004"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D2007\u0027 sends 95,23 to 30,11 on map 89, which is off the map or a wall.",
+      "path": null,
+      "entity": "D2007"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027UMM\u0027 sends 458,198 to 155,402 on map 64, which is off the map or a wall.",
+      "path": null,
+      "entity": "UMM"
+    },
+    {
+      "severity": "Warning",
+      "code": "SAFEZONE_CENTRE_BLOCKED",
+      "message": "Map \u0027UMM\u0027 has a safe zone centred on 131,177, which is off the map or a wall.",
+      "path": null,
+      "entity": "UMM"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00272\u0027 has a movement whose source 299,57 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "2"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027LABY02\u0027 sends 71,64 to 41,142 on map 154, which is off the map or a wall.",
+      "path": null,
+      "entity": "LABY02"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027SnakePre2\u0027 has a movement whose source 13,263 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "SnakePre2"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027SnakePre\u0027 has a movement whose source 12,31 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "SnakePre"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027SnakePre\u0027 sends 12,31 to 289,208 on map 163, which is off the map or a wall.",
+      "path": null,
+      "entity": "SnakePre"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027E601\u0027 has a movement whose source 9,197 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "E601"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00273\u0027 has a movement whose source 551,777 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "3"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00273\u0027 sends 305,368 to 8,19 on map 175, which is off the map or a wall.",
+      "path": null,
+      "entity": "3"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00273\u0027 has a movement whose source 665,769 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "3"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D604\u0027 has a movement whose source 13,19 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D604"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D604\u0027 sends 13,19 to 63,83 on map 186, which is off the map or a wall.",
+      "path": null,
+      "entity": "D604"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D605\u0027 has a movement whose source 64,82 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D605"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D605\u0027 sends 64,82 to 14,20 on map 185, which is off the map or a wall.",
+      "path": null,
+      "entity": "D605"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D615\u0027 has a movement whose source 65,82 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D615"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D618\u0027 sends 149,65 to 13,14 on map 184, which is off the map or a wall.",
+      "path": null,
+      "entity": "D618"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D714\u0027 has a movement whose source 381,181 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D714"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D714\u0027 spawns monster 168 at 309,19 with spread 40, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D714"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D714\u0027 spawns monster 171 at 309,19 with spread 40, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D714"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D714\u0027 spawns monster 150 at 309,19 with spread 40, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D714"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D71621\u0027 sends 37,35 to 18,13 on map 233, which is off the map or a wall.",
+      "path": null,
+      "entity": "D71621"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D711A\u0027 has a movement whose source 364,195 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D711A"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u00270157\u0027 has a movement whose source 20,5 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "0157"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501\u0027 spawns monster 192 at 100,660 with spread 120, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501\u0027 spawns monster 192 at 660,100 with spread 120, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501\u0027 spawns monster 192 at 660,660 with spread 120, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D5061\u0027 has a movement whose source 15,17 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D5061"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D5062\u0027 sends 14,16 to 34,39 on map 210, which is off the map or a wall.",
+      "path": null,
+      "entity": "D5062"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D5065\u0027 has a movement whose source 70,10 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D5065"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D5066\u0027 has a movement whose source 84,45 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D5066"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D5068\u0027 sends 91,11 to 60,16 on map 268, which is off the map or a wall.",
+      "path": null,
+      "entity": "D5068"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D5068\u0027 sends 92,38 to 34,44 on map 268, which is off the map or a wall.",
+      "path": null,
+      "entity": "D5068"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027D5068\u0027 sends 90,70 to 9,77 on map 268, which is off the map or a wall.",
+      "path": null,
+      "entity": "D5068"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501A\u0027 spawns monster 207 at 100,660 with spread 120, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501A"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501A\u0027 spawns monster 207 at 660,100 with spread 120, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501A"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D501A\u0027 spawns monster 207 at 660,660 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D501A"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u00275\u0027 sends 527,610 to 153,183 on map 296, which is off the map or a wall.",
+      "path": null,
+      "entity": "5"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027D2075\u0027 has a movement whose source 37,110 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 367 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 150,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 367 at 150,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 250,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 369 at 250,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 365 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 350,150 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 365 at 350,150 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 350,250 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 369 at 350,250 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 361 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 369 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 373 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 366 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 368 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2075\u0027 spawns monster 364 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2075"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 367 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 150,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 367 at 150,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 250,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 369 at 250,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 365 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 350,150 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 365 at 350,150 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 350,250 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 369 at 350,250 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 361 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 369 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 373 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 366 at 50,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 368 at 350,50 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027D2076\u0027 spawns monster 364 at 350,350 with spread 100, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "D2076"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002762\u0027 sends 348,52 to 134,423 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "62"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002762\u0027 sends 347,53 to 133,429 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "62"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002762\u0027 sends 346,54 to 132,430 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "62"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002762\u0027 sends 345,55 to 131,431 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "62"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u002762\u0027 has a movement whose source 350,169 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "62"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 62,466 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 61,466 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 60,467 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 59,468 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 58,469 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 56,471 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 135,429 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 134,430 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 133,431 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 132,432 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 166,56 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 165,57 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 164,58 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 35,262 to 365,142 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 34,263 to 366,141 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 33,264 to 367,140 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 32,265 to 368,139 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 31,266 to 369,138 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027622\u0027 has a movement whose source 30,269 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 30,269 to 370,137 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027622\u0027 sends 265,36 to 357,365 on map 325, which is off the map or a wall.",
+      "path": null,
+      "entity": "622"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002763\u0027 sends 255,369 to 262,31 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "63"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u002763\u0027 sends 254,370 to 261,32 on map 324, which is off the map or a wall.",
+      "path": null,
+      "entity": "63"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027HELL03\u0027 sends 277,27 to 55,33 on map 338, which is off the map or a wall.",
+      "path": null,
+      "entity": "HELL03"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027HELL03\u0027 sends 275,26 to 55,33 on map 338, which is off the map or a wall.",
+      "path": null,
+      "entity": "HELL03"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027HELL206\u0027 spawns monster 398 at 156,232 with spread 50, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "HELL206"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027HELL206\u0027 spawns monster 398 at 360,208 with spread 50, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "HELL206"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027HF1\u0027 sends 284,281 to 25,43 on map 345, which is off the map or a wall.",
+      "path": null,
+      "entity": "HF1"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027R02\u0027 sends 284,165 to 0,0 on map 351, which is off the map or a wall.",
+      "path": null,
+      "entity": "R02"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027R08\u0027 has a movement whose source 18,91 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "R08"
+    },
+    {
+      "severity": "Warning",
+      "code": "SAFEZONE_CENTRE_BLOCKED",
+      "message": "Map \u0027WhiteVillage\u0027 has a safe zone centred on 318,278, which is off the map or a wall.",
+      "path": null,
+      "entity": "WhiteVillage"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027SnowCave_2F\u0027 has a movement whose source 36,266 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "SnowCave_2F"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u002701041\u0027 has a movement whose source 0,0 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "01041"
+    },
+    {
+      "severity": "Warning",
+      "code": "RESPAWN_NOWHERE_TO_STAND",
+      "message": "Map \u0027GA31\u0027 spawns monster 4 at 12,73 with spread 0, and no cell in that area can be stood on, so nothing ever spawns there.",
+      "path": null,
+      "entity": "GA31"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027DogYoHyun\u0027 sends 575,150 to 0,0 on map 441, which is off the map or a wall.",
+      "path": null,
+      "entity": "DogYoHyun"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027DogYoHyun\u0027 has a movement whose source 531,297 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "DogYoHyun"
+    },
+    {
+      "severity": "Warning",
+      "code": "MOVEMENT_SOURCE_BLOCKED",
+      "message": "Map \u0027DogYoMineLobby\u0027 has a movement whose source 0,0 cannot be stood on, so it can never trigger.",
+      "path": null,
+      "entity": "DogYoMineLobby"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027DY_Smithy\u0027 sends 8,19 to 0,0 on map 440, which is off the map or a wall.",
+      "path": null,
+      "entity": "DY_Smithy"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027DY_Smithy\u0027 sends 9,20 to 0,0 on map 440, which is off the map or a wall.",
+      "path": null,
+      "entity": "DY_Smithy"
+    },
+    {
+      "severity": "Error",
+      "code": "MOVEMENT_DESTINATION_BLOCKED",
+      "message": "Map \u0027DY_Smithy\u0027 sends 8,18 to 0,0 on map 440, which is off the map or a wall.",
+      "path": null,
+      "entity": "DY_Smithy"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_BLOCKED",
+      "message": "Script \u0027TrollMine.txt\u0027 moves the player to 235,33 on \u0027SG003\u0027, which is off the map or a wall, so the teleport fails with no message.",
+      "path": "Envir/NPCs/WoomyonWoods/TrollMine.txt",
+      "entity": "SG003"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to map \u00270161\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "0161"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to map \u0027whitevilage\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "whitevilage"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to map \u0027R010\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "R010"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to map \u0027R011\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "R011"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to map \u0027R012\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "R012"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_BLOCKED",
+      "message": "Script \u0027GM-Teleporter.txt\u0027 moves the player to 379,282 on \u0027D2077\u0027, which is off the map or a wall, so the teleport fails with no message.",
+      "path": "Envir/NPCs/GM/GM-Teleporter.txt",
+      "entity": "D2077"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027Signpost.txt\u0027 moves the player to map \u0027whitevilage\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/WhiteValley/Encampment/Signpost.txt",
+      "entity": "whitevilage"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA9.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA9/GTTeleporter-GA9.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA9.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA9/GTTeleporter-GA9.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA7.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA7/GTTeleporter-GA7.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA7.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA7/GTTeleporter-GA7.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA0.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA0/GTTeleporter-GA0.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA0.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA0/GTTeleporter-GA0.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA1.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA1/GTTeleporter-GA1.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA1.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA1/GTTeleporter-GA1.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA6.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA6/GTTeleporter-GA6.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA6.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA6/GTTeleporter-GA6.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA8.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA8/GTTeleporter-GA8.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA8.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA8/GTTeleporter-GA8.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA3.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA3/GTTeleporter-GA3.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA3.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA3/GTTeleporter-GA3.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA4.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA4/GTTeleporter-GA4.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA4.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA4/GTTeleporter-GA4.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA5.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA5/GTTeleporter-GA5.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA5.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA5/GTTeleporter-GA5.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA2.txt\u0027 moves the player to map \u00277\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA2/GTTeleporter-GA2.txt",
+      "entity": "7"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027GTTeleporter-GA2.txt\u0027 moves the player to map \u0027peunmok_village\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/GuildTerritory/GA2/GTTeleporter-GA2.txt",
+      "entity": "peunmok_village"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_MAP_MISSING",
+      "message": "Script \u0027Signpost-3.txt\u0027 moves the player to map \u00270161\u0027, which the pack does not have, so the NPC will silently do nothing.",
+      "path": "Envir/NPCs/MongchonProvince/MudWall/Signpost-3.txt",
+      "entity": "0161"
+    },
+    {
+      "severity": "Error",
+      "code": "SCRIPT_MOVE_BLOCKED",
+      "message": "Script \u0027Pillar.txt\u0027 moves the player to 235,33 on \u0027SG003\u0027, which is off the map or a wall, so the teleport fails with no message.",
+      "path": "Envir/NPCs/WoomyonWoods/SeokchoValley/TrollMine/Pillar.txt",
+      "entity": "SG003"
     },
     {
       "severity": "Warning",
@@ -118,6 +1303,6 @@
       "entity": "Formal2(M)"
     }
   ],
-  "errorCount": 2,
-  "warningCount": 11
+  "errorCount": 75,
+  "warningCount": 106
 }

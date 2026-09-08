@@ -284,8 +284,33 @@ wrong sprite still loads. A spawn on a wall never fires. A conquest part whose A
 is not 81/82/80 returns from `ConquestGuildInfo.Spawn` without a word. A crafting
 NPC read as a shop happily sells 赤血魔剑 for gold -- which it did, until the
 importer learned to require both `[@makedrug]` and an all-recipe `[goods]` block.
-The new validator codes `RESPAWN_NOWHERE_TO_STAND` and `CONQUEST_PART_BLOCKED`
-exist to make two of those speak.
+The validator codes `RESPAWN_NOWHERE_TO_STAND`, `CONQUEST_PART_BLOCKED`,
+`SCRIPT_MOVE_MAP_MISSING` and `SCRIPT_MOVE_BLOCKED` exist to make four of those
+speak.
+
+The last two came out of asking whether the illusion floors work. They do -- ten
+maps, 229 spawn lines of the `8`-suffixed double-drop variants, `NORECALL` on all
+ten and `NORECONNECT(H007)` on the top three -- but **the way in is not in the map
+tables at all.** There is no movement cell to 幻境 anywhere; it is entered by a
+single `MOVE H001 73 67` inside 105 NPC scripts, which every existing teleport
+check was blind to. Both ways a script `MOVE` can fail are silent: an unknown map
+name gets a bare `return` from `NPCSegment`, and a destination in a wall gets a
+`false` from `MapObject.Teleport` that nothing reads, so the NPC takes the click
+and does nothing. All 154 script moves in the pack now check out.
+
+Honouring the script's own sections is the part that took a second pass. A first
+version read every line of the file and reported the classic pack's Peddlar as
+teleporting to a map called "to" -- the line was prose in a `#SAY` block, "move
+to another place on that floor". `NPCScript.ParseSegment` treats a line as a
+command only inside `#ACT` or `#ELSEACT`, so the check does too, and 33 of its 60
+findings on that pack turned out to be that mistake.
+
+The 27 that survived are real, and they are in **`classic`**, not here: every one
+of the eleven guild-territory teleporters offers two destinations, `7` and
+`peunmok_village`, that its own map table does not contain, and the GM teleporter
+offers four more. `docs/reports/classic-pack-report.json` has been regenerated --
+it had been written before the geometry checks existed and still claimed 2 errors,
+where that pack now reports 75 errors and 106 warnings against mir-176's 0 and 19.
 
 ## Finding where a monster lives
 
@@ -329,10 +354,8 @@ the fleeing ones are worth more when skinned. They look identical.
 - Guild and conquest polish is deprioritised by the user. The 17 castle shop
   surcharges and the refine window both need an owning guild to be seen
   end-to-end.
-- `152 GhastlyLeeche` is unclaimed. The user reads it as 恶灵尸王; the run-based
-  evidence puts 恶灵尸王 on 88 ToxicGhoul (`Appr 143`, the second step of a
-  six-times-verified 142..148 run), so the table still says 88 pending their
-  decision.
+- ~~`152 GhastlyLeeche`~~ settled: the user confirmed 恶灵尸王 stays on 88
+  ToxicGhoul. 152 is unclaimed and nothing in the pack needs it.
 
 ## Tests
 

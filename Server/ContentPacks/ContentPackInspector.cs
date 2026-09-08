@@ -92,8 +92,10 @@ namespace Server.ContentPacks
 
             var maps = environment.MapInfoList.GroupBy(map => map.Index).ToDictionary(group => group.Key, group => group.First());
             var monsters = environment.MonsterInfoList.GroupBy(monster => monster.Index).ToDictionary(group => group.Key, group => group.First());
+            var terrain = new Terrain(maps);
             CheckMaps(pack, environment, maps, monsters, report);
-            CheckGeometry(environment, maps, report);
+            CheckGeometry(environment, terrain, report);
+            CheckScriptTeleports(pack, environment, maps, terrain, report);
             CheckNpcs(pack, environment, maps, report);
             CheckQuests(pack, environment, report);
             CheckDrops(pack, environment, report);
@@ -162,37 +164,9 @@ namespace Server.ContentPacks
         /// such a placement by silently skipping it (Map.cs:493), which is how a shop NPC or a
         /// teleport can be simply absent with no error anywhere.
         /// </summary>
-        private static void CheckGeometry(Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,
-            ContentPackReport report)
+        private static void CheckGeometry(Envir environment, Terrain terrain, ContentPackReport report)
         {
-            // Loaded through the engine's own Map so the verdict here is the verdict at run
-            // time, wall rules and map format variants included. Only the walkable bits are
-            // kept: a Map holds a cell object per square, and holding 386 of those at once
-            // costs gigabytes, where the same answer fits in one bit per square.
-            var walkable = new Dictionary<int, (int Width, int Height, System.Collections.BitArray Cells)>();
-            (int Width, int Height, System.Collections.BitArray Cells)? Open(int index)
-            {
-                if (walkable.TryGetValue(index, out var cached))
-                    return cached.Cells == null ? null : cached;
-                if (!maps.TryGetValue(index, out var info))
-                {
-                    walkable[index] = default;
-                    return null;
-                }
-                var map = new Map(info);
-                if (!map.Load())
-                {
-                    walkable[index] = default;
-                    return null;
-                }
-                var bits = new System.Collections.BitArray(map.Width * map.Height);
-                for (int x = 0; x < map.Width; x++)
-                    for (int y = 0; y < map.Height; y++)
-                        bits[y * map.Width + x] = map.ValidPoint(x, y);
-                var entry = (map.Width, map.Height, bits);
-                walkable[index] = entry;
-                return entry;
-            }
+            var Open = terrain.Open;
             static bool Valid((int Width, int Height, System.Collections.BitArray Cells) map, System.Drawing.Point at)
                 => at.X >= 0 && at.X < map.Width && at.Y >= 0 && at.Y < map.Height
                     && map.Cells[at.Y * map.Width + at.X];
@@ -300,6 +274,142 @@ namespace Server.ContentPacks
             report.Inventory["geometry.respawns.blocked"] = blockedRespawns;
             report.Inventory["conquest.parts"] = conquestParts;
             report.Inventory["conquest.parts.blocked"] = blockedConquest;
+        }
+
+        /// <summary>
+        /// A map's walkable bits, loaded through the engine's own Map so the verdict here is
+        /// the verdict at run time -- wall rules and map format variants included. Only the
+        /// bits are kept: a Map holds a cell object per square, and holding 386 of those at
+        /// once costs gigabytes where the same answer fits in one bit per square. Shared, so
+        /// the checks that ask about terrain load each map once between them.
+        /// </summary>
+        private sealed class Terrain
+        {
+            private readonly Dictionary<int, Server.MirDatabase.MapInfo> _maps;
+            private readonly Dictionary<int, (int Width, int Height, System.Collections.BitArray Cells)> _cache = new();
+
+            public Terrain(Dictionary<int, Server.MirDatabase.MapInfo> maps) => _maps = maps;
+
+            public (int Width, int Height, System.Collections.BitArray Cells)? Open(int index)
+            {
+                if (_cache.TryGetValue(index, out var cached))
+                    return cached.Cells == null ? null : cached;
+                if (!_maps.TryGetValue(index, out var info))
+                {
+                    _cache[index] = default;
+                    return null;
+                }
+                var map = new Map(info);
+                if (!map.Load())
+                {
+                    _cache[index] = default;
+                    return null;
+                }
+                var bits = new System.Collections.BitArray(map.Width * map.Height);
+                for (int x = 0; x < map.Width; x++)
+                    for (int y = 0; y < map.Height; y++)
+                        bits[y * map.Width + x] = map.ValidPoint(x, y);
+                var entry = (map.Width, map.Height, bits);
+                _cache[index] = entry;
+                return entry;
+            }
+        }
+
+        /// <summary>
+        /// Every teleport a script can execute, read the way NPCScript.ParseSegment reads the
+        /// same file. Three details of that parser matter here.
+        ///
+        /// A line is a command only inside an `#ACT` or `#ELSEACT` section: `#SAY` holds prose,
+        /// and prose says things like "move to another place on that floor", which is not a
+        /// teleport to a map called "to". A `[@page]` line starts a new page back in its
+        /// default say section.
+        ///
+        /// Coordinates are read only from a four-token MOVE (`parts.Length > 3`), and the act
+        /// treats a zero on either axis as "anywhere" and hands the player to TeleportRandom,
+        /// which finds its own cell. So a zero here means "no fixed destination", not 0,0.
+        /// </summary>
+        internal static IEnumerable<(string Map, int X, int Y)> ScriptMoves(IEnumerable<string> lines)
+        {
+            bool acting = false;
+            foreach (var raw in lines)
+            {
+                var line = (raw ?? string.Empty).Trim();
+                if (line.Length == 0 || line.StartsWith(";")) continue;
+                if (line.StartsWith("[") && line.EndsWith("]")) { acting = false; continue; }
+                if (line.StartsWith("#"))
+                {
+                    var section = line.Substring(1).Trim().Split(' ')[0].ToUpperInvariant();
+                    acting = section is "ACT" or "ELSEACT";
+                    continue;
+                }
+                if (!acting) continue;
+
+                var parts = line.Split(new[] { ' ', '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < 2 || !parts[0].Equals("MOVE", StringComparison.OrdinalIgnoreCase)) continue;
+                if (parts.Length < 4
+                    || !int.TryParse(parts[2], out int x) || !int.TryParse(parts[3], out int y))
+                {
+                    yield return (parts[1], 0, 0);
+                    continue;
+                }
+                yield return (parts[1], x, y);
+            }
+        }
+
+        /// <summary>
+        /// Checks every `MOVE` a script can execute. This is the only kind of teleport the
+        /// map tables know nothing about, and it is how a whole region is entered: the ten
+        /// illusion floors have no movement cell anywhere, just `MOVE H001 73 67` inside 105
+        /// NPC scripts. Both ways it can fail are silent -- NPCSegment answers an unknown map
+        /// name with a bare `return`, and MapObject.Teleport answers a destination in a wall
+        /// with `false` that nothing reads -- so the NPC takes the player's click and does
+        /// nothing at all.
+        /// </summary>
+        private static void CheckScriptTeleports(ContentPack pack, Envir environment,
+            Dictionary<int, Server.MirDatabase.MapInfo> maps, Terrain terrain, ContentPackReport report)
+        {
+            // Envir.GetMapByNameAndInstance matches Info.FileName case-insensitively and
+            // takes the first of any duplicates for instance 0, which is what a plain MOVE is.
+            var byName = new Dictionary<string, Server.MirDatabase.MapInfo>(StringComparer.OrdinalIgnoreCase);
+            foreach (var map in environment.MapInfoList)
+                if (map.FileName != null && !byName.ContainsKey(map.FileName)) byName[map.FileName] = map;
+
+            static bool Valid((int Width, int Height, System.Collections.BitArray Cells) map, int x, int y)
+                => x >= 0 && x < map.Width && y >= 0 && y < map.Height && map.Cells[y * map.Width + x];
+
+            int moves = 0, unknownMaps = 0, blocked = 0;
+            foreach (var root in new[] { "NPCs", "Quests" })
+            {
+                var directory = Path.Combine(pack.EnvirPath, root);
+                if (!Directory.Exists(directory)) continue;
+                foreach (var file in Directory.EnumerateFiles(directory, "*.txt", SearchOption.AllDirectories))
+                {
+                    foreach (var move in ScriptMoves(File.ReadLines(file)))
+                    {
+                        moves++;
+                        if (!byName.TryGetValue(move.Map, out var target))
+                        {
+                            unknownMaps++;
+                            Add(report, ContentIssueSeverity.Error, "SCRIPT_MOVE_MAP_MISSING",
+                                $"Script '{Path.GetFileName(file)}' moves the player to map '{move.Map}', which the pack "
+                                + "does not have, so the NPC will silently do nothing.", file, move.Map);
+                            continue;
+                        }
+                        if (move.X <= 0 || move.Y <= 0) continue;
+                        if (terrain.Open(target.Index) is not { } loaded) continue;
+                        if (Valid(loaded, move.X, move.Y)) continue;
+                        blocked++;
+                        Add(report, ContentIssueSeverity.Error, "SCRIPT_MOVE_BLOCKED",
+                            $"Script '{Path.GetFileName(file)}' moves the player to {move.X},{move.Y} on "
+                            + $"'{target.FileName}', which is off the map or a wall, so the teleport fails with "
+                            + "no message.", file, target.FileName);
+                    }
+                }
+            }
+
+            report.Inventory["scripts.moves"] = moves;
+            report.Inventory["scripts.moves.unknownMap"] = unknownMaps;
+            report.Inventory["scripts.moves.blocked"] = blocked;
         }
 
         private static void CheckNpcs(ContentPack pack, Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,

@@ -24,6 +24,7 @@ var tests = new (string Name, Action Run)[]
     ("Content packs resolve gameplay separately from runtime state", ContentPackPaths),
     ("Content packs reject a mismatched database schema", ContentPackSchema),
     ("Content pack reports serialize stable JSON", ContentPackReportJson),
+    ("Script MOVE lines are read the way the NPC parser reads them", ScriptMoveReading),
     ("Classic map headers report dimensions and format", ClassicMapInspection),
     ("Titled classic maps use 12-byte cells", TitledClassicMapInspection),
     ("C# map headers enforce their version", CSharpMapInspection),
@@ -151,6 +152,36 @@ static void ContentPackReportJson()
         var directory = Path.GetDirectoryName(path);
         if (Directory.Exists(directory)) Directory.Delete(directory);
     }
+}
+
+static void ScriptMoveReading()
+{
+    static List<(string Map, int X, int Y)> Read(params string[] lines)
+        => ContentPackInspector.ScriptMoves(lines).ToList();
+
+    // A four-token MOVE inside #ACT is the only form carrying a destination worth checking.
+    var full = Read("[@h2]", "#IF", "#ACT", "MOVE H001 73 67");
+    Check(full.Count == 1 && full[0] == ("H001", 73, 67));
+    // Tabs separate as well as spaces, and 1.76's scripts use both.
+    Check(Read("#ACT", "\tmove\tD2012\t12\t30\t").Single() == ("D2012", 12, 30));
+    Check(Read("#ELSEACT", "MOVE 3 100 100").Single() == ("3", 100, 100));
+
+    // NPCSegment reads coordinates only from parts.Length > 3, so a short MOVE is a random
+    // landing, and so is a zero on either axis -- both go through TeleportRandom, which finds
+    // its own cell. Reporting 0,0 as a blocked destination would be a false error.
+    Check(Read("#ACT", "MOVE H001").Single() == ("H001", 0, 0));
+    Check(Read("#ACT", "MOVE H001 0 67").Single() == ("H001", 0, 67));
+    Check(Read("#ACT", "MOVE H001 abc 67").Single() == ("H001", 0, 0));
+
+    // Only #ACT and #ELSEACT hold commands. #SAY holds prose, and the classic pack's own
+    // Peddlar says "move to another place on that floor", which is not a teleport to a map
+    // called "to". This exact line was a false error before the sections were honoured.
+    Check(Read("#SAY", "move to another place on that floor by using the RT.").Count == 0);
+    Check(Read("#IF", "MOVE H001 1 1").Count == 0);
+    // A page header returns to the default say section.
+    Check(Read("#ACT", "MOVE H001 1 1", "[@next]", "MOVE H002 2 2").Single() == ("H001", 1, 1));
+    // Comments and blanks are skipped, and a command whose name merely starts with MOVE is not one.
+    Check(Read("#ACT", ";MOVE H001 1 1", "", "MOVEMENT H001 1 1", "INSTANCEMOVE H001 1 1 1", "MOVE").Count == 0);
 }
 
 static void ClassicMapInspection()
