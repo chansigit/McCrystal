@@ -288,6 +288,10 @@ function receive(type, p) {
     case "PlaySound":
       if (Number.isInteger(p.Sound) && p.Sound > 0 && p.Sound <= 999999) gameAudio.play(p.Sound);
       break;
+    // The day/night cycle, which only reaches a map whose own setting is Normal.
+    case "TimeOfDay":
+      world.worldLights = p.Lights;
+      break;
     case "WorldMapSetupInfo": world.minimap.setWorld(p.Setup); break;
     case "NewMapInfo": world.minimap.receive(p.MapIndex, p.Info); break;
     case "NPCUpdate": npc.objectID = p.NPCID; break;
@@ -424,6 +428,10 @@ function receive(type, p) {
       gameAudio.setMusic(p.Music);
       if (type === "MapChanged" && state.user) resetMotion(state.user, p.Location, p.Direction);
       world.minimap.setInfo(p);
+      // 165 of this pack's maps declare themselves dark, and a map set to Normal follows
+      // the server's own clock instead (GameScene.cs:10589).
+      world.mapLights = p.Lights;
+      world.mapDarkLight = p.MapDarkLight;
       npc.close();
       skills.cancel();
       cancelAttack();
@@ -500,6 +508,10 @@ function receive(type, p) {
         // A statue can already be stoned when it comes into view; the spawn packet
         // says so and native reads it before picking the first action.
         stoned: type === "ObjectMonster" && stonedAtSpawn(p),
+        // S.ObjectNPC carries no light, and native gives every merchant the same one
+        // (Client/MirObjects/NPCObject.cs:69) -- which is what makes a shop visible from
+        // across a dark town.
+        ...(type === "ObjectNPC" ? { Light: 10 } : {}),
       });
       world.preloadEntity(world.entities.get(p.ObjectID));
       break;
@@ -878,7 +890,11 @@ function updateHud() {
 // Equipment carries BagWeight and every item carries weight, so the bar moves on stat
 // changes and on inventory changes alike.
 function updateWeight() {
-  weight.update(characterStats.summary());
+  const summary = characterStats.summary();
+  weight.update(summary);
+  // The same pass that totals the bag also says how far the character lights the ground,
+  // because both come from the equipment the server never re-describes to its own player.
+  if (state.user && summary) state.user.Light = summary.light;
   $("hud-gold").textContent = Number(state.user?.Gold || 0).toLocaleString();
 }
 function gainItem(item) {

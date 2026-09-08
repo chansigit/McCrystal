@@ -267,11 +267,19 @@ function applyCaps(stats, caps) {
 
 // UserObject.RefreshStats, in the same order: level growth, bag weight, equipment (with its
 // sockets), item sets, the Mir set, passive skills and buffs, then the rate percentages and caps.
+// `if (this == User && Light < 3) Light = 3` -- the floor native gives the local player and
+// nobody else. Other players' lights arrive from the server in S.ObjectPlayer.Light.
+export const USER_MIN_LIGHT = 3;
+
 export function refreshStats(user, infos = new Map(), baseStats = null, buffs = []) {
   const stats = {};
   const notes = { baseStats: !!baseStats, unknown: 0, awakened: 0 };
   const weights = { bag: 0, wear: 0, hand: 0 };
-  if (!user) return { stats, weights, notes };
+  // How far the character lights the ground. The server never tells its own player this:
+  // UpdateLooks only Broadcasts, which excludes the sender, so native computes it here
+  // from equipment instead (UserObject.RefreshStats and its equipment loops).
+  let light = 0;
+  if (!user) return { stats, weights, notes, light: USER_MIN_LIGHT };
   const job = user.Class | 0, level = user.Level | 0;
   const info = (item) => (item ? infos.get(item.ItemIndex) : null);
   Object.assign(stats, levelStats(baseStats, job, level));
@@ -298,6 +306,7 @@ export function refreshStats(user, infos = new Map(), baseStats = null, buffs = 
       if (real.Type === WEAPON || real.Type === TORCH) weights.hand += itemWeight(socket, origin);
       else weights.wear += itemWeight(socket, origin);
       if (socket.CurrentDura === 0 && real.Durability > 0) continue;
+      if (real.Light > light) light = real.Light;
       add(stats, real.Stats);
       add(stats, socket.AddedStats);
       mode |= real.Unique || 0;
@@ -314,6 +323,7 @@ export function refreshStats(user, infos = new Map(), baseStats = null, buffs = 
     else weights.wear += itemWeight(item, origin);
     if (item.CurrentDura === 0 && real.Durability > 0) continue;
     if (FISHING_ROD_SHAPES.includes(origin.Shape)) continue;
+    if (real.Light > light) light = real.Light;
     add(stats, real.Stats);
     add(stats, item.AddedStats);
     if (item.Awake?.Type) notes.awakened++;
@@ -341,7 +351,9 @@ export function refreshStats(user, infos = new Map(), baseStats = null, buffs = 
     ["AttackSpeed", "AttackSpeedRatePercent"]])
     bump(stats, name, Math.trunc(value(stats, name) * value(stats, percent) / 100));
   applyCaps(stats, baseStats?.Caps);
-  return { stats, weights, notes };
+  // A player carrying nothing still sees a little way, which is the difference between a
+  // dark map and a black screen (UserObject.cs:172).
+  return { stats, weights, notes, light: Math.max(light, USER_MIN_LIGHT) };
 }
 
 // CharacterDialog's own formats (Client/MirScenes/Dialogs/CharacterDialog.cs:96-128).
@@ -432,10 +444,11 @@ export class CharacterStats {
   summary() {
     const user = this.getUser();
     if (!user) return null;
-    const { stats, weights } = refreshStats(user, this.getInfos(), this.baseStats, [...this.buffs.values()]);
+    const { stats, weights, light } = refreshStats(user, this.getInfos(), this.baseStats, [...this.buffs.values()]);
     return {
       current: weights.bag,
       capacity: stats.BagWeight,
+      light,
       // SpaceLabel counts empty inventory slots, belt included (MainDialogs.cs:462).
       free: user.Inventory.filter((slot) => !slot).length,
     };

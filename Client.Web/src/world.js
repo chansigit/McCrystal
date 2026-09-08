@@ -1,4 +1,4 @@
-import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js";
+import { Application, Container, Sprite, Text, Assets, Graphics, RenderTexture, Texture } from "pixi.js";
 import PF from "pathfinding";
 import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
 import { textureBytes, textureEvictions } from "./texture-budget.js";
@@ -14,9 +14,29 @@ import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS 
 import { objectEffects } from "./object-effect.js";
 import { monsterOverlays } from "./monster-overlay.js";
 import { poisonTint, poisonDots } from "./poison.js";
+import { effectiveSetting, needsDarkness, darknessColour, lightsFor, LIGHT_STOPS,
+  LIGHT_SETTING } from "./lighting.js";
 import { createMissile } from "./missile.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
   liveAction, manualDrawOffset, MOVING_ACTIONS, MOUNT_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
+
+// DXManager.CreateLights paints one radial gradient and reuses it at every size, so this
+// builds it once at a generous resolution and lets the sprite scale it.
+let LIGHT_TEXTURE = null;
+function lightTexture() {
+  if (LIGHT_TEXTURE) return LIGHT_TEXTURE;
+  const size = 256;
+  const canvas = document.createElement("canvas");
+  canvas.width = canvas.height = size;
+  const context = canvas.getContext("2d");
+  const gradient = context.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+  for (const [stop, level, alpha] of LIGHT_STOPS)
+    gradient.addColorStop(stop, `rgba(${level},${level},${level},${alpha / 255})`);
+  context.fillStyle = gradient;
+  context.fillRect(0, 0, size, size);
+  LIGHT_TEXTURE = Texture.from(canvas);
+  return LIGHT_TEXTURE;
+}
 
 export const directions = [
   [0, -1],
@@ -78,7 +98,16 @@ export class World {
     this.floor = new Container();
     this.objects = new Container();
     this.objects.sortableChildren = true;
-    this.app.stage.addChild(this.floor, this.objects);
+    // Darkness is a multiply pass over the finished scene, so it renders into a texture
+    // of its own first: the lights inside it are additive against the dark ground, not
+    // against the screen.
+    this.lightScene = new Container();
+    this.lightDark = new Graphics();
+    this.lightScene.addChild(this.lightDark);
+    this.lightLayer = new Sprite();
+    this.lightLayer.blendMode = "multiply";
+    this.lightLayer.visible = false;
+    this.app.stage.addChild(this.floor, this.objects, this.lightLayer);
     this.app.canvas.addEventListener("contextmenu", (e) => e.preventDefault());
     this.app.canvas.addEventListener("pointermove", (e) => {
       this.hoverPointer = { clientX: e.clientX, clientY: e.clientY };
@@ -969,6 +998,7 @@ export class World {
       text.position.set(event.location.X * 48 + 15, event.location.Y * 32 - 75 - elapsed * (50 / 900));
       text.alpha = Math.min(1, (900 - elapsed) / 300); text.zIndex = 1000000; text.seen = this.tick;
     }
+    this.drawLighting([...this.entities.values(), u], u, scale, now);
     for (const [key, node] of this.nodes)
       if (node.seen !== this.tick) {
         node.destroy();
@@ -981,6 +1011,55 @@ export class World {
       }
     this.trimTextures();
   }
+  /// <summary>The night, and the holes the actors' own lights burn in it.</summary>
+  // Native clears a full-screen target to the ambient colour, blends one soft ellipse per
+  // lit actor, and multiplies the scene by the result (GameScene.DrawLights). This does
+  // the same with a RenderTexture, which is why the sprites inside lightScene can be
+  // additive without lighting up the page behind the canvas.
+  drawLighting(actors, user, scale, now) {
+    const setting = effectiveSetting(this.mapLights ?? LIGHT_SETTING.Day,
+      this.worldLights ?? LIGHT_SETTING.Day);
+    if (!needsDarkness(setting)) {
+      this.lightLayer.visible = false;
+      return;
+    }
+    const width = this.app.screen.width, height = this.app.screen.height;
+    if (this.lightTexture?.width !== width || this.lightTexture?.height !== height) {
+      this.lightTexture?.destroy(true);
+      this.lightTexture = RenderTexture.create({ width, height });
+      this.lightLayer.texture = this.lightTexture;
+    }
+    this.lightDark.clear();
+    this.lightDark.rect(0, 0, width, height).fill(darknessColour(setting, this.mapDarkLight));
+    let used = 0;
+    for (const { entity, size, colour } of lightsFor(actors, user)) {
+      const position = motionPosition(entity, now);
+      const key = used++;
+      let sprite = this.lightNodes?.[key];
+      if (!sprite) {
+        sprite = new Sprite(lightTexture());
+        sprite.anchor.set(0.5);
+        sprite.blendMode = "add";
+        this.lightScene.addChild(sprite);
+        (this.lightNodes ||= [])[key] = sprite;
+      }
+      // The ellipse is placed in screen space, on the actor's feet rather than its
+      // sprite origin, and scales with the world so a torch lights the same number of
+      // cells however the window is sized.
+      sprite.visible = true;
+      sprite.tint = colour;
+      sprite.width = size[0] * scale;
+      sprite.height = size[1] * scale;
+      sprite.position.set(
+        this.objects.x + (position.X * 48 + 24) * scale,
+        this.objects.y + (position.Y * 32 + 16) * scale,
+      );
+    }
+    for (let i = used; i < (this.lightNodes?.length || 0); i++) this.lightNodes[i].visible = false;
+    this.app.renderer.render({ container: this.lightScene, target: this.lightTexture });
+    this.lightLayer.visible = true;
+  }
+
   // Runs after the nodes are reaped, so anything still on screen has been stamped
   // this tick and anything holding a texture is pinned.
   trimTextures() {
