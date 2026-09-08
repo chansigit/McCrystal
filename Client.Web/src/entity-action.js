@@ -142,6 +142,15 @@ export function liveAction(entity, position, now, { length, declares }) {
   return { action: entity.stoned ? "Stoned" : "Standing" };
 }
 
+// A player swinging at empty air with shift held rolls for a second swing: one in five
+// is Attack3, the rest Attack1 (Client/MirObjects/PlayerObject.cs:1069-1072). With a
+// target under the cursor, or without shift, native never rolls. The Assassin has its own
+// weights and its own body set, neither of which this client has yet.
+export function playerAttackAction(shift, hasTarget, roll = Math.random) {
+  if (!shift || hasTarget) return "Attack1";
+  return roll() * 100 >= 20 ? "Attack1" : "Attack3";
+}
+
 // S.ObjectAttack.Type picks Attack1..Attack5, and players always swing Attack1
 // (Client/MirScenes/GameScene.cs:3341-3376).
 export function attackAction(entity, type) {

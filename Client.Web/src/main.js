@@ -37,7 +37,7 @@ import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor, preloadDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
-import { attackAction, rangeAttackAction, stonedAtSpawn } from "./entity-action.js";
+import { attackAction, rangeAttackAction, stonedAtSpawn, playerAttackAction } from "./entity-action.js";
 import { spellObject, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 const spellObjectSound = (spell) => SPELL_OBJECT_SOUNDS[spell] ?? spellObject(spell)?.sound ?? null;
 
@@ -879,6 +879,7 @@ function attack(direction = state.user?.Direction) {
   gameAudio.play(state.user.Weapon >= 0 ? 10052 : 10056);
   state.user.Direction = d;
   state.user.attackStartedAt = performance.now();
+  state.user.attackAction = playerAttackAction(world.attackInput.shift, state.attackTarget != null);
   state.nextAttack = performance.now() + 650;
   state.nextMove = performance.now() + 570;
   state.queuedAttack = false;

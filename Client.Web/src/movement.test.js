@@ -92,3 +92,17 @@ test("wide and tall viewports stay within server interest range", () => {
     assert.ok(height / scale / 32 / 2 <= 12);
   }
 });
+
+test("a step takes exactly as long as the server allows", () => {
+  // HumanObject.MoveDelay is 600 for both walking and running, and an early step is
+  // queued for retry rather than refused, so there is nothing a longer interval buys.
+  assert.equal(MOVE_INTERVAL, 600);
+  const walker = { Location: { X: 5, Y: 5 } };
+  beginMotion(walker, { X: 6, Y: 5 }, 1000);
+  assert.equal(walker.moveDuration, 616); // one frame of slack over the cadence
+  assert.equal(walker.running, false);
+  assert.equal(motionPosition(walker, 1308).X, 5.5); // halfway at half the duration
+  assert.equal(motionPosition(walker, 1616).moving, false);
+  beginMotion(walker, { X: 8, Y: 5 }, 2000);
+  assert.equal(walker.running, true); // two cells in one step is a run
+});

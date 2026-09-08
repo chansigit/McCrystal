@@ -4,7 +4,7 @@ import {
   ACTION_FALLBACKS, actionChain, resolveFrames, hasDeclaredAction, animationStep,
   actionLength, advanceAction, liveAction, attackAction, rangeAttackAction,
   manualDrawOffset, MONSTER_DEFAULTS, PLAYER_DEFAULTS, NPC_DEFAULTS,
-  REMOVED_ON_HIDE, STONED_ON_HIDE, stonedAtSpawn,
+  REMOVED_ON_HIDE, STONED_ON_HIDE, stonedAtSpawn, playerAttackAction,
 } from "./entity-action.js";
 import { frameIndex } from "./entity-presentation.js";
 
@@ -205,4 +205,14 @@ test("a statue that arrives already stoned says so in its spawn packet", () => {
   assert.equal(stonedAtSpawn({ Image: 67, Extra: true }), false); // RedThunderZuma
   assert.equal(stonedAtSpawn({ Image: 211, Extra: true }), false); // FrozenRedZuma
   assert.equal(STONED_ON_HIDE.has(67) && STONED_ON_HIDE.has(211), true);
+});
+
+test("a player only rolls for a second swing at empty air with shift held", () => {
+  // PlayerObject.cs:1069-1072: shift and no target, one in five is Attack3.
+  assert.equal(playerAttackAction(false, false, () => 0), "Attack1"); // no shift, no roll
+  assert.equal(playerAttackAction(true, true, () => 0), "Attack1"); // a target, no roll
+  assert.equal(playerAttackAction(true, false, () => 0.0), "Attack3"); // roll 0 of 100
+  assert.equal(playerAttackAction(true, false, () => 0.19), "Attack3"); // 19, still under
+  assert.equal(playerAttackAction(true, false, () => 0.20), "Attack1"); // 20, the cutoff
+  assert.equal(playerAttackAction(true, false, () => 0.99), "Attack1");
 });

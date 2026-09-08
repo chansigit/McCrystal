@@ -1,4 +1,10 @@
-export const MOVE_INTERVAL = 630;
+// HumanObject.MoveDelay: the server lets a character take one step every 600 ms, walking
+// or running (Server/MirObjects/HumanObject.cs:186, 2494, 2616), and native's own walk and
+// run cycles are six frames at 100 ms, so 600 is the cadence on both sides. A step that
+// arrives early is queued for retry rather than refused (MirConnection.cs:1164-1181), so
+// there is nothing to buy with a safety margin -- the 630 that used to be here was 5 per
+// cent of walking speed given away for nothing.
+export const MOVE_INTERVAL = 600;
 export function blockedTurn(direction, currentDirection, path) {
   return !path.length && Number.isInteger(direction) && direction >= 0 && direction < 8 &&
     direction !== currentDirection ? direction : null;
@@ -55,6 +61,8 @@ export function beginMotion(object, location, now) {
   object.running = distance > 1;
   object.Location = location;
   object.movedAt = now;
+  // One frame of slack, so the interpolation does not finish and stall before the next
+  // step's packet arrives.
   object.moveDuration = MOVE_INTERVAL + 16;
 }
 

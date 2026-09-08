@@ -172,13 +172,17 @@ except where noted.
 10. ~~Generalise Show and Hide beyond the Hydra.~~ **Done**, including native's
     two end-of-Hide lists: the seven burrowers that leave the map and the
     sixteen statues that freeze into their `Stoned` pose.
-11. Player Attack2/3/4 variety, chosen by weighted random natively. **Open.**
+11. ~~Player attack variety.~~ **Done.** Native only rolls for a warrior, wizard or
+    taoist when shift is held with no target: one in five is Attack3. The Assassin's
+    own weights wait for its body set.
 12. Player Struck, Stance and Stance2. **Open.**
-13. Poison body tints and status dots. **Open.**
+13. ~~Poison body tints and status dots.~~ **Done**, both tables, and they are not the
+    same order: the tint is a priority switch and the dots are drawn in flag order.
 14. ~~Per-monster manual draw offsets, which put EvilMir and the siege gates 10
     to 45 pixels off.~~ **Done.**
-15. The 8 percent walk and run cadence, after checking it against the server's
-    move delay. **Open.**
+15. ~~The 8 percent walk and run cadence.~~ **Done.** The server allows a step every
+    600 ms and queues an early one for retry rather than refusing it, so the 630 the
+    browser used was 5 per cent of walking speed given away for nothing.
 
 **Group 2, needs a new mechanism.** An effect object with a lifetime, and then
 cast and impact separation, projectiles, server-pushed one-shot effects, ground

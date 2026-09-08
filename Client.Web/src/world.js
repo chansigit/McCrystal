@@ -12,6 +12,7 @@ import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionF
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 import { objectEffects } from "./object-effect.js";
 import { monsterOverlays } from "./monster-overlay.js";
+import { poisonTint, poisonDots } from "./poison.js";
 import { createMissile } from "./missile.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
   liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
@@ -757,7 +758,11 @@ export class World {
         // players, NPCs, and the monster libraries that declare no Struck frames. Where
         // the animation does play it is the hit feedback, and tinting it as well would
         // double-signal something native never tints.
-        body.tint = action !== "Struck" && now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
+        // A poisoned actor is tinted by its poison, which is what DrawColour carries; the
+        // pink flash only stands in where nothing else is colouring the body.
+        const poison = poisonTint(e.Poison);
+        body.tint = poison !== 0xffffff ? poison
+          : action !== "Struck" && now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
         body.blendMode = blend ? "add" : "normal";
       }
       if (body && !e.Dead && ["monster", "npc"].includes(e.kind) &&
@@ -834,6 +839,23 @@ export class World {
           nameTop(y, top, label.height, scale, e.kind === "player" ? -2 : 4));
         label.zIndex = y + 100; label.visible = true; label.seen = this.tick;
         actorTop = label.y;
+      }
+      // MapObject.DrawPoison: a row of 4x4 dots on a 6x6 black ground, five pixels apart,
+      // just above the actor (Client/MirObjects/MapObject.cs:508-568).
+      const dots = poisonDots(e.Poison);
+      if (dots.length) {
+        const key = `poison:${e.ObjectID}`;
+        let marks = this.nodes.get(key);
+        if (!marks) { marks = new Graphics(); this.objects.addChild(marks); this.nodes.set(key, marks); }
+        marks.clear();
+        dots.forEach((colour, i) => {
+          marks.rect(i * 5, 0, 6, 6).fill(0x000000);
+          marks.rect(i * 5 + 1, 1, 4, 4).fill(colour);
+        });
+        marks.position.set(x + 25 - dots.length * 2.5, actorTop - 10);
+        marks.scale.set(1 / scale);
+        marks.zIndex = y + 101;
+        marks.seen = this.tick;
       }
       if (e.chatText && now < (e.chatUntil || 0)) {
         const key = `chat:${e.ObjectID}`;
