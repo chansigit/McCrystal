@@ -7,12 +7,26 @@ doubling the frame offsets on re-import (which lives in the importer, not here).
 
 import numpy as np
 
-# A dither colour has to cover enough pixels for the parity test to mean anything,
-# and has to sit almost entirely on one parity.  Measured shares on real frames are
-# 92-97% of a colour's pixels on one parity once the body's own dark pixels are
-# excluded by grouping on the exact colour.
+# A region has to cover enough pixels before its checkerboard geometry means
+# anything rather than being incidental speckle in the anti-aliasing.
 MIN_DITHER_PIXELS = 32
-PARITY_SHARE = 0.90
+
+# A real checkerboard is self-supporting: each of its pixels is surrounded
+# diagonally by more of the same checkerboard. A dithered gradient -- the falloff
+# around a flame, which this art also draws by stippling -- only strands isolated
+# pixels, which support each other much more weakly. Measured:
+#
+#   deer shadow          98.9%      flame ramp (8,0,0)     32.4%
+#   Monster/075 shadow   96.9%      flame ramp (40,0,0)    43.5%
+#   Monster/314 shadow   99.1%      flame ramp (248,116,0) 26.2%
+#
+# This is deliberately a local test. The obvious global ones -- what share of a
+# colour's pixels sit on one parity, or in the checkerboard -- both collapse when a
+# body reuses the shadow colour as an ordinary dark tone, which is how Monster/075's
+# shadow was missed in the first place. Monster/075 scores 62% on the global test
+# and 96.9% on this one.
+SELF_SUPPORT = 0.75
+
 SHADOW_ALPHA = 128
 
 
@@ -30,27 +44,65 @@ def zero_transparent(rgba):
     return out
 
 
+def _neighbours(mask):
+    """Counts of a mask's own pixels in the 4 orthogonal and 4 diagonal directions."""
+    orthogonal = np.zeros(mask.shape, np.uint8)
+    orthogonal[1:, :] += mask[:-1, :]
+    orthogonal[:-1, :] += mask[1:, :]
+    orthogonal[:, 1:] += mask[:, :-1]
+    orthogonal[:, :-1] += mask[:, 1:]
+    diagonal = np.zeros(mask.shape, np.uint8)
+    diagonal[1:, 1:] += mask[:-1, :-1]
+    diagonal[1:, :-1] += mask[:-1, 1:]
+    diagonal[:-1, 1:] += mask[1:, :-1]
+    diagonal[:-1, :-1] += mask[1:, 1:]
+    return orthogonal, diagonal
+
+
+def dither_mask(rgba, colour):
+    """The pixels of one colour that sit in a checkerboard rather than a solid area.
+
+    Parity is the wrong test. It is a global statistic, and a monster whose body
+    uses the shadow colour as an ordinary dark tone dilutes it below any usable
+    threshold -- `Monster/075.Lib` reads 80-88% and its shadow was missed entirely.
+
+    The checkerboard is a local property, so read it locally. A pixel inside a
+    dither has all four diagonal neighbours in the same colour and none of its four
+    orthogonal ones; a pixel inside a solid region of that colour has both. That
+    separates the two even when they are the same colour in the same frame, and it
+    needs no threshold at all.
+    """
+    mask = np.all(rgba[..., :3] == colour, axis=2) & (rgba[..., 3] == 255)
+    if not mask.any():
+        return mask
+    orthogonal, diagonal = _neighbours(mask)
+    return mask & (diagonal >= 2) & (orthogonal == 0)
+
+
+def self_support(mask):
+    """The share of a mask's pixels that are themselves surrounded by the mask."""
+    if not mask.any():
+        return 0.0
+    _, diagonal = _neighbours(mask)
+    return float((mask & (diagonal >= 2)).sum()) / float(mask.sum())
+
+
 def find_dither_colours(rgba):
-    """Colours laid down on one parity of `(x + y) % 2` only -- fake 50% opacity."""
+    """Colours that fake 50% opacity by covering only one parity of a region."""
     opaque = rgba[..., 3] == 255
-    ys, xs = np.nonzero(opaque)
-    if len(ys) == 0:
+    if not opaque.any():
         return []
-    parity = (ys + xs) & 1
-    colours = rgba[ys, xs, :3]
+    colours = rgba[opaque][:, :3]
     keys = (colours[:, 0].astype(np.int32) << 16) | (colours[:, 1].astype(np.int32) << 8) | colours[:, 2]
     found = []
-    for key in np.unique(keys):
-        rows = keys == key
-        total = int(rows.sum())
+    for key, total in zip(*np.unique(keys, return_counts=True)):
         if total < MIN_DITHER_PIXELS:
             continue
-        ones = int(parity[rows].sum())
-        share = max(ones, total - ones) / total
-        if share >= PARITY_SHARE:
-            found.append((
-                (int(key >> 16), int((key >> 8) & 0xFF), int(key & 0xFF)),
-                1 if ones * 2 > total else 0, total, share))
+        colour = (int(key >> 16), int((key >> 8) & 0xFF), int(key & 0xFF))
+        mask = dither_mask(rgba, colour)
+        count = int(mask.sum())
+        if count >= MIN_DITHER_PIXELS and self_support(mask) >= SELF_SUPPORT:
+            found.append((colour, count, int(total)))
     return found
 
 
@@ -63,18 +115,13 @@ def dedither_shadows(rgba):
     """
     out = rgba.copy()
     filled = 0
-    for colour, parity, _total, _share in find_dither_colours(rgba):
-        mask = np.all(out[..., :3] == colour, axis=2) & (out[..., 3] == 255)
-        # A gap belongs to the shadow when it is transparent, on the other parity,
-        # and flanked by the dither on at least two sides -- true everywhere inside
-        # the region, false at its corners.
-        neighbours = np.zeros(mask.shape, np.uint8)
-        neighbours[1:, :] += mask[:-1, :]
-        neighbours[:-1, :] += mask[1:, :]
-        neighbours[:, 1:] += mask[:, :-1]
-        neighbours[:, :-1] += mask[:, 1:]
-        ys, xs = np.indices(mask.shape)
-        gaps = (out[..., 3] == 0) & (((ys + xs) & 1) != parity) & (neighbours >= 2)
+    for colour, _count, _total in find_dither_colours(rgba):
+        mask = dither_mask(out, colour)
+        # A gap belongs to the shadow when it is transparent and flanked by the
+        # dither on at least two sides -- true everywhere inside the region, false
+        # at its corners, and it never reaches a pixel the body owns.
+        orthogonal, _ = _neighbours(mask)
+        gaps = (out[..., 3] == 0) & (orthogonal >= 2)
         region = mask | gaps
         out[region, 0], out[region, 1], out[region, 2] = colour
         out[region, 3] = SHADOW_ALPHA

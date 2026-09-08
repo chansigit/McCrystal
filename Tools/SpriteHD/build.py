@@ -16,6 +16,7 @@ everything.
 
 import argparse
 import io
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -87,6 +88,12 @@ def main():
     parser.add_argument("--all-monsters", action="store_true")
     parser.add_argument("--monster-range", nargs=2, type=int, metavar=("LOW", "HIGH"),
                         help="monster library numbers to convert, inclusive")
+    parser.add_argument("--group", nargs="*", default=[],
+                        help="directories under Data whose libraries to convert, e.g. NPC CArmour")
+    parser.add_argument("--glob", nargs="*", default=[],
+                        help="library globs relative to Data, e.g. 'Map/WemadeMir2/Objects*'")
+    parser.add_argument("--free-gb", type=float, default=6.0,
+                        help="stop before the disk drops below this many free gigabytes")
     parser.add_argument("--factor", type=int, default=2)
     parser.add_argument("--no-dedither", action="store_true")
     parser.add_argument("--encoding", choices=sorted(ENCODERS), default="png")
@@ -100,12 +107,20 @@ def main():
         low, high = args.monster_range
         names += sorted(f"Monster/{p.stem}" for p in (data / "Monster").glob("*.[Ll]ib")
                         if p.stem.isdigit() and low <= int(p.stem) <= high)
+    for group in args.group:
+        names += sorted(str(p.relative_to(data))[:-4] for p in (data / group).rglob("*.[Ll]ib"))
+    for pattern in args.glob:
+        names += sorted(str(p.relative_to(data))[:-4] for p in data.glob(pattern + ".[Ll]ib"))
     if not names:
         raise SystemExit("nothing to do: pass --library or --all-monsters")
 
     started = time.time()
     total = 0
     for name in names:
+        free = shutil.disk_usage(data).free / 1e9
+        if free < args.free_gb:
+            print(f"stopping at {free:.1f} GB free, below the {args.free_gb} GB floor", file=sys.stderr)
+            break
         source = data / f"{name}.Lib"
         if not source.exists():
             print(f"missing {source}", file=sys.stderr)
