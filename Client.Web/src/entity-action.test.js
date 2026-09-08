@@ -4,7 +4,7 @@ import {
   ACTION_FALLBACKS, actionChain, resolveFrames, hasDeclaredAction, animationStep,
   actionLength, advanceAction, liveAction, attackAction, rangeAttackAction,
   manualDrawOffset, MONSTER_DEFAULTS, PLAYER_DEFAULTS, NPC_DEFAULTS,
-  REMOVED_ON_HIDE, STONED_ON_HIDE,
+  REMOVED_ON_HIDE, STONED_ON_HIDE, stonedAtSpawn,
 } from "./entity-action.js";
 import { frameIndex } from "./entity-presentation.js";
 
@@ -192,4 +192,17 @@ test("the Hydra keeps its exact emergence and submersion frames", () => {
   assert.equal(STONED_ON_HIDE.has(65), true);
   assert.equal(REMOVED_ON_HIDE.has(65), false);
   assert.equal(REMOVED_ON_HIDE.has(10), true);
+});
+
+test("a statue that arrives already stoned says so in its spawn packet", () => {
+  // Client/MirObjects/MonsterObject.cs:239-253 reads Extra into Stoned before the
+  // first action is chosen, so the statue never stands up and animates.
+  assert.equal(stonedAtSpawn({ Image: 65, Extra: true }), true); // ZumaStatue
+  assert.equal(stonedAtSpawn({ Image: 65, Extra: false }), false);
+  assert.equal(stonedAtSpawn({ Image: 65 }), false); // absent reads as awake
+  assert.equal(stonedAtSpawn({ Image: 4, Extra: true }), false); // a deer is never stoned
+  // Native's spawn switch is shorter than its end-of-Hide list: neither red zuma is in it.
+  assert.equal(stonedAtSpawn({ Image: 67, Extra: true }), false); // RedThunderZuma
+  assert.equal(stonedAtSpawn({ Image: 211, Extra: true }), false); // FrozenRedZuma
+  assert.equal(STONED_ON_HIDE.has(67) && STONED_ON_HIDE.has(211), true);
 });

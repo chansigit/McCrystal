@@ -197,3 +197,27 @@ export const STONED_ON_HIDE = new Set([
   403, // PurpleFaeFlower
   414, 415, 416, 417, // WarriorScroll, TaoistScroll, WizardScroll, AssassinScroll
 ]);
+
+// A statue that is already stoned when it comes into view says so in the spawn
+// packet: native reads S.ObjectMonster.Extra into Stoned before it picks the
+// first action (Client/MirObjects/MonsterObject.cs:239-253). This is a shorter
+// list than STONED_ON_HIDE -- native never reads Extra for RedThunderZuma or
+// FrozenRedZuma, even though both freeze at the end of a Hide.
+export const STONED_AT_SPAWN = new Set([
+  65, 66, // ZumaStatue, ZumaGuardian
+  68, // ZumaTaurus
+  209, 210, // FrozenZumaStatue, FrozenZumaGuardian
+  251, // DemonGuard
+  305, // EarthGolem
+  352, // Turtlegrass
+  353, // ManTree
+  403, // PurpleFaeFlower
+  414, 415, 416, 417, // WarriorScroll, TaoistScroll, WizardScroll, AssassinScroll
+]);
+
+// Native reads Extra in the MonsterObject constructor, before the first action is
+// chosen, so a statue that was already stoned when it entered view renders in its
+// Stoned pose rather than standing up and animating.
+export function stonedAtSpawn(packet) {
+  return packet.Extra === true && STONED_AT_SPAWN.has(packet.Image);
+}
