@@ -53,7 +53,10 @@ public sealed class GameAssets : IDisposable
         if (!name.EndsWith(".wav", StringComparison.OrdinalIgnoreCase)) name += ".wav";
         return sounds.GetValueOrDefault(name);
     }
-    public sealed record Animation(int Start, int Count, int Skip, int Interval, bool Reverse);
+    // Blend is the second flag on the stream: native draws the body additively when the
+    // action's own Blend byte is set (Client/MirObjects/MonsterObject.cs:4306). It used
+    // to be read and thrown away here.
+    public sealed record Animation(int Start, int Count, int Skip, int Interval, bool Reverse, bool Blend);
     public sealed record LibraryData(FrameData?[] Frames, Dictionary<string, Animation> Animations);
     public sealed record ImageData(byte[] Png);
 
@@ -92,8 +95,8 @@ public sealed class GameAssets : IDisposable
                     int start = reader.ReadInt32(), frameCount = reader.ReadInt32(), skip = reader.ReadInt32(), interval = reader.ReadInt32();
                     for (int e = 0; e < 4; e++) reader.ReadInt32();
                     bool reverse = reader.ReadBoolean();
-                    reader.ReadBoolean();
-                    animations[name] = new(start, frameCount, skip, interval, reverse);
+                    bool blend = reader.ReadBoolean();
+                    animations[name] = new(start, frameCount, skip, interval, reverse, blend);
                 }
             }
             return new(frames, animations);
