@@ -48,17 +48,21 @@ serves. No new assets and no protocol change are needed.
 | Tinted, gated on the spawn `Effect` byte | 7 | `FrostTiger` |
 | Reverse-scanned | 1 | `WaterDragon` submerging |
 
-The one implemented entry, the Hydra, was verified frame by frame against
-`Monster/371.Lib` and is exactly right, including the reversed Hide. Its `+400`
-shortcut does not generalise: other monsters use per-monster and sometimes
-per-action deltas.
+**Done.** `src/monster-overlay.js` is the whole switch as data: 85 monsters,
+348 rows, sharing the body's own frame cursor.
 
-Still outstanding: the table itself is untouched. The `FrameIndex` it needs now
-exists, so it is no longer blocked.
+It was not transcribed. A parser walked the C# with brace tracking and pulled
+out the monster and action labels, the library, the blend flag, the guards and
+the frame expression; then every one of the 275 expressions was evaluated in
+both forms over nine frame-and-direction pairs and compared. All 275 agreed.
+Hand-work was needed only for the Behemoth aura, which sits after its action
+switch rather than inside a case.
 
-What a player loses: 70 of 71 monsters render as a plain body. The five bead
-monsters lose the only thing that makes them visible. Every boss loses its
-visual identity.
+The Hydra is the regression guard: its row reproduces the old hand-written
+`+400` shortcut exactly, over every direction and step, which is what the test
+asserts. Native's own oddities are kept rather than corrected -- `FrostTiger`
+still reads the `ManTree` library, and its overlay still waits for the spawn
+`Effect` byte.
 
 ## Actions the web cannot render
 
@@ -155,7 +159,7 @@ discrete steps. Keep it. Only the frame phase needs anchoring.
 except where noted.
 
 1. ~~Anchor monster frames to action start.~~ **Done.** Prerequisite for 2 and 3.
-2. The 275-call overlay table. **Still open**, and the largest remaining item.
+2. ~~The 275-call overlay table.~~ **Done**, all 275 calls over 85 monsters.
 3. ~~Attack variant from `Type`, plus handling `ObjectRangeAttack`.~~ **Done.**
 4. ~~Struck animation.~~ **Done.**
 5. ~~Per-monster attack duration from the manifest.~~ **Done.**

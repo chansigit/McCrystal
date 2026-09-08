@@ -11,6 +11,7 @@ import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 import { objectEffects } from "./object-effect.js";
+import { monsterOverlays } from "./monster-overlay.js";
 import { createMissile } from "./missile.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
   liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
@@ -512,6 +513,7 @@ export class World {
       }
     }
     const {step, done} = transitionFrame(entity, f, now, ready);
+    entity.frameStep = step;
     if (done) this.finishVisibility(entity);
     return frameIndex(f, entity.Direction || 0, step);
   }
@@ -536,7 +538,7 @@ export class World {
       if (!this.manifests.get(library).frames[index]) continue;
       if (!this.texture(library, index, true) && !this.failedTextures.has(`${library}:${index}`)) ready = false;
     }
-    if (!ready) return start;
+    if (!ready) { entity.frameStep = 0; return start; }
     entity.deathPlaybackAt ??= now;
     const elapsed = now - entity.deathPlaybackAt;
     return elapsed < actionLength(f)
@@ -688,6 +690,7 @@ export class World {
             const sound = this.footsteps.sample(e.movedAt, step, e.running);
             if (sound !== null) this.onStep?.(sound);
           }
+          e.frameStep = step;
           index = offset + frameIndex(f, direction, step);
         }
       }
@@ -754,14 +757,20 @@ export class World {
         const highlight = this.nodes.get(key);
         if (highlight) { highlight.blendMode = "add"; highlight.alpha = 0.3; highlight.tint = body.tint; }
       }
-      if (e.kind === "monster" && e.Image === 371 && body) {
-        const overlay = hydraOverlay(body.assetIndex);
-        if (overlay != null) {
-          const key = `entity:overlay:${e.ObjectID}`;
-          this.sprite(key, library, overlay, x, y, depth + 0.01, this.objects, true);
-          const sprite = this.nodes.get(key);
-          if (sprite) sprite.blendMode = "add";
-        }
+      // MonsterObject.DrawEffects: the additive layer over the body, 275 draw calls over
+      // 85 monsters, sharing the body's own frame cursor
+      // (Client/MirObjects/MonsterObject.cs:4338-5595).
+      if (e.kind === "monster" && action && body) {
+        const table = this.animationDefinition(library, action);
+        const overlays = monsterOverlays(e, action, e.frameStep || 0, direction, table?.start || 0);
+        overlays.forEach((overlay, i) => {
+          const sprite = this.sprite(`entity:overlay:${e.ObjectID}:${i}`,
+            `Monster/${String(overlay.image).padStart(3, "0")}`, overlay.index,
+            x, y, depth + 0.01 + i / 1000, this.objects, true);
+          if (!sprite) return;
+          sprite.blendMode = overlay.blend ? "add" : "normal";
+          sprite.tint = overlay.gray ? 0x808080 : body.tint;
+        });
       }
       if (e.kind === "player" && body) {
         // PlayerObject.Draw puts the head straight after the body and before the front
