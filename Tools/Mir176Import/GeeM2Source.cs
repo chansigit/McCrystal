@@ -197,6 +197,27 @@ public sealed class GeeM2Source
         return points;
     }
 
+    /// <summary>
+    /// Envir/MiniMap.txt: `<mapFile> <image>`, the radar and world-map picture each map shows.
+    /// The numbers index the client's mmap library, and that numbering is WeMade's rather than
+    /// either server's -- 115 of these 165 entries match the value Crystal's own classic
+    /// database carries for the same file, one disagrees on a map 1.76 does not declare, and
+    /// the towns line up eight for eight (比奇省 101, 沃玛森林 102, 白日门 103, 丛林迷宫 104,
+    /// 毒蛇山谷 105, 盟重省 106, 封魔谷 121, 苍月岛 161). So unlike the monster libraries, this
+    /// index carries across and needs no renumbering.
+    /// </summary>
+    public Dictionary<string, int> MiniMaps()
+    {
+        var images = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "MiniMap.txt")))
+        {
+            var f = raw.Split(';')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (f.Length < 2 || !int.TryParse(f[1], out int image) || image <= 0) continue;
+            images[f[0]] = image;
+        }
+        return images;
+    }
+
     public List<Merchant> Merchants()
     {
         var merchants = new List<Merchant>();

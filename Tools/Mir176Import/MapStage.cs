@@ -12,14 +12,15 @@ public static class MapStage
 
     public sealed record Result(List<MapInfo> Maps, List<string> MapFiles, string Report, int Errors);
 
-    public static Result Convert(List<MapSection> sections, List<StartPoint> starts, string mapDirectory)
+    public static Result Convert(List<MapSection> sections, List<StartPoint> starts,
+        Dictionary<string, int> miniMaps, string mapDirectory)
     {
         var report = new StringBuilder();
         var notes = new List<string>();
         var maps = new List<MapInfo>();
         var byFile = new Dictionary<string, MapInfo>(StringComparer.OrdinalIgnoreCase);
         var attributes = new SortedDictionary<string, int>(StringComparer.Ordinal);
-        int errors = 0, movements = 0, dangling = 0, missingFiles = 0;
+        int errors = 0, movements = 0, dangling = 0, missingFiles = 0, withMiniMap = 0;
 
         foreach (var section in sections)
         {
@@ -30,6 +31,18 @@ public static class MapStage
                 Title = section.Title,
                 Light = LightSetting.Normal,
             };
+            // Without this every map in the pack shows an empty radar and an empty world map,
+            // because MapInfo.MiniMap defaults to 0 and both the browser and native clients
+            // look the picture up by that number. 1.76 keeps the numbers in their own file
+            // rather than in mapinfo.txt, which is how the whole set came to be missed.
+            // BigMap takes the same number: 1.76 has only the one column, and Crystal's own
+            // classic database sets the two equal on 396 of its 463 maps.
+            if (miniMaps.TryGetValue(section.File, out int miniMap))
+            {
+                info.MiniMap = (ushort)miniMap;
+                info.BigMap = (ushort)miniMap;
+                withMiniMap++;
+            }
             foreach (var attribute in section.Attributes)
             {
                 string name = attribute;
@@ -153,6 +166,7 @@ public static class MapStage
         report.AppendLine($"传送点 {movements} 条已接上，{dangling} 条指向未声明的地图（丢弃）。");
         report.AppendLine($"出生点 {maps.SelectMany(m => m.SafeZones).Count(z => z.StartPoint)} 个，安全区半径 {SafeZoneRadius}（1.76 没有这个字段，本工具给的默认值）。");
         report.AppendLine($"地图文件：需要 {maps.Count}，缺 {missingFiles}；`Map/` 里另有 {orphans.Count} 个文件没有被 mapinfo.txt 声明，不会进包。");
+        report.AppendLine($"小地图（MiniMap.txt）：{miniMaps.Count} 条，配上 {withMiniMap} 张，剩下 {maps.Count - withMiniMap} 张没有小地图图号。");
         report.AppendLine();
         report.AppendLine("| 属性 | 出现 | 对应到 |");
         report.AppendLine("| --- | ---: | --- |");

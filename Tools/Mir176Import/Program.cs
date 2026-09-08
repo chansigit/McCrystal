@@ -60,7 +60,7 @@ public static class Program
         var rawMagics = geeM2.Magics();
         var magics = MagicStage.Convert(rawMagics);
         var items = ItemStage.Convert(geeM2.Items(), rawMagics);
-        var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MapDirectory);
+        var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MiniMaps(), geeM2.MapDirectory);
         // Recipes come before the NPCs because a crafting NPC declares what it makes in
         // the same [goods] block a shop uses to declare what it sells, and only the set of
         // recipe products tells the two apart.
