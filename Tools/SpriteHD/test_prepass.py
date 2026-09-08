@@ -86,6 +86,14 @@ class DitherDetection(unittest.TestCase):
         checkerboard(image, SHADOW, (0, 40, 64, 60))
         self.assertEqual([c for c, _, _ in find_dither_colours(image)], [SHADOW])
 
+    def test_a_stippled_light_is_left_alone(self):
+        # Objects.Lib frame 2727 is a lamp halo that fakes its falloff with a
+        # checkerboard of (104,112,32) and is drawn additively. Flattening any of it
+        # to half alpha would dim the light.
+        image = canvas(48, 48)
+        checkerboard(image, (104, 112, 32), (4, 4, 44, 44))
+        self.assertEqual(find_dither_colours(image), [])
+
     def test_speckle_is_below_the_size_floor(self):
         image = canvas(24, 24)
         checkerboard(image, SHADOW, (2, 2, 8, 8))

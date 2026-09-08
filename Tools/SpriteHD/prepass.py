@@ -27,6 +27,15 @@ MIN_DITHER_PIXELS = 32
 # and 96.9% on this one.
 SELF_SUPPORT = 0.75
 
+# And a shadow is dark. This art also stipples light: Objects.Lib frame 2727 is a
+# lamp halo whose falloff scores 0.756, just over the cut, and it is drawn
+# additively, so flattening any of it to half alpha would dim the light. Every
+# shadow tone measured is at most 40 -- (16,8,8), (8,0,0), (0,4,0), (24,24,24) --
+# and across 1,000 frames from 100 random libraries exactly one detection of any
+# colour brighter than 64 survives the self-support test. The two gates together
+# are strictly safer than either alone.
+MAX_SHADOW_CHANNEL = 64
+
 SHADOW_ALPHA = 128
 
 
@@ -99,6 +108,8 @@ def find_dither_colours(rgba):
         if total < MIN_DITHER_PIXELS:
             continue
         colour = (int(key >> 16), int((key >> 8) & 0xFF), int(key & 0xFF))
+        if max(colour) > MAX_SHADOW_CHANNEL:
+            continue
         mask = dither_mask(rgba, colour)
         count = int(mask.sum())
         if count >= MIN_DITHER_PIXELS and self_support(mask) >= SELF_SUPPORT:
