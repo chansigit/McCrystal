@@ -181,6 +181,35 @@ shader paths are dead; `AttackRange3` and `Attack5` freeze a player; the
 Assassin dual-weapon bounds checks are cross-wired; `FrostTiger` reads the
 `ManTree` library; `StoningStatue` plays a sound from inside the draw path.
 
+## The statue that was never stoned
+
+Found by the user in play, not by this audit. Native reads
+`S.ObjectMonster.Extra` into `Stoned` in the `MonsterObject` constructor, before
+the first action is chosen (`Client/MirObjects/MonsterObject.cs:239-253`), so a
+statue that is already dormant when it comes into view renders in its `Stoned`
+pose. The web client never read the field: `entity.stoned` was only ever set by
+watching a Hide animation finish, so every statue stood up and animated the
+moment it appeared.
+
+The spawn list is shorter than the end-of-Hide list. Native never reads `Extra`
+for `RedThunderZuma` or `FrozenRedZuma`, so the two sets are kept apart.
+
+The server end was verified rather than assumed: `ZumaMonster.GetInfo` sets
+`packet.Extra = Stoned` (`Server/MirObjects/Monsters/ZumaMonster.cs:180-184`),
+and a gateway test now pins the field through serialization. `ZumaTaurus`
+inherits that class, which is why the boss room is the cleanest single-subject
+test on the server.
+
+Two things about the server behaviour make this hard to observe, and both cost a
+long detour before they were understood:
+
+* A statue wakes when a non-GM player comes within 2 cells, and waking runs
+  `WakeAll(14)`, which wakes every statue within 14 cells. **Nothing ever sets
+  `Stoned` back to true.** Once a floor is walked, it stays awake until the
+  monsters die and respawn, so a burnt cluster cannot be used to test the fix.
+* `FindNearby` skips players with `GMGameMaster` (`MonsterObject.cs:2244`), and
+  only that flag. `@SUPERMAN` sets `GMNeverDie`, which does nothing here.
+
 ## Never implemented, versus implemented but wrong
 
 The animation code has four commits: the initial migration, one fidelity pass,
