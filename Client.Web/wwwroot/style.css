@@ -160,6 +160,13 @@ canvas {
   min-height: 22px;
   color: #ffd0b8;
 }
+/* The panel is the original client's 328x220 sprite with every control placed at its own
+   source pixel, so it can only grow as a whole -- hence zoom rather than a width. Integer
+   steps keep the pixel art crisp, and each step is gated on the viewport having room for
+   the taller panel, which at 3x is 660px before the screen's own padding. */
+#login-form { zoom: 2; }
+@media (max-width: 720px), (max-height: 560px) { #login-form { zoom: 1; } }
+@media (min-width: 1400px) and (min-height: 1000px) { #login-form { zoom: 3; } }
 #login-form {
   position: relative;
   width: 328px;
