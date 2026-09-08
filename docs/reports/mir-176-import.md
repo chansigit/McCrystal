@@ -113,3 +113,55 @@
 - 标为**本工具判断**的 6 个 StdMode，没有同名物品可比对。上表列出了它们的全部内容。
 - 堆叠数不是 1.76 的数据。它的 `Stock` 列是商店补货量而不是堆叠上限（木剑 100、技能书 50），所以上表的堆叠是本工具按类型给的默认值。
 - `Grade` 一律 None，`StartItem` 一律 false：1.76 没有对应字段，没有编造。
+
+## NPC
+
+- merchant.txt 169 行，Npcs.txt 3 行，写出 172 个 NPC、172 个脚本
+- market_def 共 425 个脚本文件，被引用 169 个，其余 256 个未引用，不进包
+- 商店存货 687 条，收购类别 352 条（Amulet 15、Armour 42、Book 7、Bracelet 30、CraftingMaterial 26、Helmet 16、Meat 7、Necklace 43、Nothing 2、Ore 17、Potion 38、Ring 29、Scroll 28、Torch 1、Weapon 51）
+- 14 个商店没有存货，因为源脚本的 `[goods]` 段本来就是空的——这些 NPC 只收购不出售，靠 `[TYPES]` 工作
+- **1 个商店的存货全丢了**：源脚本写的商品名在 176 物品表里查不到，见下面的缺物品清单
+- 14 个 `[@getback]` 取物页并入 `[@STORAGE]`：Crystal 的仓库窗口存取合一，指向它的链接已改写，原页文字丢弃
+- **7 个物品名在 176 物品表里查不到**（引用它们的行保留为注释）。这些名字在 1.76 的 StdItems 里本来就不存在，不是导入丢的——例如脚本写 `金币100` 而物品表只有 `金币1`：
+  - `地牢逃脱卷书` × 1
+  - `干肉产品` × 1
+  - `行会回城卷书` × 1
+  - `金创药` × 1
+  - `随即传送卷` × 1
+  - `随机传送卷书` × 1
+  - `魔法药` × 1
+- Crystal 没有对应实现、保留为注释的指令：
+  - `CHECKITEMW` × 1 —— 检查身上穿戴的物品，Crystal 的 CHECKITEM 只看背包
+  - `RESET` × 2 —— 成批清空标志位，Crystal 只能逐个 SET
+  - `TAKEW` × 1 —— 收走身上穿戴的物品，Crystal 的 TAKEITEM 只动背包
+- **21 个跳转指向了本脚本里不存在的页**。这些链接在 1.76 源脚本里本来就是断的，或者指向 M2 的武器升级子系统（`[~@upgradenow_*]` 这类由引擎回调的页），Crystal 没有对应实现：
+  - `4Bdm-0109.txt → @talkwith`
+  - `5Ibo-5.txt → @help23`
+  - `9Aup-0151.txt → @getbackupgnow`
+  - `9Aup-0151.txt → @getbackupgnow_fail`
+  - `9Aup-0151.txt → @getbackupgnow_ing`
+  - `9Aup-0151.txt → @getbackupgnow_ok`
+  - `9Aup-0151.txt → @upgradenow`
+  - `9Aup-0151.txt → @upgradenow_fail`
+  - `9Aup-0151.txt → @upgradenow_ing`
+  - `9Aup-0151.txt → @upgradenow_ok`
+  - `9BIsender-0.txt → @j`
+  - `9Equ-D002.txt → @q315_1_4_1`
+  - `9Equ-D002.txt → @q316`
+  - `9helper-0.txt → @guildwar`
+  - `9helper-0.txt → @main1`
+  - `9marryman-M101.txt → @getfirst`
+  - `9marryman-M101.txt → @guildwar`
+  - `9teacher-0137.txt → @gima1`
+  - `9teacher-0137.txt → @gima2`
+  - `9teacher-0137.txt → @gima3`
+  - `9teacher-0137.txt → @gima4`
+- **本工具替源脚本改了错**：
+  - `take 金币100` × 14 当成 `take 金币 100` 处理。同一页里其它扣费行都写成两段，上面的 `#IF` 也照同一个数额查钱，照原样保留会让这些 NPC 白送东西
+- **译出来了但数值语义没验证**的指令：
+  - `CHECKDURAEVA` × 3 —— 矿石纯度门槛：译成 CHECKITEM 的耐久参数，但 M2 的纯度单位与 Crystal 的 `耐久 < 阈值 × 1000` 是否同一刻度未经验证
+- 对话文本里 Crystal 不认识的变量（原样保留，运行时会照字面显示）：
+  - `<$LORD>` × 2
+  - `<$OWNERGUILD>` × 12
+  - `<$UPGRADEWEAPONFEE>` × 1
+

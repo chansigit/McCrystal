@@ -1,0 +1,9 @@
+[@main]
+#IF
+CHECKMON >= 1 01141
+#SAY
+哦，魔鬼在作孽，快去把它们消除掉。
+ <关闭/@exit>
+#ELSEACT
+MOVE 0114
+SET [220] 1

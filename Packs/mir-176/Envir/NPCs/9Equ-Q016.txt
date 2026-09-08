@@ -1,0 +1,206 @@
+[@main]
+你到来到这里了, 我总不能看着不管.
+我在这里生活这么长时间，做了几件东西.
+这些东西在外面卖多少钱我不知道.
+但是我对这些宝贝充满信心.
+要观看这些东西吗??
+ <观看/@Q316_1>
+ <不看/@Q316_2>
+
+[@Q316_2]
+#IF
+#SAY
+不看是吧? 好..可以理解, 那么请回去吧...
+<取消/@exit>
+
+[@Q316_1]
+#IF
+CHECKCLASS Warrior
+#ACT
+GOTO @warr
+BREAK
+#IF
+CHECKCLASS Wizard
+#ACT
+GOTO @wiza
+BREAK
+#IF
+CHECKCLASS Taoist
+#ACT
+GOTO @taoi
+BREAK
+
+[@warr]
+#IF
+#SAY
+我只给你看一次我制作的东西.看好了.
+不要关闭窗口.
+<拜托/@Q316_1_1>制作炼狱(金条1,纯度18以上的金矿5个)
+<拜托/@Q316_1_4>制作祝福油(金币50万，强效太阳水5)
+<购买/@book1>半月弯刀(120万金币)
+<取消/@exit>
+#ACT
+SET [317] 1
+
+[@book1]
+#IF
+CHECKGOLD >= 1200000
+#ACT
+TAKEGOLD 1200000
+GIVEITEM 半月弯刀 1
+#SAY
+书已经给你了。
+<返回/@main>
+#ELSESAY
+你的金币不够，
+需要120万才能买书。
+<返回/@main>
+
+[@wiza]
+#IF
+#SAY
+我只给你看一次我制作的东西.看好了.
+不要关闭窗口.
+ <拜托/@Q316_1_3> 制作魔杖(金条1，纯度18以上的金矿3)
+ <拜托/@Q316_1_4>制作祝福油(金币50万, 强效太阳水5)
+<购买/@book2>魔法盾(120万金币)
+<取消/@exit>
+#ACT
+SET [317] 1
+
+[@book2]
+#IF
+CHECKGOLD >= 1200000
+#ACT
+TAKEGOLD 1200000
+GIVEITEM 魔法盾 1
+#SAY
+书已经给你了。
+<返回/@main>
+#ELSESAY
+你的金币不够，
+需要120万才能买书。
+<返回/@main>
+
+[@taoi]
+#IF
+#SAY
+我只给你看一次我制作的东西.看好了.
+不要关闭窗口.
+<拜托/@Q316_1_2>制作银蛇(金条1，纯度18以上的金矿4)
+<拜托/@Q316_1_4>制作祝福油(金币50万, 强效太阳水5)
+<购买/@book3>困魔咒(120万金币)
+<取消/@exit>
+#ACT
+SET [317] 1
+
+[@book3]
+#IF
+CHECKGOLD >= 1200000
+#ACT
+TAKEGOLD 1200000
+GIVEITEM 困魔咒 1
+#SAY
+书已经给你了。
+<返回/@main>
+#ELSESAY
+你的金币不够，
+需要120万才能买书。
+<返回/@main>
+
+[@Nopay1]
+#IF
+#SAY
+很抱歉. 炼狱目前只能制作一个.
+<取消/@exit>
+
+[@Q316_1_1]
+#IF
+CHECKITEM 金条 1
+CHECKITEM 金矿 5
+CHECKITEM 金矿 1 18
+#ACT
+TAKEITEM 金矿 5
+TAKEITEM 金条 1
+GIVEITEM 炼狱 1
+MOVE D002
+#ELSESAY
+制作炼狱, 需要刚才说的那些材料.
+把材料准备好了，才能制作炼狱,
+没有材料怎么制作呢?
+<取消/@exit>
+
+[@Nopay2]
+#IF
+#SAY
+很抱歉. 目前银蛇目前只能制作一个.
+<取消/@exit>
+
+[@Q316_1_2]
+#IF
+CHECKITEM 金条 1
+CHECKITEM 金矿 4
+CHECKITEM 金矿 1 18
+#ACT
+TAKEITEM 金矿 4
+TAKEITEM 金条 1
+GIVEITEM 银蛇 1
+MOV p2 1
+MOVE D002
+#ELSESAY
+制作银蛇, 需要刚才说的那些材料.
+把材料准备好了，才能制作银蛇,
+没有材料怎么制作呢?
+<取消/@exit>
+
+[@Nopay3]
+#IF
+#SAY
+很抱歉. 目前魔杖只能制作一个.
+<取消/@exit>
+
+[@Q316_1_3]
+#IF
+CHECKITEM 金矿 3
+CHECKITEM 金条 1
+CHECKITEM 金矿 1 18
+#ACT
+TAKEITEM 金条 1
+TAKEITEM 金矿 3
+GIVEITEM 魔杖 1
+MOV p3 1
+MOVE D002
+#ELSESAY
+制作魔杖, 需要刚才说的那些材料.
+把材料准备好了，才能制作魔杖,
+没有材料怎么制作呢?
+<取消/@exit>
+
+[@Nopay4]
+#IF
+#SAY
+很抱歉. 目前祝福油只有5个.
+<取消/@exit>
+
+[@Q316_1_4]
+#IF
+CHECKGOLD >= 500000
+CHECKITEM 强效太阳水 5
+#ACT
+TAKEGOLD 500000
+TAKEITEM 强效太阳水 5
+GIVEITEM 祝福油 1
+CALC p4 + 1
+MOVE D002
+#ELSESAY
+制作祝福油, 需要刚才说的那些材料.
+把材料准备好了，才能制作,
+没有材料怎么制作呢?
+<取消/@exit>
+
+[@Q317]
+#IF
+#SAY
+我做的东西给人之后，也就是一旦进行了一次交易之后，
+是不会再做交易的. 快回去吧
+<取消/@exit>

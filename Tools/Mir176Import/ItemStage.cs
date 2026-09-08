@@ -54,6 +54,15 @@ public static class ItemStage
         [47] = new(ItemType.Nothing, Stack: 50),                  // Judged: event prizes
     };
 
+    /// <summary>The Crystal ItemType a 1.76 StdMode became, for stages that need the
+    /// same mapping -- an NPC's "+N" purchase category is a StdMode too.</summary>
+    public static bool TypeOf(int stdMode, out ItemType type)
+    {
+        if (Modes.TryGetValue(stdMode, out var rule)) { type = rule.Type; return true; }
+        type = default;
+        return false;
+    }
+
     // Modes whose ItemType no shared item in crystalm2-176 could confirm, so the choice is
     // this tool's rather than an observation. Named in the report for review.
     private static readonly HashSet<int> Judged = new() { 1, 2, 41, 45, 46, 47 };

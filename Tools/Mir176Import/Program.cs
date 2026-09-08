@@ -24,6 +24,9 @@ public static class Program
         string source = Option(args, "--source") ?? "ThirdParty/legend-176/snapshots/geem2-official-176";
         string pack = Option(args, "--pack") ?? "Packs/mir-176/pack.yaml";
         string report = Option(args, "--report");
+        // Preview mode writes no database, so the scripts have nowhere to be read from.
+        // This puts them somewhere reviewable without committing to the import.
+        string scriptsOut = Option(args, "--scripts-out");
         bool write = args.Contains("--write");
 
         if (!File.Exists(Path.Combine(source, "GEEM2.db")))
@@ -41,9 +44,11 @@ public static class Program
         var magics = MagicStage.Convert(rawMagics);
         var items = ItemStage.Convert(geeM2.Items(), rawMagics);
         var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MapDirectory);
-        int errors = magics.Errors + items.Errors + maps.Errors;
+        var npcs = NpcStage.Convert(geeM2.Merchants(), geeM2.SpecialNpcs(), geeM2.ScriptDirectory,
+            maps.Maps, items.Items);
+        int errors = magics.Errors + items.Errors + maps.Errors + npcs.Errors;
 
-        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}";
+        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}\n{npcs.Report}";
         if (report != null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
@@ -57,6 +62,14 @@ public static class Program
             Console.Error.WriteLine($"{errors} 条错误，未写入数据库");
             return 1;
         }
+        if (scriptsOut != null)
+        {
+            Directory.CreateDirectory(scriptsOut);
+            foreach (var script in npcs.Scripts)
+                File.WriteAllText(Path.Combine(scriptsOut, script.Path), script.Text);
+            Console.WriteLine($"{npcs.Scripts.Count} 个脚本预览写入 {scriptsOut}");
+        }
+
         if (!write)
         {
             Console.WriteLine("预览模式，未写入数据库。确认后加 --write。");
@@ -69,7 +82,18 @@ public static class Program
         envir.ItemIndex = items.Items.Count == 0 ? 0 : items.Items.Max(i => i.Index);
         envir.MapInfoList.AddRange(maps.Maps);
         envir.MapIndex = maps.Maps.Count;
+        envir.NPCInfoList.AddRange(npcs.Npcs);
+        envir.NPCIndex = npcs.Npcs.Count;
         envir.SaveDB();
+
+        // Scripts live beside the database in the pack, and the whole set is rewritten so a
+        // script dropped from the source cannot survive as a stale file.
+        var npcTarget = Path.Combine(ContentPack.Current.EnvirPath, "NPCs");
+        Directory.CreateDirectory(npcTarget);
+        foreach (var stale in Directory.GetFiles(npcTarget, "*.txt"))
+            if (!Path.GetFileName(stale).StartsWith("00")) File.Delete(stale);
+        foreach (var script in npcs.Scripts)
+            File.WriteAllText(Path.Combine(npcTarget, script.Path), script.Text);
 
         // The pack keeps its own copy of every map it declares, so it stays self-contained
         // and nothing reaches back into ThirdParty at run time.
@@ -79,7 +103,8 @@ public static class Program
             File.Copy(file, Path.Combine(mapTarget, Path.GetFileName(file)), true);
         Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：" +
             $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品，{maps.Maps.Count} 张地图" +
-            $"（复制了 {maps.MapFiles.Count} 个地图文件）");
+            $"，{npcs.Npcs.Count} 个 NPC" +
+            $"（复制了 {maps.MapFiles.Count} 个地图文件，{npcs.Scripts.Count} 个脚本）");
         return 0;
     }
 

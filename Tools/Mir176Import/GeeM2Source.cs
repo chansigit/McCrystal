@@ -52,6 +52,12 @@ public sealed record Movement(string ToFile, int FromX, int FromY, int ToX, int 
 
 public sealed record StartPoint(string File, int X, int Y);
 
+/// <summary>A row of Envir/merchant.txt: a shop NPC and the script that drives it.</summary>
+public sealed record Merchant(string ScriptId, string MapFile, int X, int Y, string Name, int Face, int Body);
+
+/// <summary>A row of Envir/Npcs.txt: an NPC the engine places itself rather than a shop.</summary>
+public sealed record SpecialNpc(string Name, int Race, string MapFile, int X, int Y, int Face, int Body);
+
 public sealed class GeeM2Source
 {
     private readonly string root;
@@ -163,9 +169,42 @@ public sealed class GeeM2Source
         return points;
     }
 
+    public List<Merchant> Merchants()
+    {
+        var merchants = new List<Merchant>();
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "merchant.txt")))
+        {
+            var f = raw.Split(';')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            // ID map x y name face body tax. The tax column is Sabuk's cut and Crystal has
+            // no per-NPC equivalent, so it is read only to keep the column count honest.
+            if (f.Length < 7 || !int.TryParse(f[2], out int x) || !int.TryParse(f[3], out int y)) continue;
+            int.TryParse(f[5], out int face);
+            int.TryParse(f[6], out int body);
+            merchants.Add(new Merchant(f[0], f[1], x, y, f[4], face, body));
+        }
+        return merchants;
+    }
+
+    public List<SpecialNpc> SpecialNpcs()
+    {
+        var npcs = new List<SpecialNpc>();
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "Npcs.txt")))
+        {
+            var f = raw.Split(';')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (f.Length < 7 || !int.TryParse(f[1], out int race)) continue;
+            if (!int.TryParse(f[3], out int x) || !int.TryParse(f[4], out int y)) continue;
+            int.TryParse(f[5], out int face);
+            int.TryParse(f[6], out int body);
+            npcs.Add(new SpecialNpc(f[0], race, f[2], x, y, face, body));
+        }
+        return npcs;
+    }
+
+    public string ScriptDirectory => Path.Combine(root, "Envir", "market_def");
+
     public string MapDirectory => Path.Combine(root, "Map");
 
-    private static IEnumerable<string> ReadGbk(string path)
+    internal static IEnumerable<string> ReadGbk(string path)
     {
         System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
         return File.ReadAllLines(path, System.Text.Encoding.GetEncoding(936));

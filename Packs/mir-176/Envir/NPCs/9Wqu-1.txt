@@ -1,0 +1,229 @@
+[@main]
+#IF
+RANDOM 2
+#ACT
+GOTO @QUEST
+#ELSEACT
+GOTO @normal
+
+[@QUEST]
+#IF
+CHECK [309] 1
+#ACT
+GOTO @Q309
+BREAK
+#IF
+CHECK [308] 1
+#ACT
+GOTO @Q308
+BREAK
+#IF
+CHECK [307] 1
+#ACT
+GOTO @Q307
+#ELSEACT
+GOTO @normal
+
+[@normal]
+半兽勇士住在沃玛森林里面...
+这个怪物可不简单哦...
+<退出/@exit>
+
+[@Q307]
+竟然有人认识我....
+嗨,你好啊...怪事.
+对助理<询问/@Q307_1>
+
+[@Q307_1]
+你认识我么?我的故事已经是很久以前的了..
+很久以前,我在比奇城当过厨师..
+的确是很久以前的事情了,我想念当年的朋友啦..
+ 
+对助理 <拜托/@Q307_2>.
+
+[@Q307_2]
+#IF
+RANDOM 2
+#ACT
+GOTO @Q307_3
+#ELSESAY
+拜托我?我凭什么接受你的请求啊?
+你走吧......
+<退出/@exit>
+
+[@Q307_3]
+#IF
+RANDOM 2
+#SAY
+你真了不起,你的意志很强,那么,那么...
+为了我,我只拜托一件事情...
+这几天我去过好几个地方,到处看了看
+到了一些很希奇的地方...
+<下一步/@Q307_4>
+#ELSESAY
+你想让我给你炒菜,为了这个....
+是不是我得去比奇城堡一次呀??
+我对比奇城堡早已经有一种厌倦了...
+对不起,我要走了...
+<退出/@exit>
+
+[@Q307_4]
+这个地方很古怪,有一种怪物
+虽然我比较弱,但我还可以击退它啦
+也跟它打过,可是给他揍得不成样子...
+因为这个地方非常古怪,你进去后一分钟后就会回到现实
+这是古怪的地方啊,你也去试试么?
+<下一步/@Q307_5>
+
+[@Q307_5]
+你要是能打死它,可别忘了把它的头盔带给我..
+那样我就可以帮你...
+我可以把你带到那个地方,祝你好运啦..
+<进去./@Q307_6>
+
+[@Q307_6]
+#IF
+CHECKHUM Q001 >= 1
+#SAY
+现在里面还有一个人,你要稍候一下啦!
+<退出/@exit>
+#ELSEACT
+GOTO @Q307_6_1
+
+[@Q307_6_1]
+#IF
+CHECKCLASS Warrior
+#ACT
+GOTO @Q307_6_1_1
+BREAK
+#IF
+CHECKCLASS Wizard
+#ACT
+GOTO @Q307_6_1_2
+BREAK
+#IF
+CHECKCLASS Taoist
+#ACT
+GOTO @Q307_6_1_3
+BREAK
+
+[@Q307_6_1_1]
+#IF
+#ACT
+MONCLEAR Q001
+PARAM1 Q001
+PARAM2 10
+PARAM3 10
+MONGEN 骷髅精灵2 1 10
+TIMERECALL 1
+MOVE Q001
+SET [308] 1
+
+[@Q307_6_1_2]
+#IF
+#ACT
+MONCLEAR Q002
+PARAM1 Q002
+PARAM2 10
+PARAM3 10
+MONGEN 半兽勇士2 1 10
+TIMERECALL 1
+MOVE Q002
+SET [308] 1
+
+[@Q307_6_1_3]
+#IF
+#ACT
+MONCLEAR Q003
+PARAM1 Q003
+PARAM2 10
+PARAM3 10
+MONGEN 巨型多角虫2 1 10
+TIMERECALL 1
+MOVE Q003
+SET [308] 1
+
+[@Q308]
+#IF
+CHECKITEM 头盔 1
+#ACT
+GOTO @Q308_1
+#ELSEACT
+GOTO @Q308_2
+
+[@Q308_1]
+#IF
+#ACT
+SET [309] 1
+TAKEITEM 头盔 1
+#SAY
+你真棒啊,那么厉害的怪物也被你打死了!!!
+你给带了头盔,,我可就欠你一个人情了.
+你真的厉害!
+既然你帮我做了一件事情,那我也帮你作一件事情...
+你去找一下金氏..我已经跟她约好了
+<退出/@exit>
+
+[@Q308_2]
+#IF
+RANDOM 5
+#SAY
+你也打不过那个怪物?唉..
+那个怪物的确很厉害吧....
+你要不要再试一次啊??
+<挑战./@Q308_2_1>
+等会儿<挑战./@exit>
+#ELSESAY
+现在我很忙,无法帮助你了
+等会儿再来..
+<退出/@exit>
+
+[@Q308_2_1]
+#IF
+CHECKHUM Q001 >= 1
+#SAY
+现在有人正在被怪物折磨,呵呵,恐怕你要等一下了!
+<退出/@exit>
+#ELSEACT
+GOTO @Q308_2_1_1
+
+[@Q308_2_1_1]
+#IF
+CHECKCLASS Warrior
+#ACT
+MONCLEAR Q001
+PARAM1 Q001
+PARAM2 10
+PARAM3 10
+MONGEN 骷髅精灵2 1 10
+TIMERECALL 1
+MOVE Q001
+BREAK
+#IF
+CHECKCLASS Wizard
+#ACT
+MONCLEAR Q002
+PARAM1 Q002
+PARAM2 10
+PARAM3 10
+MONGEN 半兽勇士2 1 10
+TIMERECALL 1
+MOVE Q002
+BREAK
+#IF
+CHECKCLASS Taoist
+#ACT
+MONCLEAR Q003
+PARAM1 Q003
+PARAM2 10
+PARAM3 10
+MONGEN 巨型多角虫2 1 10
+TIMERECALL 1
+MOVE Q003
+BREAK
+
+[@Q309]
+#IF
+#SAY
+你快点去找金氏!
+<退出/@exit>
