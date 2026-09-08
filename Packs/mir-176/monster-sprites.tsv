@@ -2,9 +2,10 @@
 # crystalm2   同名记录，拿 39 个坐标锚点验过 31/33
 # variant     去掉数字后缀后命中同名记录
 # derived:X   由名字拆解推出，跟 X 用同一张图，未经确认
+# appr:X       1.76 的 Monster.Appr 与 X 相同，沿用 X 的精灵图（1.76 里两者本就同一外观）
 # unresolved  没有依据，等人工指定；留空即排除出本包
 # 名字	贴图	英文名	依据
-圣诞驯鹿			unresolved
+圣诞驯鹿	4		appr:鹿
 雪球			unresolved
 雪球1			unresolved
 飞火流星			unresolved
@@ -15,7 +16,7 @@
 稻草人0	5	Scarecrow	crystalm2
 虎卫			unresolved
 鹰卫			unresolved
-龙卫			unresolved
+龙卫	0		appr:卫士
 蛤蟆	8	Yob	crystalm2
 蛤蟆0	8	Yob	crystalm2
 鹿	4	Deer	crystalm2
@@ -84,7 +85,7 @@
 蜈蚣	37	Centipede	crystalm2
 蜈蚣0	37	Centipede	crystalm2
 蜈蚣8	37	Centipede	crystalm2
-蜜蜂			unresolved
+蜜蜂	19		appr:蝙蝠
 跳跳蜂	35	WhimperingBee	crystalm2
 跳跳蜂0	35	WhimperingBee	crystalm2
 跳跳蜂8	35	WhimperingBee	crystalm2
@@ -127,7 +128,7 @@
 红野猪	45	RedBoar	crystalm2
 红野猪0	45	RedBoar	crystalm2
 红野猪8	45	RedBoar	crystalm2
-雕			unresolved
+雕	108		appr:猎鹰
 骷髅弓箭手	92	BoneArcher	crystalm2
 骷髅弓箭手0	92	BoneArcher	crystalm2
 骷髅弓箭手8	92	BoneArcher	crystalm2
@@ -189,8 +190,8 @@
 天狼蜘蛛	53	VenomSpider	crystalm2
 天狼蜘蛛0	53	VenomSpider	crystalm2
 天狼蜘蛛8	53	VenomSpider	crystalm2
-暴牙蜘蛛			unresolved
-暴牙蜘蛛0			unresolved
+暴牙蜘蛛	54		appr:钢牙蜘蛛
+暴牙蜘蛛0	54		appr:钢牙蜘蛛
 祖玛卫士	66	ZumaGuardian	crystalm2
 祖玛卫士0	66	ZumaGuardian	crystalm2
 祖玛卫士3	66	ZumaGuardian	crystalm2
@@ -203,12 +204,12 @@
 牛魔祭司			unresolved
 牛魔祭司0			unresolved
 牛魔祭司8			unresolved
-蜘蛛雷			unresolved
-蜘蛛雷0			unresolved
-血僵尸			unresolved
-血僵尸0			unresolved
-血僵尸8			unresolved
-剧毒蜘蛛			unresolved
+蜘蛛雷	51		appr:幻影蜘蛛
+蜘蛛雷0	51		appr:幻影蜘蛛
+血僵尸	57		appr:血巨人
+血僵尸0	57		appr:血巨人
+血僵尸8	57		appr:血巨人
+剧毒蜘蛛	12		appr:毒蜘蛛
 半兽勇士1	18	OmaWarrior	crystalm2
 半兽勇士2	18	OmaWarrior	crystalm2
 半兽统领	126	OmaKing	proposed
@@ -217,12 +218,12 @@
 双头金刚8	59	GrayEvilApe	crystalm2
 双头金刚80	59	GrayEvilApe	crystalm2
 双头金刚9	59	GrayEvilApe	crystalm2
-变异史莱姆			unresolved
-变异史莱姆8			unresolved
+变异史莱姆	36		appr:巨型蠕虫
+变异史莱姆8	36		appr:巨型蠕虫
 变异骷髅0	78	BoneFamiliar	crystalm2
 地狱犬	148	DarkBrownWolf	proposed
-夕			unresolved
-夕0			unresolved
+夕	33		appr:沃玛卫士
+夕0	33		appr:沃玛卫士
 多钩猫王	6	HookingCat	derived:多钩猫
 多钩猫王8	6	HookingCat	derived:多钩猫
 尸王1	74	Ghoul	crystalm2
@@ -232,8 +233,8 @@
 沃玛卫士1	33	WoomaGuardian	crystalm2
 沃玛卫士2	33	WoomaGuardian	crystalm2
 沃玛卫士8	33	WoomaGuardian	crystalm2
-电僵王			unresolved
-电僵王8			unresolved
+电僵王	73		appr:僵尸1
+电僵王8	73		appr:僵尸1
 白野猪	48	WhiteBoar	crystalm2
 白野猪0	48	WhiteBoar	crystalm2
 白野猪1	48	WhiteBoar	crystalm2
@@ -242,7 +243,7 @@
 白野猪80	48	WhiteBoar	crystalm2
 祖玛卫士00	66	ZumaGuardian	crystalm2
 祖玛卫士80	66	ZumaGuardian	crystalm2
-神鹰			unresolved
+神鹰	108		appr:猎鹰
 稻草人1	5	Scarecrow	crystalm2
 红蛇王	111	RedSnake	derived:红蛇
 虎蛇王	112	TigerSnake	derived:虎蛇
@@ -253,9 +254,9 @@
 邪恶毒蛇1	49	EvilSnake	crystalm2
 邪恶毒蛇8	49	EvilSnake	crystalm2
 钉耙猫王	7	RakingCat	derived:钉耙猫
-雪人王			unresolved
+雪人王	11		appr:森林雪人
 雪球3			unresolved
-雪蚕王			unresolved
+雪蚕王	20		appr:洞蛆
 骷髅精灵1	26	BoneElite	crystalm2
 骷髅精灵2	26	BoneElite	crystalm2
 骷髅精灵9	26	BoneElite	crystalm2
@@ -283,13 +284,13 @@
 双头血魔9	60	RedEvilApe	crystalm2
 暗之触龙神			unresolved
 暗之触龙神8			unresolved
-灰血恶魔			unresolved
+灰血恶魔	59		appr:双头金刚
 石墓尸王	93	BoneLord	proposed
 石墓尸王8	93	BoneLord	proposed
 血巨人	57	BigApe	crystalm2
 血巨人0	57	BigApe	crystalm2
 血巨人8	57	BigApe	crystalm2
-赤血恶魔			unresolved
+赤血恶魔	60		appr:双头血魔
 飞火流星1			unresolved
 飞火流星2			unresolved
 血金刚			unresolved
@@ -298,31 +299,31 @@
 圣域修罗			unresolved
 圣域冥狼			unresolved
 圣域刀斧手	91	BoneBlademan	derived:骷髅刀斧手:weak
-圣域力士			unresolved
+圣域力士	57		appr:血巨人
 圣域勇士			unresolved
 圣域卫士	0	Guard	derived:卫士
 圣域多钩猫	6	HookingCat	derived:多钩猫
 圣域天狼	53	VenomSpider	derived:天狼蜘蛛:weak
 圣域将军	98	FireMinotaur	derived:牛魔将军:weak
 圣域尸王	74	Ghoul	derived:尸王
-圣域巨虫			unresolved
+圣域巨虫	107		appr:巨型多角虫
 圣域弓箭手	139	ArcherGuard	derived:弓箭手
-圣域护法			unresolved
-圣域教主			unresolved
+圣域护法	33		appr:沃玛卫士
+圣域教主	34		appr:暗之沃玛教主
 圣域月魔	52	SpiderBat	derived:月魔蜘蛛:weak
-圣域杀手			unresolved
+圣域杀手	385		appr:暗黑战士
 圣域楔蛾	44	WedgeMoth	derived:楔蛾
 圣域炎兽			unresolved
-圣域牛魔			unresolved
+圣域牛魔	94		appr:牛头魔
 圣域牛魔王	101	MinotaurKing	derived:牛魔王
 圣域猪卫	76	KingHog	derived:虹魔猪卫:weak
-圣域神鹰			unresolved
+圣域神鹰	108		appr:猎鹰
 圣域神龙			unresolved
 圣域祭司			unresolved
 圣域稻草人	5	Scarecrow	derived:稻草人
 圣域精灵	26	BoneElite	derived:骷髅精灵:weak
 圣域花吻	56	LureSpider	derived:花吻蜘蛛:weak
-圣域蛇王			unresolved
+圣域蛇王	49		appr:邪恶毒蛇
 圣域蝎卫	75	KingScorpion	derived:虹魔蝎卫:weak
 圣域蝙蝠	19	CaveBat	derived:蝙蝠
 圣域血魔	60	RedEvilApe	derived:双头血魔:weak
@@ -332,13 +333,13 @@
 圣域骷髅	22	Skeleton	derived:骷髅
 圣域魔蝎	75	KingScorpion	derived:虹魔蝎卫:weak
 圣域魔魂			unresolved
-宝扇使者1			unresolved
-宝扇使者2			unresolved
-宝扇使者3			unresolved
-宝扇使者4			unresolved
-宝扇使者5			unresolved
-宝扇使者6			unresolved
-宝扇使者7			unresolved
+宝扇使者1	101		appr:圣域牛魔王
+宝扇使者2	101		appr:圣域牛魔王
+宝扇使者3	101		appr:圣域牛魔王
+宝扇使者4	101		appr:圣域牛魔王
+宝扇使者5	101		appr:圣域牛魔王
+宝扇使者6	101		appr:圣域牛魔王
+宝扇使者7	101		appr:圣域牛魔王
 暗之双头血魔	60	RedEvilApe	derived:双头血魔
 暗之双头金刚	59	GrayEvilApe	derived:双头金刚
 暗之沃玛教主	34	WoomaTaurus	crystalm2
@@ -377,7 +378,7 @@
 邪恶钳虫2	40	EvilTongs	crystalm2
 邪恶钳虫8	40	EvilTongs	crystalm2
 邪恶钳虫9	40	EvilTongs	crystalm2
-重装使者			unresolved
+重装使者	34		appr:暗之沃玛教主
 雪球4			unresolved
 黄泉教主0			unresolved
 SabukDoor	950	SabukGate	proposed

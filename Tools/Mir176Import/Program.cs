@@ -29,7 +29,7 @@ public static class Program
         string scriptsOut = Option(args, "--scripts-out");
         bool write = args.Contains("--write");
 
-        if (!File.Exists(Path.Combine(source, "GEEM2.db")))
+        if (!args.Contains("--dump-monsters") && !File.Exists(Path.Combine(source, "GEEM2.db")))
         {
             Console.Error.WriteLine($"No GEEM2.db under {source}");
             return 2;
@@ -38,6 +38,23 @@ public static class Program
         // Envir.DatabasePath is a static readonly taken from the configured pack, so the
         // pack has to be selected before anything touches Envir.
         ContentPack.Configure(new[] { "--pack", Path.GetFullPath(pack) });
+
+        // The monster stage needs a reference list of what art each of Crystal's monsters
+        // uses, and that lives only inside a pack's binary database. Pair it with --pack to
+        // read any pack: --dump-monsters --pack Packs/classic/pack.yaml
+        if (args.Contains("--dump-monsters"))
+        {
+            var reference = Envir.Edit;
+            if (!reference.LoadDB())
+            {
+                Console.Error.WriteLine($"Could not load {ContentPack.Current.DatabasePath}");
+                return 2;
+            }
+            Console.WriteLine("index\tname\timage\timageId");
+            foreach (var monster in reference.MonsterInfoList.OrderBy(m => m.Index))
+                Console.WriteLine($"{monster.Index}\t{monster.Name}\t{monster.Image}\t{(int)monster.Image}");
+            return 0;
+        }
 
         var geeM2 = new GeeM2Source(source);
         var rawMagics = geeM2.Magics();
