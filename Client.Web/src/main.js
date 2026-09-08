@@ -35,7 +35,7 @@ import { ExperienceBar } from "./experience.js";
 import { WeightBar } from "./weight.js";
 import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
-import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
+import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor, preloadDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
 import { attackAction, rangeAttackAction, stonedAtSpawn } from "./entity-action.js";
 
@@ -59,6 +59,7 @@ const icons = {
 createIcons({ icons });
 const gameAudio = new GameAudio();
 gameAudio.setMusic(INTRO_MUSIC);
+const doorFrames = preloadDoor((index) => `/assets/frame?library=ChrSel&index=${index}`);
 const vitals = new Vitals($("vitals-orb"));
 const experience = new ExperienceBar($("experience-bar"), $("experience-fill"), $("experience-label"));
 const weight = new WeightBar($("weight-bar"), $("weight-fill"), $("weight-label"), $("space-label"));

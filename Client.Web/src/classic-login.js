@@ -13,6 +13,21 @@ export function registrationData(values) {
     EMailAddress: values.EMailAddress };
 }
 
+// ChrSel 0..18 is the gate that opens on a successful login.
+export const DOOR_FRAMES = 19;
+
+// Every frame is a separate request for a separate PNG. At one frame per 100 ms a cold
+// cache loses most of them, which is why the animation plays only sometimes -- it is
+// smooth exactly when the frames happen to be cached already. Holding decoded Images
+// from the moment the login screen appears gives the browser the whole gate up front.
+export function preloadDoor(url, count = DOOR_FRAMES, create = () => new Image()) {
+  return Array.from({ length: count }, (_, index) => {
+    const image = create();
+    image.src = url(index);
+    return image;
+  });
+}
+
 export function playDoor(frame, finish, interval = 100) {
   let index = 0;
   frame(index);
