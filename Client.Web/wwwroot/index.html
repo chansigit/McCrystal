@@ -13,39 +13,43 @@
       <img id="door-frame" src="/assets/frame?library=ChrSel&amp;index=0" alt="" />
       <form id="login-form" class="account-form">
         <h2>登录</h2>
-        <label for="account">账号</label>
-        <input
-          id="account"
-          name="username"
-          autocomplete="username"
-          maxlength="15"
-          required
-          spellcheck="false"
-        />
-        <label for="password">密码</label>
-        <div class="password-field">
+        <div class="fields">
+          <label for="account">账号</label>
           <input
-            id="password"
-            name="password"
-            type="password"
-            autocomplete="current-password"
+            id="account"
+            name="username"
+            autocomplete="username"
             maxlength="15"
             required
-          /><button
-            id="show-password"
-            type="button"
-            class="icon"
-            title="显示密码"
-            aria-label="显示密码"
-          >
-            <i data-lucide="eye"></i>
+            spellcheck="false"
+          />
+          <button id="login" type="submit" class="primary" disabled>
+            连接中…
           </button>
+          <label for="password">密码</label>
+          <div class="password-field">
+            <input
+              id="password"
+              name="password"
+              type="password"
+              autocomplete="current-password"
+              maxlength="15"
+              required
+            /><button
+              id="show-password"
+              type="button"
+              class="icon"
+              title="显示密码"
+              aria-label="显示密码"
+            >
+              <i data-lucide="eye"></i>
+            </button>
+          </div>
         </div>
-        <button id="login" type="submit" class="primary" disabled>
-          连接中…
-        </button>
-        <button id="open-register" type="button" class="secondary">注册账号</button>
-        <p id="login-status" role="status"></p>
+        <footer>
+          <button id="open-register" type="button" class="secondary">注册账号</button>
+          <p id="login-status" role="status"></p>
+        </footer>
       </form>
       <form id="register-form" class="account-form" hidden>
         <h2>注册账号</h2>

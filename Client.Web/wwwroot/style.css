@@ -95,11 +95,33 @@ canvas {
   max-width: 100%;
   text-shadow: 0 1px 3px #000;
 }
-#register-form { max-height: calc(100vh - 120px); overflow: auto; padding: 10px; background: #090b08c7; }
-#register-form label { margin-top: 7px; }
-#register-form input { height: 36px; font-size: 14px; }
-#register-form .primary, #register-form .secondary { height: 38px; margin-top: 10px; }
-#register-status { color: #ffd0b8; min-height: 20px; font-size: 13px; }
+/* Eight fields would make a single column taller than most screens, so they pair off two
+   to a row. The form's markup is a flat label/input list, which is exactly what a four
+   track grid wants: each row takes two pairs and nothing needs wrapping. */
+#register-form {
+  display: grid;
+  grid-template-columns: auto 1fr auto 1fr;
+  align-items: center;
+  gap: 0.55em 0.7em;
+  width: 30em;
+  max-height: calc(100vh - 6em);
+  overflow: auto;
+  padding: 0 1.2em 1.1em;
+}
+#register-form h2 { grid-column: 1 / -1; margin: 0 -1.2em; }
+#register-form > label {
+  margin: 0;
+  font-size: 0.92em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: #d3c197;
+}
+#register-form .primary,
+#register-form .secondary,
+#register-status { grid-column: 1 / -1; }
+#register-form .primary { margin-top: 0.6em; }
+#register-form .secondary { margin-top: 0; }
+#register-status { margin: 0; min-height: 1.4em; font-size: 0.85em; text-align: center; color: #ffd0b8; }
 .account-form h2 {
   font-size: 20px;
   margin: 0 0 20px;
@@ -160,126 +182,196 @@ canvas {
   min-height: 22px;
   color: #ffd0b8;
 }
-/* The panel is the original client's 328x220 sprite with every control placed at its own
-   source pixel, so it can only grow as a whole -- hence zoom rather than a width. Integer
-   steps keep the pixel art crisp, and each step is gated on the viewport having room for
-   the taller panel, which at 3x is 660px before the screen's own padding. */
-#login-form { zoom: 2; }
-@media (max-width: 720px), (max-height: 560px) { #login-form { zoom: 1; } }
-@media (min-width: 1400px) and (min-height: 1000px) { #login-form { zoom: 3; } }
-#login-form {
+/* The login panel used to be the original client's 328x220 sprite with every control
+   placed at its own source pixel. Enlarging it meant enlarging the bitmap, and at 3x the
+   art fell apart -- worse, the title and the field labels were real words hidden under
+   `color: transparent` so a sprite could show through, and text-shadow paints regardless
+   of text colour, so the ghost of 登录 sat as a black smear across the LOG IN artwork.
+
+   This draws the same panel instead of scaling a picture of it: the original's layout and
+   its gold-on-stone palette, in resolution-independent CSS, with the words themselves
+   doing the talking. Sizes are in em off the panel's own font-size, so one clamp on the
+   root scales the whole thing and nothing inside can drift out of register. */
+#login-form,
+#register-form {
+  --gold: #c8a86a;
+  --gold-lit: #ecd9a8;
+  --gold-deep: #6d5628;
+  --ink: #e9dcbc;
+  /* One clamp drives the whole panel: everything inside is sized in em, so the layout
+     cannot drift out of register the way the old absolutely-placed sprite coordinates
+     could. The lower bound keeps it usable on a phone, the upper stops it swallowing a
+     very large display. */
+  font-size: clamp(16px, 1.15vw + 8px, 32px);
   position: relative;
-  width: 328px;
-  height: 220px;
-  flex: 0 0 220px;
-  background: url("/assets/frame?library=Prguse&index=1084") 0 0 / 328px 220px no-repeat;
-  image-rendering: pixelated;
-  text-shadow: 0 1px 2px #000;
+  display: grid;
+  padding: 0.3em;
+  background: linear-gradient(#332715, #1d1509 45%, #241a0d);
+  border: 0.07em solid var(--gold);
+  border-radius: 0.12em;
+  box-shadow:
+    inset 0 0 0 0.07em #000a,
+    inset 0 0 2.5em #0009,
+    0 0.7em 2.5em #000d;
+  color: var(--ink);
+  text-shadow: 0 0.06em 0.12em #000;
 }
-#login-form h2 {
+/* The original panel carried a gold flourish in each corner. One overlay draws all four
+   as gradient strips -- an overlay rather than the panel's own background because the
+   header and footer paint over their parent, which would have clipped the top and bottom
+   brackets to whatever the padding left showing. */
+#login-form::after,
+#register-form::after {
+  --arm: linear-gradient(var(--gold-lit), var(--gold-lit));
+  content: "";
   position: absolute;
-  left: 113px;
-  top: 12px;
-  width: 102px;
-  height: 24px;
+  inset: 0.16em;
+  pointer-events: none;
+  background:
+    var(--arm) left top / 1em 0.07em no-repeat,
+    var(--arm) left top / 0.07em 1em no-repeat,
+    var(--arm) right top / 1em 0.07em no-repeat,
+    var(--arm) right top / 0.07em 1em no-repeat,
+    var(--arm) left bottom / 1em 0.07em no-repeat,
+    var(--arm) left bottom / 0.07em 1em no-repeat,
+    var(--arm) right bottom / 1em 0.07em no-repeat,
+    var(--arm) right bottom / 0.07em 1em no-repeat;
+}
+#login-form { grid-template-rows: auto 1fr auto; width: 22em; }
+#login-form h2,
+#register-form h2 {
   margin: 0;
-  overflow: hidden;
-  color: transparent;
-  background: url("/assets/frame?library=Title&index=30") no-repeat;
-}
-#login-form > label {
-  position: absolute;
-  width: 32px;
-  height: 20px;
-  margin: 0;
-  overflow: hidden;
-  color: transparent;
-  image-rendering: pixelated;
-}
-#login-form > label[for="account"] {
-  left: 52px;
-  top: 83px;
-  background: url("/assets/frame?library=Title&index=31") no-repeat;
-}
-#login-form > label[for="password"] {
-  left: 43px;
-  top: 105px;
-  background: url("/assets/frame?library=Title&index=32") no-repeat;
-}
-#login-form #account,
-#login-form .password-field {
-  position: absolute;
-  left: 85px;
-  width: 136px;
-  height: 18px;
-  margin: 0;
-}
-#login-form #account { top: 83px; }
-#login-form .password-field { top: 106px; }
-#login-form #account,
-#login-form #password {
-  min-width: 0;
-  height: 18px;
-  padding: 1px 4px;
-  border: 1px solid #554a3b;
-  border-radius: 0;
-  background: #070707d9;
-  color: #f1eee5;
-  font: 12px Helvetica, Arial, sans-serif;
-}
-#login-form #password { width: 117px; }
-#login-form #show-password {
-  width: 19px;
-  min-width: 19px;
-  height: 18px;
-  border: 1px solid #554a3b;
-  border-left: 0;
-  border-radius: 0;
-  background: #191610;
-}
-#login-form #show-password svg { width: 12px; height: 12px; }
-#login-form #login {
-  position: absolute;
-  left: 227px;
-  top: 81px;
-  width: 48px;
-  height: 48px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  color: transparent;
-  background: url("/assets/frame?library=Title&index=320") no-repeat;
-  image-rendering: pixelated;
-}
-#login-form #login:hover:not(:disabled) { background-image: url("/assets/frame?library=Title&index=321"); }
-#login-form #login:active:not(:disabled) { background-image: url("/assets/frame?library=Title&index=322"); }
-#login-form #open-register {
-  position: absolute;
-  left: 60px;
-  top: 163px;
-  width: 100px;
-  height: 25px;
-  margin: 0;
-  padding: 0;
-  border: 0;
-  border-radius: 0;
-  overflow: hidden;
-  color: transparent;
-  background: url("/assets/frame?library=Title&index=323") no-repeat;
-  image-rendering: pixelated;
-}
-#login-form #open-register:hover { background-image: url("/assets/frame?library=Title&index=324"); }
-#login-form #open-register:active { background-image: url("/assets/frame?library=Title&index=325"); }
-#login-form #login-status {
-  position: absolute;
-  left: 35px;
-  right: 35px;
-  top: 132px;
-  min-height: 18px;
-  margin: 0;
+  padding: 0.62em 0 0.55em;
+  background: linear-gradient(#4a3a20, #2c2011);
+  box-shadow: inset 0 0.05em 0 #6b542c, 0 0.05em 0 #0009;
+  font-family: "Songti SC", "Songti TC", serif;
+  font-size: 1.45em;
+  font-weight: 600;
+  letter-spacing: 0.5em;
+  /* The letter-spacing is trailing space after the last glyph; half of it back keeps the
+     word optically centred rather than sitting left of centre. */
+  text-indent: 0.5em;
   text-align: center;
-  font-size: 12px;
+  color: var(--gold-lit);
+  border-bottom: 0.06em solid var(--gold-deep);
+}
+#login-form .fields {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 0.55em 0.7em;
+  padding: 1.5em 1.2em;
+  background: #06050380;
+  box-shadow: inset 0 0.08em 0.35em #000b;
+}
+#login-form > .fields > label {
+  grid-column: 1;
+  margin: 0;
+  font-size: 0.92em;
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+  color: #d3c197;
+}
+#login-form #account,
+#login-form .password-field { grid-column: 2; }
+/* The button spans both field rows down the right edge, as it does in the original. */
+#login-form #login {
+  grid-column: 3;
+  grid-row: 1 / span 2;
+  align-self: stretch;
+  /* .primary pins an explicit height, which would beat the stretch. */
+  height: auto;
+  /* Wide enough for the longest state the button takes: 连接中… before the socket is up. */
+  width: 4.4em;
+  margin: 0;
+  padding: 0;
+  font-family: "Songti SC", serif;
+  font-size: 0.85em;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: #2a1e0c;
+  text-shadow: 0 0.05em 0 #e5cd9a;
+  background: linear-gradient(#e0c489, #b3914d 55%, #8d6f36);
+  border: 0.07em solid var(--gold-lit);
+  border-radius: 0.12em;
+}
+#login-form #login:hover:not(:disabled) { background: linear-gradient(#f0d9a6, #c4a25c 55%, #9c7d3f); }
+#login-form #login:active:not(:disabled) { background: linear-gradient(#9c7d3f, #b3914d 45%, #e0c489); }
+#login-form #login:disabled { background: linear-gradient(#5d5241, #40382b); color: #9c917c; text-shadow: none; }
+#login-form .password-field { display: flex; }
+#login-form #account,
+#login-form #password,
+#register-form input {
+  min-width: 0;
+  width: 100%;
+  height: 1.9em;
+  padding: 0 0.4em;
+  border: 0.07em solid #5c4c2e;
+  border-radius: 0.1em;
+  background: #060504;
+  color: var(--ink);
+  font: 1em/1 "Helvetica Neue", Helvetica, Arial, sans-serif;
+  text-shadow: none;
+}
+#login-form #account:focus,
+#login-form #password:focus,
+#register-form input:focus { outline: 0.09em solid var(--gold); outline-offset: -0.09em; }
+#login-form #show-password {
+  right: 0.2em;
+  top: 0.2em;
+  width: 1.5em;
+  min-width: 1.5em;
+  height: 1.5em;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #b7a37a;
+}
+#login-form #show-password:hover { color: var(--gold-lit); }
+#login-form #password { padding-right: 1.9em; }
+#login-form #show-password svg { width: 0.9em; height: 0.9em; }
+#login-form footer {
+  display: grid;
+  gap: 0.45em;
+  padding: 0.85em 1.2em 0.9em;
+  border-top: 0.06em solid var(--gold-deep);
+  box-shadow: inset 0 0.05em 0 #0009;
+}
+#login-form #open-register,
+#register-form .primary,
+#register-form .secondary {
+  justify-self: center;
+  width: 8.5em;
+  height: 2em;
+  margin: 0;
+  padding: 0;
+  font-size: 0.95em;
+  letter-spacing: 0.15em;
+  text-indent: 0.15em;
+  color: var(--ink);
+  background: #241b0fd9;
+  border: 0.07em solid var(--gold-deep);
+  border-radius: 0.1em;
+}
+#login-form #open-register:hover,
+#register-form .secondary:hover { background: #33260f; border-color: var(--gold); }
+#register-form .primary {
+  color: #2a1e0c;
+  text-shadow: 0 0.05em 0 #e5cd9a;
+  background: linear-gradient(#e0c489, #b3914d 55%, #8d6f36);
+  border: 0.07em solid var(--gold-lit);
+  font-family: "Songti SC", serif;
+  font-weight: 600;
+}
+#register-form .primary:hover:not(:disabled) { background: linear-gradient(#f0d9a6, #c4a25c 55%, #9c7d3f); }
+#register-form .primary:disabled { background: linear-gradient(#5d5241, #40382b); color: #9c917c; text-shadow: none; }
+#login-form #login-status {
+  margin: 0;
+  min-height: 1.4em;
+  font-size: 0.85em;
+  line-height: 1.4;
+  text-align: center;
+  color: #ffd0b8;
 }
 #account-screen > footer {
   position: absolute;

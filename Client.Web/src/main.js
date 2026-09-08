@@ -366,8 +366,21 @@ function receive(type, p) {
       const errors = ["服务器已关闭注册", "账号格式不正确", "密码格式不正确", "邮箱格式不正确",
         "姓名格式不正确", "密保问题格式不正确", "密保答案格式不正确", "账号已经存在"];
       $("register").disabled = false;
-      $("register-status").textContent = p.Result === 8 ? "账号创建成功，可以登录" : errors[p.Result] || `注册失败 (${p.Result})`;
-      if (p.Result === 8) { $("register-form").hidden = true; $("login-form").hidden = false; }
+      if (p.Result !== 8) {
+        $("register-status").textContent = errors[p.Result] || `注册失败 (${p.Result})`;
+        break;
+      }
+      // The success line used to be written to the registration form's own status and then
+      // hidden along with that form on the same tick, so the one message the player was
+      // waiting for was painted onto something nobody could see. It belongs on the screen
+      // they are being sent to.
+      $("register-status").textContent = "";
+      $("register-form").hidden = true;
+      $("login-form").hidden = false;
+      status(`账号 ${state.registeredAccount} 创建成功，请输入密码登录`);
+      $("account").value = state.registeredAccount ?? "";
+      $("password").value = "";
+      $("password").focus();
       break;
     }
     // The native client inserts a new character at the top of the list, so the
@@ -915,6 +928,9 @@ $("register-form").onsubmit = (event) => {
       Confirm:$("register-confirm").value, EMailAddress:$("register-email").value.trim(), UserName:$("register-name").value.trim(),
       BirthDate:$("register-birth").value, SecretQuestion:$("register-question").value.trim(), SecretAnswer:$("register-answer").value.trim()});
     $("register-status").textContent = "正在创建账号…"; $("register").disabled = true;
+    // Kept so the reply can name the account on the login screen; the reply carries a
+    // result code and nothing else.
+    state.registeredAccount = data.AccountID;
     if (!send("NewAccount", data)) throw new Error("连接已断开");
   } catch (error) { $("register").disabled = false; $("register-status").textContent = error.message; }
 };
