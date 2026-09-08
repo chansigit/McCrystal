@@ -4,6 +4,20 @@ using Crystal.Web;
 
 var builder = WebApplication.CreateBuilder(args);
 builder.WebHost.UseUrls("http://127.0.0.1:5080");
+
+// --server host:port, or MCCRYSTAL_GAME_SERVER, picks which pack's server to relay to.
+{
+    var selection = args.SkipWhile(a => a != "--server").Skip(1).FirstOrDefault()
+        ?? Environment.GetEnvironmentVariable("MCCRYSTAL_GAME_SERVER");
+    if (!string.IsNullOrWhiteSpace(selection))
+    {
+        var parts = selection.Split(':');
+        if (parts.Length == 2 && int.TryParse(parts[1], out int port))
+            Crystal.Web.GameSession.GameServer = (parts[0], port);
+        else if (int.TryParse(selection, out int only))
+            Crystal.Web.GameSession.GameServer = ("127.0.0.1", only);
+    }
+}
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 var root = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
 builder.Services.AddSingleton(new GameAssets(Path.Combine(root, "Build/Client/Debug")));
@@ -25,7 +39,8 @@ app.Use(async (context, next) =>
 app.UseDefaultFiles();
 app.UseStaticFiles();
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
-app.MapGet("/health", () => Results.Ok(new { status = "ready", server = "127.0.0.1:7000" }));
+app.MapGet("/health", () => Results.Ok(new { status = "ready",
+    server = $"{Crystal.Web.GameSession.GameServer.Host}:{Crystal.Web.GameSession.GameServer.Port}" }));
 app.MapGet("/assets/sound", (int id, GameAssets assets) => assets.Sound(id) is { } path
     ? Results.File(path, "audio/wav", enableRangeProcessing: true) : Results.NotFound());
 app.MapGet("/assets/frame", (string library, int index, GameAssets assets) =>

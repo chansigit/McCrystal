@@ -14,6 +14,11 @@ namespace Crystal.Web;
 
 public static class GameSession
 {
+    // The gateway used to dial 127.0.0.1:7000 as a literal, which meant it could only ever
+    // reach one content pack. Packs run on their own ports -- classic on 7000, mir-176 on
+    // 7100 -- so the upstream is chosen at startup instead.
+    public static (string Host, int Port) GameServer { get; set; } = ("127.0.0.1", 7000);
+
     public static readonly JsonSerializerOptions Json = CreateJson();
 
     // Mirrors Envir.CharacterReg. char.IsControl misses format characters such as
@@ -51,7 +56,7 @@ public static class GameSession
         var itemDefinitions = new Dictionary<int, ItemInfo>();
         try
         {
-            await tcp.ConnectAsync("127.0.0.1", 7000, stop.Token);
+            await tcp.ConnectAsync(GameServer.Host, GameServer.Port, stop.Token);
             var stream = tcp.GetStream();
             async Task Send(Packet packet)
             {
