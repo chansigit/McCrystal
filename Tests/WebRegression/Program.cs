@@ -292,5 +292,52 @@ using (var other = JsonDocument.Parse(JsonSerializer.Serialize(
         other.RootElement.GetProperty("TransformType").GetInt16() == -1,
         "The hair style reaches the browser for the local player and for everyone else");
 
+// The animation table carries a Blend byte straight after Reverse, and native draws the
+// body additively when it is set (Client/MirObjects/MonsterObject.cs:4306). The gateway
+// used to read it off the stream and throw it away, so 22 animation entries across
+// BoneFamiliar, HolyDeva, Tornado and BlueSoul reached the browser as opaque bodies.
+{
+    var root = Path.Combine(Path.GetTempPath(), "crystal-web-regression-" + Guid.NewGuid().ToString("N"));
+    Directory.CreateDirectory(Path.Combine(root, "Data"));
+    Directory.CreateDirectory(Path.Combine(root, "Map"));
+    try
+    {
+        var library = new MemoryStream();
+        var writer = new BinaryWriter(library);
+        writer.Write(3);                       // version
+        writer.Write(1);                       // frame count
+        writer.Write(37);                      // animation table position
+        writer.Write(16);                      // position of the only frame
+        writer.Write((short)8); writer.Write((short)8);     // width, height
+        writer.Write((short)-4); writer.Write((short)-6);   // x, y
+        writer.Write((short)0); writer.Write((short)0); writer.Write((byte)0);
+        writer.Write(4);                       // compressed length
+        writer.Write(new byte[4]);
+        writer.Write(1);                       // one animation
+        writer.Write((byte)MirAction.Attack1);
+        writer.Write(80); writer.Write(6); writer.Write(0); writer.Write(100);
+        for (int i = 0; i < 4; i++) writer.Write(0);
+        writer.Write(false);                   // Reverse
+        writer.Write(true);                    // Blend
+        File.WriteAllBytes(Path.Combine(root, "Data", "Blender.Lib"), library.ToArray());
+        using var assets = new GameAssets(root);
+        var manifest = assets.Manifest("Blender");
+        var attack = manifest.Animations["Attack1"];
+        Check(attack is { Start: 80, Count: 6, Skip: 0, Interval: 100, Reverse: false, Blend: true } &&
+            manifest.Frames[0] is { Width: 8, Height: 8, X: -4, Y: -6 },
+            "The animation Blend flag survives to the manifest the browser reads");
+    }
+    finally { Directory.Delete(root, true); }
+}
+
+// S.ObjectRangeAttack was never handled in the browser; its Type picks AttackRange1..3
+// (Client/MirScenes/GameScene.cs:5143-5165), so the field has to survive serialization.
+using (var ranged = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectRangeAttack { ObjectID = 7, Type = 2, Direction = MirDirection.DownLeft }, GameSession.Json)))
+    Check(ranged.RootElement.GetProperty("Type").GetByte() == 2 &&
+        ranged.RootElement.GetProperty("Direction").GetByte() == 5 &&
+        ranged.RootElement.GetProperty("ObjectID").GetUInt32() == 7,
+        "The ranged attack variant reaches the browser instead of being dropped");
+
 Console.WriteLine($"{count}/{count} passed");
 

@@ -6,9 +6,11 @@ import { hairLayer, weaponLayer } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
-import { Footsteps, locomotionFrame } from "./footsteps.js";
+import { Footsteps } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
+import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
+  liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
 
 export const directions = [
   [0, -1],
@@ -390,44 +392,42 @@ export class World {
   animationDefinition(library, action) {
     const manifest = this.manifest(library);
     if (!manifest) return null;
-    const defaults = {
-      Standing: { start: 0, count: 4, skip: 0, interval: 500 },
-      Walking: { start: 32, count: 6, skip: 0, interval: 100 },
-      Attack1: { start: 80, count: 6, skip: 0, interval: 100 },
-      Die: { start: 144, count: 10, skip: 0, interval: 100 },
-      Dead: { start: 153, count: 1, skip: 9, interval: 1000 },
-    };
-    if (library.startsWith("CArmour/")) {
-      defaults.Running = { start: 80, count: 6, skip: 0, interval: 100 };
-      defaults.Spell = { start: 296, count: 6, skip: 0, interval: 100 };
-      defaults.Harvest = { start: 344, count: 2, skip: 0, interval: 300 };
-      defaults.Attack1 = { start: 136, count: 6, skip: 0, interval: 100 };
-      defaults.Die = { start: 384, count: 4, skip: 0, interval: 100 };
-      defaults.Dead = { start: 387, count: 1, skip: 3, interval: 1000 };
-    }
-    return (
-      manifest.animations[action] ||
-      defaults[action] ||
-      manifest.animations.Standing ||
-      defaults.Standing);
+    return resolveFrames(manifest.animations, library, action);
   }
-  animation(library, action, direction, time, offset = 0) {
+  // True when the library itself declares the action, so Struck and Revive are never
+  // faked out of the generic default frame table for a library that omits them.
+  declaresAction(library, action) {
+    const manifest = this.manifest(library);
+    return !!manifest && hasDeclaredAction(manifest.animations, library, action);
+  }
+  actionLength(library, action) {
+    const f = this.animationDefinition(library, action);
+    return f ? actionLength(f) : 600;
+  }
+  frameAt(library, action, direction, step, offset = 0) {
     const f = this.animationDefinition(library, action);
     if (!f) return -1;
-    return (
-      offset +
-      f.start +
-      direction * (f.count + f.skip) + (f.reverse ? -1 : 1) *
-      (action === "Die" ? deathFrame(time, f.count, f.interval) :
-        Math.floor(time / Math.max(50, f.interval)) % Math.max(1, f.count))
-    );
+    return offset + frameIndex(f, direction, step);
+  }
+  // Which action an actor is in right now, and when that action started. Native reads
+  // this off ActionFeed and CurrentAction (MonsterObject.cs:471); the browser keeps
+  // one timestamp per action instead of a queue.
+  resolveAction(entity, library, position, now) {
+    if (entity.kind === "npc")
+      return { action: npcIdleAction(entity, this.manifest(library)?.animations, now),
+        startedAt: entity.npcIdleStartedAt };
+    return liveAction(entity, position, now, {
+      length: (action) => this.actionLength(library, action),
+      declares: (action) => this.declaresAction(library, action),
+    });
   }
   visibilityFrame(entity, library, now) {
     const manifest = this.manifest(library);
     if (!manifest) return -1;
     const f = manifest.animations[entity.visibilityAction];
     if (!f) {
-      if (entity.visibilityAction === "Hide") this.entities.delete(entity.ObjectID);
+      // Native drops the queued action when the library has no frames for it
+      // (MonsterObject.SetAction returns false), leaving the monster as it was.
       entity.visibilityAction = null;
       return -1;
     }
@@ -441,11 +441,19 @@ export class World {
       }
     }
     const {step, done} = transitionFrame(entity, f, now, ready);
-    if (done) {
-      if (entity.visibilityAction === "Hide") this.entities.delete(entity.ObjectID);
-      entity.visibilityAction = null;
-    }
+    if (done) this.finishVisibility(entity);
     return frameIndex(f, entity.Direction || 0, step);
+  }
+  // The end of MirAction.Hide in native (MonsterObject.cs:1423-1461): the burrowers
+  // leave the map, the statue family freezes into its Stoned pose, and the rest simply
+  // stand back up. Show releases the statues again (MonsterObject.cs:1363-1400).
+  finishVisibility(entity) {
+    if (entity.visibilityAction === "Hide") {
+      if (REMOVED_ON_HIDE.has(entity.Image)) this.entities.delete(entity.ObjectID);
+      else if (STONED_ON_HIDE.has(entity.Image)) entity.stoned = true;
+    } else if (entity.visibilityAction === "Show" && STONED_ON_HIDE.has(entity.Image))
+      entity.stoned = false;
+    entity.visibilityAction = null;
   }
   dyingFrame(entity, library, offset, now) {
     const f = this.animationDefinition(library, "Die");
@@ -460,8 +468,9 @@ export class World {
     if (!ready) return start;
     entity.deathPlaybackAt ??= now;
     const elapsed = now - entity.deathPlaybackAt;
-    return this.animation(library, elapsed < f.count * Math.max(50, f.interval) ? "Die" : "Dead",
-      entity.Direction || 0, elapsed, offset);
+    return elapsed < actionLength(f)
+      ? this.frameAt(library, "Die", entity.Direction || 0, deathFrame(elapsed, f.count, f.interval), offset)
+      : this.frameAt(library, "Dead", entity.Direction || 0, 0, offset);
   }
   draw() {
     if (!this.map || !this.user || !this.app) return;
@@ -569,66 +578,52 @@ export class World {
       )
         continue;
       const position = motionPosition(e, now);
-      const x = position.X * 48, y = position.Y * 32;
-      const depth = entityDepth(y, e);
-      let library,
-        index,
-        action = e.Dead
-          ? (e.Harvested ? "Skeleton" : "Dead")
-          : now < (e.harvestUntil || 0)
-            ? "Harvest"
-          : now < (e.castUntil || 0)
-            ? "Spell"
-          : now < (e.attackUntil || 0)
-            ? "Attack1"
-            : position.moving
-              ? (e.running ? "Running" : "Walking")
-              : "Standing";
-      if (e.kind === "item") {
-        library = "DNItems";
-        index = e.Image;
-      } else if (e.kind === "npc") {
-        library = `NPC/${String(e.Image).padStart(2, "0")}`;
-        action = npcIdleAction(e, this.manifest(library)?.animations, now);
-        index = this.animation(library, action, e.Direction || 0, now - (e.npcIdleStartedAt || now));
-      } else if (e.kind === "monster") {
-        library = `Monster/${String(e.Image).padStart(3, "0")}`;
-        index = this.animation(library, action, e.Direction || 0, now);
-      } else {
-        library = `CArmour/${String(Math.max(0, e.Armour || 0)).padStart(2, "0")}`;
-        index = this.animation(
-          library,
-          action,
-          e.Direction || 0,
-          now,
-          e.Gender === 1 ? 808 : 0,
-        );
-      }
-      if (e.visibilityAction && e.kind === "monster") {
+      const manual = manualDrawOffset(e);
+      const px = position.X * 48, py = position.Y * 32;
+      const x = px + manual.x, y = py + manual.y;
+      const depth = entityDepth(py, e);
+      const direction = e.Direction || 0;
+      const offset = e.kind === "player" && e.Gender === 1 ? 808 : 0;
+      const library = e.kind === "item" ? "DNItems"
+        : e.kind === "npc" ? `NPC/${String(e.Image).padStart(2, "0")}`
+        : e.kind === "monster" ? `Monster/${String(e.Image).padStart(3, "0")}`
+        : `CArmour/${String(Math.max(0, e.Armour || 0)).padStart(2, "0")}`;
+      let action = null, index = -1;
+      if (e.kind === "item") index = e.Image;
+      else if (e.visibilityAction && e.kind === "monster") {
+        action = e.visibilityAction;
         index = this.visibilityFrame(e, library, now);
         if (!this.entities.has(e.ObjectID) || index < 0) continue;
-      }
-      else if ((e.Harvested || e.Skeleton) && e.kind === "monster")
-        index = this.animation(library, this.manifest(library)?.animations.Skeleton ? "Skeleton" : "Dead", e.Direction || 0, 0);
-      else if (e.Dead && e.diedAt != null && e.kind !== "item")
-        index = this.dyingFrame(e, library, e.kind === "player" && e.Gender === 1 ? 808 : 0, now);
-      else if (e.kind === "player" && (position.moving || ["Attack1", "Spell", "Harvest"].includes(action))) {
+      } else if ((e.Harvested || e.Skeleton) && e.kind === "monster") {
+        action = this.manifest(library)?.animations.Skeleton ? "Skeleton" : "Dead";
+        index = this.frameAt(library, action, direction, 0);
+      } else if (e.Dead && e.diedAt != null) {
+        action = "Die";
+        index = this.dyingFrame(e, library, offset, now);
+      } else if (e.Dead) {
+        action = "Dead";
+        index = this.frameAt(library, "Dead", direction, 0, offset);
+      } else {
+        // One frame cursor for every actor: the action decides the frame table, and the
+        // phase is measured from that action's own start rather than from a wall clock.
+        const resolved = this.resolveAction(e, library, position, now);
+        action = resolved.action;
+        const elapsed = advanceAction(e, resolved, now);
         const f = this.animationDefinition(library, action);
         if (f) {
-          const duration = ["Attack1", "Spell", "Harvest"].includes(action) ? 600 : e.moveDuration;
-          const started = action === "Harvest" ? e.harvestStartedAt : action === "Spell" ? e.castStartedAt : action === "Attack1" ? e.attackStartedAt : e.movedAt;
-          const phase = Math.max(0, Math.min(0.999, (now - started) / duration));
-          const movingAction = ["Walking", "Running"].includes(action);
-          const frame = locomotionFrame(phase, f.count);
-          if (e === u && position.moving && ["Walking", "Running"].includes(action) &&
+          const step = animationStep(f, action, elapsed, resolved.duration);
+          if (e === u && position.moving && MOVING_ACTIONS.has(action) &&
               (e.from?.X !== e.Location.X || e.from?.Y !== e.Location.Y)) {
-            const sound = this.footsteps.sample(e.movedAt, frame, e.running);
+            const sound = this.footsteps.sample(e.movedAt, step, e.running);
             if (sound !== null) this.onStep?.(sound);
           }
-          index = this.animation(library, action, e.Direction || 0,
-            (movingAction ? frame : phase * f.count) * Math.max(50, f.interval), e.Gender === 1 ? 808 : 0);
+          index = offset + frameIndex(f, direction, step);
         }
       }
+      // MonsterObject.Draw picks DrawBlend over Draw when the action's own Blend byte is
+      // set (Client/MirObjects/MonsterObject.cs:4306); the gateway now carries that byte.
+      const blend = action != null && e.kind !== "item" &&
+        !!this.animationDefinition(library, action)?.blend;
       if (e.kind === "player" && !e.Dead) {
         const key = `shadow:${e.ObjectID}`;
         let shadow = this.nodes.get(key);
@@ -673,7 +668,14 @@ export class World {
         glint.zIndex = depth + 0.01;
         glint.seen = this.tick;
       }
-      if (body) body.tint = now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
+      if (body) {
+        // The pink flash is kept only where the real Struck animation is not playing:
+        // players, NPCs, and the monster libraries that declare no Struck frames. Where
+        // the animation does play it is the hit feedback, and tinting it as well would
+        // double-signal something native never tints.
+        body.tint = action !== "Struck" && now < (e.struckUntil || 0) ? 0xffa39a : 0xffffff;
+        body.blendMode = blend ? "add" : "normal";
+      }
       if (body && !e.Dead && ["monster", "npc"].includes(e.kind) &&
           (e.ObjectID === hoveredID || e.ObjectID === this.selectedID)) {
         const key = `entity:highlight:${e.ObjectID}`;
@@ -725,8 +727,7 @@ export class World {
         bar.position.set(x + 24, y - 58); bar.zIndex = y + 101; bar.seen = this.tick;
       }
       const hovered = e.ObjectID === hoveredID;
-      const standing = this.animation(library, "Standing", e.Direction || 0, 0,
-        e.kind === "player" && e.Gender === 1 ? 808 : 0);
+      const standing = this.frameAt(library, "Standing", direction, 0, offset);
       const top = this.manifests.get(library)?.frames[standing]?.y;
       let actorTop = Math.min(y - 40, y + (top ?? -40));
       if (showName(e, this.nameView, hovered)) {

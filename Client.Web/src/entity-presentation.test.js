@@ -21,12 +21,16 @@ test("native name defaults exclude corpses; hover works with names disabled", ()
   assert.equal(showName({kind: "item"}, false, true), false);
 });
 
-test("Guard attack animation includes the native standing recovery", () => {
+test("every swing restarts its own animation, with no image-specific lockout", () => {
   const guard = {kind: "monster", Image: 1};
   assert.equal(beginAttackAnimation(guard, 1000), true);
-  assert.equal(guard.attackUntil, 1600);
-  assert.equal(beginAttackAnimation(guard, 2000), false);
-  assert.equal(beginAttackAnimation(guard, 3600), true);
+  assert.equal(guard.attackStartedAt, 1000);
+  assert.equal(guard.attackAction, "Attack1");
+  // The 2600 ms lockout that used to gate images 0 and 1 is gone: a swing that lands
+  // 200 ms after the last one starts its own animation from frame zero.
+  assert.equal(beginAttackAnimation(guard, 1200, "Attack2"), true);
+  assert.equal(guard.attackStartedAt, 1200);
+  assert.equal(guard.attackAction, "Attack2");
   assert.equal(beginAttackAnimation({kind: "monster", Image: 20}, 2000), true);
 });
 
