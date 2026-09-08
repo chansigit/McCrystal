@@ -167,27 +167,39 @@ row must reproduce the old shortcut exactly.
 
 ## Sprite upscaling
 
-`docs/sprite-upscaling-research.md` has the full evidence, measured on this
-repository's own assets. Conclusions:
+`docs/sprite-upscaling-research.md` has the full evidence. The verdict is xBRZ
+rather than any AI model, because the art is pre-rendered 3D downsampled rather
+than pixel art, so every "correct" pixel-art scaler degenerates to nearest
+neighbour on it, and because the whole ncnn family upscales alpha with a bicubic
+layer outside the network.
 
-- The art is **not pixel art** — pre-rendered 3D downsampled, about 97 colours
-  per frame — so every "correct" pixel-art scaler degenerates to nearest
-  neighbour on it. The choice is xBRZ or nothing.
-- xBRZ verified: zero alpha contamination, temporal ratio 1.159 against a 1.000
-  floor, perturbations bounded to a 3-pixel halo so shimmer is structurally
-  impossible, whole corpus in about 4 minutes.
-- Upscayl and the ncnn family are ruled out at source level: the alpha channel
-  never enters the network. `ffmpeg -vf xbr` silently drops alpha entirely.
-- **The shadows are a 50% checkerboard dither in 81% of frames.** Replacing them
-  with real alpha is more valuable than the upscaling itself.
-- A GPU buys nothing for xBRZ. The Stanford Sherlock allocation, which the user
-  has cleared for this, is only relevant to the AI route.
-- Per-frame offsets **must be doubled** on re-import, and the client's
-  `a == 0 && rgb != 0 → a = 255` rule must be applied *before* upscaling.
+It is built and running.
 
-Next step is a single-monster experiment judged by flipbooking a walk cycle —
-shimmer is invisible in stills, so every still comparison is blind to the
-failure mode that matters. Deer is `Monster/004.Lib`.
+- `Tools/SpriteHD/` decodes a `.Lib`, runs the pre-passes, upscales 2x through
+  the xBRZ WASM port in one long-lived node process, and writes
+  `Data/HD/<library>/<index>.png`.
+- The gateway serves an override in place of the decoded frame, and `assetScale`
+  in `entity-presentation.js` halves the sprite scale when a texture arrives at
+  exactly twice its manifest size. Nothing in the protocol changed.
+- Monsters 0-99 are converted: 23,653 frames, 92 seconds, 616 MB. Everything
+  from 100 up is untouched and renders as before, which makes it a live control.
+- All monsters would be 188,013 frames, about 13 minutes and 5.3 GB. The whole
+  corpus is 1,870,142 frames, about 2 hours and roughly 50 GB, and there were
+  27 GB free when this was written.
+
+Two things that silently ruin a frame if skipped, both verified rather than
+assumed. The RGB under transparent pixels has to be zeroed *before* upscaling:
+without it xBRZ leaves 192 of 256 output pixels that the client loader's
+`a == 0 && rgb != 0` rule would force opaque, and with it, exactly zero. And the
+shadow dither has to be detected per frame *and* per colour, because a
+whole-frame parity test only reaches 93% and the parity flips within a single
+walk cycle.
+
+The shadow fix is the change you notice first, and it is not upscaling at all.
+The shadow in this art is a 50% checkerboard of `RGBA(16,8,8,255)` faking half
+opacity on 1999 hardware; replacing it with a solid region at alpha 128 gives a
+better shadow than the original engine could draw. It is on 100% of `AArmour`,
+71% of `CArmour` and 60% of monster frames -- exactly the things that cast one.
 
 ## Finding where a monster lives
 
@@ -263,6 +275,7 @@ modified config files are backed up in
 | `docs/web-client-gap-analysis.md` | Native vs web feature comparison and roadmap |
 | `docs/web-client-animation-audit.md` | Animation comparison, what is done, what remains |
 | `docs/sprite-upscaling-research.md` | Upscaling tool evidence, landmines and verdict |
+| `Tools/SpriteHD/README.md` | How to build and preview HD sprite overrides |
 | `Tools/DumpSpawns/dump_spawns.py` | Every map's respawn table, read out of `Server.MirDB` |
 | `docs/research/legend-176-sources.md` | Downloaded 1.76 packs, revisions, licences |
 | `docs/reports/classic-pack-report.json` | Content pack validation baseline |
