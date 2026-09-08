@@ -358,6 +358,40 @@ using (var statue = JsonDocument.Parse(JsonSerializer.Serialize(
     Check(statue.RootElement.GetProperty("Extra").GetBoolean() &&
         statue.RootElement.GetProperty("Image").GetUInt16() == 65,
         "A dormant statue's Extra flag reaches the browser");
+// The server tells a victim it was hit with S.Struck and the onlookers with
+// S.ObjectStruck (HumanObject.cs:7214), and Broadcast excludes the sender, so a browser
+// that handles only the Object variant leaves the local player as the one actor in the
+// world that never flinches. Same shape for poison and for a push.
+using (var struck = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.Struck { AttackerID = 42 }, GameSession.Json)))
+    Check(struck.RootElement.GetProperty("AttackerID").GetUInt32() == 42,
+        "Being hit reaches the browser, not just watching someone else be hit");
+
+using (var mine = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.Poisoned { Poison = PoisonType.Green | PoisonType.Slow }, GameSession.Json)))
+using (var theirs = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectPoisoned { ObjectID = 8, Poison = PoisonType.Frozen }, GameSession.Json)))
+    Check(mine.RootElement.GetProperty("Poison").GetUInt16() == (ushort)(PoisonType.Green | PoisonType.Slow) &&
+        theirs.RootElement.GetProperty("Poison").GetUInt16() == (ushort)PoisonType.Frozen &&
+        theirs.RootElement.GetProperty("ObjectID").GetUInt32() == 8,
+        "Poison flags reach the browser as the bitfield world.js tints from");
+
+// A push is a position the client never asked for. Dropping it leaves the actor drawn on
+// its old cell, and for the local player every later step is then computed from the
+// wrong one.
+using (var pushed = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.Pushed { Location = new System.Drawing.Point(331, 272), Direction = MirDirection.Left },
+    GameSession.Json)))
+using (var other = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectPushed { ObjectID = 11, Location = new System.Drawing.Point(12, 34), Direction = MirDirection.Up },
+    GameSession.Json)))
+    Check(pushed.RootElement.GetProperty("Location").GetProperty("X").GetInt32() == 331 &&
+        pushed.RootElement.GetProperty("Location").GetProperty("Y").GetInt32() == 272 &&
+        pushed.RootElement.GetProperty("Direction").GetByte() == (byte)MirDirection.Left &&
+        other.RootElement.GetProperty("ObjectID").GetUInt32() == 11 &&
+        other.RootElement.GetProperty("Location").GetProperty("Y").GetInt32() == 34,
+        "A push carries the cell it lands on for the local player and for everyone else");
+
 
 Console.WriteLine($"{count}/{count} passed");
 

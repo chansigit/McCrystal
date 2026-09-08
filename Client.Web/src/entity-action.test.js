@@ -237,3 +237,18 @@ test("a player stands ready for two and a half seconds after a swing", () => {
   // And a player who has not swung at all simply stands.
   assert.equal(liveAction({ kind: "player", Class: 0 }, { moving: false }, 9000, table).action, "Standing");
 });
+
+test("a pushed actor slides rather than walks, and only while the slide lasts", () => {
+  // The server sends Pushed/ObjectPushed with the actor's own facing, not the push
+  // direction (HumanObject.cs:2682), so the difference from a step is the action alone.
+  const table = { Standing: sparse.Standing, Walking: { start: 8, count: 6, skip: 0, interval: 100 } };
+  const look = lookup(table, "Monster/001");
+  const entity = { kind: "monster", movedAt: 1000, moveDuration: 600, pushedUntil: 1600 };
+  const moving = { moving: true };
+  assert.equal(liveAction(entity, moving, 1200, look).action, "Pushed");
+  // Once the slide is over the same actor walking is a walk again.
+  assert.equal(liveAction(entity, moving, 1700, look).action, "Walking");
+  // An actor that was never pushed carries no flag and is unaffected.
+  assert.equal(liveAction({ kind: "monster", movedAt: 1000, moveDuration: 600 }, moving, 1200, look).action,
+    "Walking");
+});

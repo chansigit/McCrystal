@@ -165,7 +165,11 @@ export function liveAction(entity, position, now, { length, declares }) {
       declares("Struck") && now - entity.struckStartedAt < length("Struck"))
     return { action: "Struck", startedAt: entity.struckStartedAt };
   if (position.moving)
-    return { action: entity.running ? "Running" : "Walking",
+    // A pushed actor slides rather than walks. Few libraries own Pushed frames, so the
+    // fallback table sends the rest to Walking; the difference that matters is that the
+    // actor keeps facing the way it was, which is what native does with a push.
+    return { action: now < (entity.pushedUntil || 0) ? "Pushed"
+        : entity.running ? "Running" : "Walking",
       startedAt: entity.movedAt, duration: entity.moveDuration };
   // For 2.5 seconds after a swing or a cast a player stands ready rather than idle
   // (PlayerObject.cs:79, 941, 2505). An Archer holding a bow never does.

@@ -634,13 +634,47 @@ function receive(type, p) {
       if (object) { object.Harvested = true; object.Dead = true; object.Direction = p.Direction; object.Location = p.Location; }
       break;
     }
+    // The server tells the victim with Struck and everyone else with ObjectStruck
+    // (HumanObject.cs:7214), and Broadcast excludes the sender -- so without this case
+    // your own character is the one actor in the world that never flinches.
+    case "Struck":
     case "ObjectStruck": {
-      const object = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
+      const object = type === "Struck" ? state.user
+        : p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
       if (object) {
         object.struckUntil = performance.now() + 180;
         object.struckStartedAt = performance.now();
       }
       playActorSound(object, "struck");
+      break;
+    }
+    // Poison arrives the same way, one packet to the poisoned player and one to the
+    // onlookers (HumanObject.cs:729). world.js already tints and draws the dots from
+    // e.Poison; nothing was ever setting it.
+    case "Poisoned":
+      if (state.user) state.user.Poison = p.Poison;
+      break;
+    case "ObjectPoisoned": {
+      const object = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
+      if (object) object.Poison = p.Poison;
+      break;
+    }
+    // A push is a position change the client did not ask for -- a shoulder dash, or a
+    // monster shoving another out of its way (MonsterObject.cs:1068). Ignoring it leaves
+    // the browser drawing the actor where it used to be, and for the local player that
+    // means every later step is computed from the wrong cell.
+    case "Pushed":
+    case "ObjectPushed": {
+      const object = type === "Pushed" ? state.user
+        : p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
+      if (!object) break;
+      moveObject(object, p);
+      object.pushedUntil = performance.now() + (object.moveDuration || 0);
+      if (object === state.user) {
+        state.path = [];
+        state.pending = false;
+        updateHud();
+      }
       break;
     }
     case "ObjectHealth": {
