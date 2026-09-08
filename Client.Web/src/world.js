@@ -1,6 +1,7 @@
 import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js";
 import PF from "pathfinding";
 import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
+import { textureBytes, textureEvictions } from "./texture-budget.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
 import { hairLayer, weaponLayer, wingLayer, transformLayer, transformAction } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
@@ -420,7 +421,9 @@ export class World {
       const queued = this.queue.findIndex((request) => request.key === key);
       if (queued > 0) this.queue.unshift(...this.queue.splice(queued, 1));
     }
-    return this.textures.get(key);
+    const texture = this.textures.get(key);
+    if (texture) texture.lastUsed = this.tick;
+    return texture;
   }
   pump() {
     while (this.active < 12 && this.queue.length) {
@@ -976,5 +979,20 @@ export class World {
         node.destroy();
         this.labels.delete(key);
       }
+    this.trimTextures();
+  }
+  // Runs after the nodes are reaped, so anything still on screen has been stamped
+  // this tick and anything holding a texture is pinned.
+  trimTextures() {
+    const held = new Set();
+    for (const node of this.nodes.values()) if (node.texture) held.add(node.texture);
+    const entries = [];
+    for (const [key, texture] of this.textures)
+      if (texture) entries.push({ key, bytes: textureBytes(texture),
+        lastUsed: texture.lastUsed || 0, pinned: held.has(texture) });
+    for (const key of textureEvictions(entries)) {
+      this.textures.get(key)?.destroy(true);
+      this.textures.delete(key);
+    }
   }
 }
