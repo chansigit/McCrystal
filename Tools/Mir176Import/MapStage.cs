@@ -78,13 +78,22 @@ public static class MapStage
 
         foreach (var section in sections)
         {
-            if (!byFile.TryGetValue(section.File, out var from)) continue;
             foreach (var move in section.Movements)
             {
+                // The section is a grouping, not the owner: attaching a movement to the
+                // section rather than to the map its line names puts it on the wrong map,
+                // where its coordinates are somewhere else entirely or off the edge.
+                if (!byFile.TryGetValue(move.FromFile, out var from))
+                {
+                    dangling++;
+                    notes.Add($"WARN   [{section.File}] 里 {move.FromFile} {move.FromX},{move.FromY} "
+                        + "-> 源地图不存在");
+                    continue;
+                }
                 if (!byFile.TryGetValue(move.ToFile, out var to))
                 {
                     dangling++;
-                    notes.Add($"WARN   {section.File} {move.FromX},{move.FromY} -> unknown map {move.ToFile}");
+                    notes.Add($"WARN   {move.FromFile} {move.FromX},{move.FromY} -> unknown map {move.ToFile}");
                     continue;
                 }
                 from.Movements.Add(new MovementInfo

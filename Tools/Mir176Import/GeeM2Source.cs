@@ -48,7 +48,10 @@ public sealed record MapSection(string File, string Title, List<string> Attribut
     public List<Movement> Movements { get; } = new();
 }
 
-public sealed record Movement(string ToFile, int FromX, int FromY, int ToX, int ToY);
+/// <summary>A movement line. Its source map is the name on the line, not the section it
+/// appears under: mapinfo.txt groups lines for a reader's convenience, and a section for one
+/// map routinely lists movements belonging to several others.</summary>
+public sealed record Movement(string FromFile, string ToFile, int FromX, int FromY, int ToX, int ToY);
 
 public sealed record StartPoint(string File, int X, int Y);
 
@@ -150,7 +153,7 @@ public sealed class GeeM2Source
             }
             var move = Move.Match(line);
             if (move.Success && current != null)
-                current.Movements.Add(new Movement(move.Groups[4].Value,
+                current.Movements.Add(new Movement(move.Groups[1].Value, move.Groups[4].Value,
                     int.Parse(move.Groups[2].Value), int.Parse(move.Groups[3].Value),
                     int.Parse(move.Groups[5].Value), int.Parse(move.Groups[6].Value)));
         }

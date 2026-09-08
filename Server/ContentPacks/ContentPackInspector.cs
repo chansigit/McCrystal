@@ -93,6 +93,7 @@ namespace Server.ContentPacks
             var maps = environment.MapInfoList.GroupBy(map => map.Index).ToDictionary(group => group.Key, group => group.First());
             var monsters = environment.MonsterInfoList.GroupBy(monster => monster.Index).ToDictionary(group => group.Key, group => group.First());
             CheckMaps(pack, environment, maps, monsters, report);
+            CheckGeometry(environment, maps, report);
             CheckNpcs(pack, environment, maps, report);
             CheckQuests(pack, environment, report);
             CheckDrops(pack, environment, report);
@@ -152,6 +153,78 @@ namespace Server.ContentPacks
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// Opens every map that something is placed on and checks the placements against the
+        /// terrain. Nothing else in this inspector reads a map's cells, so a coordinate that
+        /// lands in a wall or off the edge passes every other check -- and the engine answers
+        /// such a placement by silently skipping it (Map.cs:493), which is how a shop NPC or a
+        /// teleport can be simply absent with no error anywhere.
+        /// </summary>
+        private static void CheckGeometry(Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,
+            ContentPackReport report)
+        {
+            // Loaded through the engine's own Map so the verdict here is the verdict at run
+            // time, wall rules and map format variants included.
+            var loaded = new Dictionary<int, Map>();
+            Map Open(int index)
+            {
+                if (loaded.TryGetValue(index, out var cached)) return cached;
+                if (!maps.TryGetValue(index, out var info)) return loaded[index] = null;
+                var map = new Map(info);
+                return loaded[index] = map.Load() ? map : null;
+            }
+
+            int blockedNpcs = 0, blockedMovements = 0, offMapZones = 0;
+            foreach (var map in environment.MapInfoList)
+            {
+                var loadedMap = Open(map.Index);
+                if (loadedMap == null) continue;
+
+                foreach (var npc in map.NPCs)
+                    if (!loadedMap.ValidPoint(npc.Location))
+                    {
+                        blockedNpcs++;
+                        Add(report, ContentIssueSeverity.Error, "NPC_CELL_BLOCKED",
+                            $"NPC '{npc.Name}' stands at {npc.Location.X},{npc.Location.Y} on '{map.FileName}', "
+                            + "which is off the map or a wall, so the engine will not spawn it.",
+                            entity: npc.Name);
+                    }
+
+                foreach (var movement in map.Movements)
+                {
+                    if (!loadedMap.ValidPoint(movement.Source))
+                    {
+                        blockedMovements++;
+                        Add(report, ContentIssueSeverity.Warning, "MOVEMENT_SOURCE_BLOCKED",
+                            $"Map '{map.FileName}' has a movement whose source {movement.Source.X},{movement.Source.Y} "
+                            + "cannot be stood on, so it can never trigger.", entity: map.FileName);
+                    }
+                    var target = Open(movement.MapIndex);
+                    if (target != null && !target.ValidPoint(movement.Destination))
+                    {
+                        blockedMovements++;
+                        Add(report, ContentIssueSeverity.Error, "MOVEMENT_DESTINATION_BLOCKED",
+                            $"Map '{map.FileName}' sends {movement.Source.X},{movement.Source.Y} to "
+                            + $"{movement.Destination.X},{movement.Destination.Y} on '{target.Info.FileName}', "
+                            + "which is off the map or a wall.", entity: map.FileName);
+                    }
+                }
+
+                foreach (var zone in map.SafeZones)
+                    if (!loadedMap.ValidPoint(zone.Location))
+                    {
+                        offMapZones++;
+                        Add(report, ContentIssueSeverity.Warning, "SAFEZONE_CENTRE_BLOCKED",
+                            $"Map '{map.FileName}' has a safe zone centred on {zone.Location.X},{zone.Location.Y}, "
+                            + "which is off the map or a wall.", entity: map.FileName);
+                    }
+            }
+
+            report.Inventory["geometry.npcs.blocked"] = blockedNpcs;
+            report.Inventory["geometry.movements.blocked"] = blockedMovements;
+            report.Inventory["geometry.safezones.blocked"] = offMapZones;
         }
 
         private static void CheckNpcs(ContentPack pack, Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,

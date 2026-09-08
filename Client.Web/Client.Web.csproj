@@ -9,5 +9,9 @@
     <ProjectReference Include="../Shared/Shared.csproj" />
     <PackageReference Include="SkiaSharp" Version="2.88.9" />
     <Compile Include="../Client/MirObjects/MapCode.cs" Link="Compatibility/MapCode.cs" />
+    <!-- The manifest reader only needs YamlDotNet, so the gateway can share the server's
+         one definition of a pack rather than keeping a second, drifting copy. -->
+    <Compile Include="../Server/ContentPacks/ContentPack.cs" Link="Compatibility/ContentPack.cs" />
+    <PackageReference Include="YamlDotNet" Version="18.1.0" />
   </ItemGroup>
 </Project>

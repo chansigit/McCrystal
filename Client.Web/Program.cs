@@ -20,11 +20,24 @@ builder.WebHost.UseUrls("http://127.0.0.1:5080");
 }
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 var root = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
-// --maps <dir>, or MCCRYSTAL_MAP_ROOT, points the client at the pack's own map files. The
-// server is already running them; without this the client draws whichever maps sit beside
-// its art, and every coordinate the server sends lands on different terrain.
+// The client has to draw the same maps the server is running, or every coordinate the
+// server sends lands on different terrain -- silently, because both sets are valid maps
+// with the same names. --pack reads the location out of the same manifest the server was
+// started with, so the two halves cannot drift apart by forgetting a flag; --maps still
+// overrides it for a one-off.
+var packPath = args.SkipWhile(a => a != "--pack").Skip(1).FirstOrDefault()
+    ?? Environment.GetEnvironmentVariable("MCCRYSTAL_PACK");
 var mapRoot = args.SkipWhile(a => a != "--maps").Skip(1).FirstOrDefault()
     ?? Environment.GetEnvironmentVariable("MCCRYSTAL_MAP_ROOT");
+if (string.IsNullOrWhiteSpace(mapRoot) && !string.IsNullOrWhiteSpace(packPath))
+{
+    try { mapRoot = Server.ContentPacks.ContentPack.Load(packPath).MapPath; }
+    catch (Exception e) when (e is IOException or UnauthorizedAccessException or YamlDotNet.Core.YamlException)
+    {
+        Console.Error.WriteLine($"Could not read pack {packPath}: {e.Message}");
+        Environment.Exit(1);
+    }
+}
 builder.Services.AddSingleton(new GameAssets(Path.Combine(root, "Build/Client/Debug"),
     string.IsNullOrWhiteSpace(mapRoot) ? null : Path.GetFullPath(mapRoot)));
 var app = builder.Build();
