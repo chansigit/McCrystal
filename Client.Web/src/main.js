@@ -36,6 +36,7 @@ import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
+import { attackAction, rangeAttackAction } from "./entity-action.js";
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -467,8 +468,11 @@ function receive(type, p) {
     }
     case "ObjectShow":
     case "ObjectHide": {
+      // Every monster whose library declares the action, not just the Hydra: 27 have
+      // Show and 21 have Hide. World.visibilityFrame drops the action again for the
+      // ones that declare neither, the way native's SetAction does.
       const entity = world.entities.get(p.ObjectID);
-      if (entity?.kind === "monster" && entity.Image === 371) {
+      if (entity?.kind === "monster") {
         if (type === "ObjectShow") playActorSound(entity, "show");
         entity.Hidden = false;
         entity.visibilityAction = type === "ObjectShow" ? "Show" : "Hide";
@@ -530,7 +534,8 @@ function receive(type, p) {
       break;
     case "ObjectRevived": {
       const o = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
-      if (o) { o.Dead = false; o.diedAt = null; o.deathPlaybackAt = null; }
+      if (o) { o.Dead = false; o.diedAt = null; o.deathPlaybackAt = null;
+        o.reviveStartedAt = performance.now(); }
       if (p.Effect && audible(o, state.user)) gameAudio.play(REVIVE_SOUND);
       break;
     }
@@ -538,7 +543,19 @@ function receive(type, p) {
       const o = world.entities.get(p.ObjectID);
       if (o) {
         o.Direction = p.Direction;
-        if (beginAttackAnimation(o, performance.now())) playActorSound(o, "attack");
+        if (beginAttackAnimation(o, performance.now(), attackAction(o, p.Type)))
+          playActorSound(o, "attack");
+      }
+      break;
+    }
+    // S.ObjectRangeAttack was dropped entirely; native queues AttackRange1..3 from its
+    // own Type (Client/MirScenes/GameScene.cs:5143-5165).
+    case "ObjectRangeAttack": {
+      const o = world.entities.get(p.ObjectID);
+      if (o) {
+        o.Direction = p.Direction;
+        if (beginAttackAnimation(o, performance.now(), rangeAttackAction(o, p.Type)))
+          playActorSound(o, "attack");
       }
       break;
     }
@@ -557,7 +574,10 @@ function receive(type, p) {
     }
     case "ObjectStruck": {
       const object = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
-      if (object) object.struckUntil = performance.now() + 180;
+      if (object) {
+        object.struckUntil = performance.now() + 180;
+        object.struckStartedAt = performance.now();
+      }
       playActorSound(object, "struck");
       break;
     }
@@ -793,7 +813,7 @@ function harvest(direction) {
   const facing = direction >= 0 ? direction : state.user.Direction;
   if (!send("Harvest", { Direction: facing })) return;
   state.user.Direction = facing;
-  state.user.attackUntil = 0; state.user.castUntil = 0;
+  state.user.attackStartedAt = null; state.user.castUntil = 0;
   state.user.harvestStartedAt = performance.now();
   state.user.harvestUntil = state.user.harvestStartedAt + 600;
   state.nextMove = state.user.harvestStartedAt + MOVE_INTERVAL;
@@ -814,7 +834,6 @@ function attack(direction = state.user?.Direction) {
   gameAudio.play(state.user.Weapon >= 0 ? 10052 : 10056);
   state.user.Direction = d;
   state.user.attackStartedAt = performance.now();
-  state.user.attackUntil = performance.now() + 600;
   state.nextAttack = performance.now() + 650;
   state.nextMove = performance.now() + 570;
   state.queuedAttack = false;
