@@ -105,10 +105,23 @@ Done: town revive, character creation and deletion, item drop and split, drop
 gold, NPC sell and repair with prices, NPC storage, the character stat panel,
 the experience bar, the hair layer, and the animation foundation below.
 
-The gateway serves `wwwroot` **straight from the source tree**, so a rebuild is
-live immediately and the user only needs a cache-busting reload. Chrome caches
+**`src/*.js` is not what the browser runs.** `index.html` loads
+`wwwroot/client.js`, an esbuild bundle. Editing a module changes nothing in the
+browser until `cd Client.Web && npm run build` regenerates it -- and the unit
+tests import the sources directly, so a green test run says nothing about what is
+being served. `style.css` and `index.html` are served raw, so a CSS fix appears
+to work while the JavaScript beside it silently does not: that mix is what makes
+this trap hard to see. Rebuild, then confirm in the browser rather than
+reasoning about it.
+
+The gateway serves `wwwroot` from the source tree, so once rebuilt the bundle is
+live and the user only needs a cache-busting reload. Chrome caches `client.js`,
 `index.html` and `style.css` heuristically. A background agent doing web work
 should use a **git worktree** so the user's live client is not disturbed.
+
+`window.__debug` (the world and the session state) and `window.__monsters()`
+(what the server said about every monster in view) are the console handles for
+telling a rendering bug apart from a server state faithfully rendered.
 
 Two findings worth keeping:
 

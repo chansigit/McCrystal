@@ -140,6 +140,14 @@ const skills = new Skills(() => state.user, send, world, () => {
   cancelAttack(); state.path = []; world.runPointer = null;
 }, (delay) => { state.nextMove = performance.now() + delay; state.nextAttack = state.nextMove; });
 world.onStep = (sound) => gameAudio.play(sound, 80);
+// A live session can only be inspected from the browser console, so keep a read-only
+// handle on the world and the session state there. __monsters() prints what the server
+// actually said about every monster in view, which is the only way to tell a client
+// rendering bug apart from a server state the client is reporting faithfully.
+window.__debug = { world, state };
+window.__monsters = () => [...world.entities.values()]
+  .filter((e) => e.kind === "monster")
+  .map((e) => ({ Name: e.Name, Image: e.Image, Extra: e.Extra, stoned: e.stoned }));
 world.minimap.send = send;
 await world.init();
 function send(type, data = {}) {
