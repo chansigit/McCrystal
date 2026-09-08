@@ -120,3 +120,24 @@ Two things that are settled and should not be re-litigated:
 Still open for the siege stage: M2Server models the gate and walls as monsters
 with hit points, while Crystal has a conquest system where they are
 `ConquestGuildGateInfo` and `ConquestWalls` rather than spawns.
+
+## 地图美术：槽位 22 必须指向 Shanda
+
+`.map` 单元格里的 file 编号选哪个贴图工程，是按客户端内置的一张表解析的。Mir2 的基础工程
+（Tiles / Smtiles / Objects）各版本通用，但后来追加的编号工程在 Wemade 和 Shanda 两支分了家。
+1.76 的地图是照 Shanda 那支画的，用 Wemade 那支去画**每个编号都能解析、不报任何错**，只是
+画出来的东西不对：比奇省那座镇子会变成一圈木栅栏和骷髅图腾，店老板站在空地上。
+
+所以网关要带这个参数启动：
+
+```
+dotnet bin/Debug/net8.0/Client.Web.dll --urls http://127.0.0.1:5080 \
+    --server 127.0.0.1:7100 \
+    --map-library 22=Map/ShandaMir2/Objects21
+```
+
+是**逐槽位**而不是整支切换：把 0..99 全换成 Shanda 虽然也能修好建筑，但 Shanda 的 Objects23
+帧数不够，会在地图上挖出 306 格空洞。只换 22 号，取不到帧的格子仍是 67 格（0.17%），与改动前
+持平。抽样 5 张图，22 号槽位共占 10552 格，所以这不是给单张地图打的补丁。
+
+已知仍缺的一项：`Map/WemadeMir3/snow/Object1c` 这个工程客户端没有，比奇省有 16 格引用它。

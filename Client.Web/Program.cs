@@ -18,6 +18,22 @@ builder.WebHost.UseUrls("http://127.0.0.1:5080");
             Crystal.Web.GameSession.GameServer = ("127.0.0.1", only);
     }
 }
+// --map-library <slot>=<library> (repeatable), or MCCRYSTAL_MAP_LIBRARIES as a
+// comma-separated list of the same, tells the client which branch of Mir2's map art a
+// pack's maps were drawn against. See GameAssets.MapLibraryOverrides.
+{
+    var pairs = new List<string>();
+    for (int i = 0; i + 1 < args.Length; i++)
+        if (args[i] == "--map-library") pairs.Add(args[i + 1]);
+    pairs.AddRange((Environment.GetEnvironmentVariable("MCCRYSTAL_MAP_LIBRARIES") ?? "")
+        .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+    foreach (var pair in pairs)
+    {
+        var parts = pair.Split('=', 2);
+        if (parts.Length == 2 && int.TryParse(parts[0], out int slot))
+            GameAssets.MapLibraryOverrides[slot] = parts[1].Trim();
+    }
+}
 builder.Logging.AddFilter("Microsoft.AspNetCore", LogLevel.Warning);
 var root = Path.GetFullPath(Path.Combine(builder.Environment.ContentRootPath, ".."));
 builder.Services.AddSingleton(new GameAssets(Path.Combine(root, "Build/Client/Debug")));
@@ -48,7 +64,8 @@ app.UseStaticFiles(new StaticFileOptions
 });
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
 app.MapGet("/health", () => Results.Ok(new { status = "ready",
-    server = $"{Crystal.Web.GameSession.GameServer.Host}:{Crystal.Web.GameSession.GameServer.Port}" }));
+    server = $"{Crystal.Web.GameSession.GameServer.Host}:{Crystal.Web.GameSession.GameServer.Port}",
+    mapLibraries = GameAssets.MapLibraryOverrides }));
 app.MapGet("/assets/sound", (int id, GameAssets assets) => assets.Sound(id) is { } path
     ? Results.File(path, "audio/wav", enableRangeProcessing: true) : Results.NotFound());
 app.MapGet("/assets/frame", (string library, int index, GameAssets assets) =>
