@@ -1,0 +1,395 @@
+# 1.76 怪物 -> Crystal 精灵图。第四列是依据，见 Packs/mir-176/README.md 的 Monsters 段。
+# crystalm2   同名记录，拿 39 个坐标锚点验过 31/33
+# variant     去掉数字后缀后命中同名记录
+# derived:X   由名字拆解推出，跟 X 用同一张图，未经确认
+# unresolved  没有依据，等人工指定；留空即排除出本包
+# 名字	贴图	英文名	依据
+圣诞驯鹿			unresolved
+雪球			unresolved
+雪球1			unresolved
+飞火流星			unresolved
+蝙蝠	19	CaveBat	crystalm2
+鸡	3	Hen	crystalm2
+人质			unresolved
+稻草人	5	Scarecrow	crystalm2
+稻草人0	5	Scarecrow	crystalm2
+虎卫			unresolved
+鹰卫			unresolved
+龙卫			unresolved
+蛤蟆	8	Yob	crystalm2
+蛤蟆0	8	Yob	crystalm2
+鹿	4	Deer	crystalm2
+多钩猫	6	HookingCat	crystalm2
+多钩猫0	6	HookingCat	crystalm2
+羊	103	Sheep	crystalm2
+钉耙猫	7	RakingCat	crystalm2
+钉耙猫0	7	RakingCat	crystalm2
+半兽人	9	Oma	crystalm2
+半兽人0	9	Oma	crystalm2
+变异骷髅	78	BoneFamiliar	crystalm2
+多角虫	106	Keratoid	crystalm2
+多角虫0	106	Keratoid	crystalm2
+威思而小虫			unresolved
+森林雪人	11	ForestYeti	crystalm2
+森林雪人0	11	ForestYeti	crystalm2
+毒蜘蛛	12	SpittingSpider	crystalm2
+狼	104	Wolf	crystalm2
+猎鹰	108	SkyStinger	crystalm2
+猎鹰0	108	SkyStinger	crystalm2
+盔甲虫	105	ShellNipper	crystalm2
+盔甲虫0	105	ShellNipper	crystalm2
+沙虫	109	SandWorm	crystalm2
+红蛇	111	RedSnake	crystalm2
+红蛇0	111	RedSnake	crystalm2
+掷斧骷髅	24	AxeSkeleton	crystalm2
+掷斧骷髅0	24	AxeSkeleton	crystalm2
+掷斧骷髅9	24	AxeSkeleton	crystalm2
+虎蛇	112	TigerSnake	crystalm2
+虎蛇0	112	TigerSnake	crystalm2
+蝎子	21	Scorpion	crystalm2
+足球	149	Football	crystalm2
+骷髅	22	Skeleton	crystalm2
+骷髅0	22	Skeleton	crystalm2
+骷髅战士	23	BoneFighter	crystalm2
+骷髅战士0	23	BoneFighter	crystalm2
+山洞蝙蝠	203	ValeBat	crystalm2
+山洞蝙蝠0	203	ValeBat	crystalm2
+食人花	10	CannibalPlant	crystalm2
+骷髅战将	25	BoneWarrior	crystalm2
+骷髅战将0	25	BoneWarrior	crystalm2
+洞蛆	20	CaveMaggot	crystalm2
+半兽战士	17	OmaFighter	crystalm2
+半兽战士0	17	OmaFighter	crystalm2
+半兽战士8	17	OmaFighter	crystalm2
+大老鼠	63	BigRat	crystalm2
+大老鼠0	63	BigRat	crystalm2
+雪球2			unresolved
+僵尸1	73	ShamanZombie	crystalm2
+僵尸10	73	ShamanZombie	crystalm2
+僵尸2	69	DigOutZombie	crystalm2
+僵尸20	69	DigOutZombie	crystalm2
+僵尸3	70	ClZombie	crystalm2
+僵尸30	70	ClZombie	crystalm2
+僵尸4	71	NdZombie	crystalm2
+僵尸40	71	NdZombie	crystalm2
+僵尸5	72	CrawlerZombie	crystalm2
+僵尸50	72	CrawlerZombie	crystalm2
+巨型蠕虫	36	GiantWorm	crystalm2
+巨型蠕虫0	36	GiantWorm	crystalm2
+巨型蠕虫8	36	GiantWorm	crystalm2
+暗黑战士	385	DarkWraith	crystalm2
+暗黑战士0	385	DarkWraith	crystalm2
+粪虫	27	Dung	crystalm2
+粪虫0	27	Dung	crystalm2
+蜈蚣	37	Centipede	crystalm2
+蜈蚣0	37	Centipede	crystalm2
+蜈蚣8	37	Centipede	crystalm2
+蜜蜂			unresolved
+跳跳蜂	35	WhimperingBee	crystalm2
+跳跳蜂0	35	WhimperingBee	crystalm2
+跳跳蜂8	35	WhimperingBee	crystalm2
+巨型多角虫	107	GiantKeratoid	crystalm2
+巨型多角虫1	107	GiantKeratoid	crystalm2
+巨型多角虫2	107	GiantKeratoid	crystalm2
+半兽勇士	18	OmaWarrior	crystalm2
+半兽勇士8	18	OmaWarrior	crystalm2
+半兽勇士9	18	OmaWarrior	crystalm2
+恶灵僵尸	87	RoninGhoul	crystalm2
+恶灵僵尸0	87	RoninGhoul	crystalm2
+恶灵僵尸8	87	RoninGhoul	crystalm2
+黑色恶蛆	38	BlackMaggot	crystalm2
+黑色恶蛆0	38	BlackMaggot	crystalm2
+黑色恶蛆8	38	BlackMaggot	crystalm2
+沃玛勇士	30	WoomaFighter	crystalm2
+沃玛勇士0	30	WoomaFighter	crystalm2
+沃玛勇士8	30	WoomaFighter	crystalm2
+沃玛战士	29	WoomaSoldier	crystalm2
+沃玛战士0	29	WoomaSoldier	crystalm2
+沃玛战士8	29	WoomaSoldier	crystalm2
+沃玛战将	31	WoomaWarrior	crystalm2
+沃玛战将0	31	WoomaWarrior	crystalm2
+沃玛战将8	31	WoomaWarrior	crystalm2
+角蝇	43	BugBatMaggot	crystalm2
+角蝇8	43	BugBatMaggot	crystalm2
+火焰沃玛	32	FlamingWooma	crystalm2
+火焰沃玛0	32	FlamingWooma	crystalm2
+火焰沃玛2	32	FlamingWooma	crystalm2
+火焰沃玛8	32	FlamingWooma	crystalm2
+钳虫	39	Tongs	crystalm2
+钳虫0	39	Tongs	crystalm2
+钳虫8	39	Tongs	crystalm2
+楔蛾	44	WedgeMoth	crystalm2
+楔蛾8	44	WedgeMoth	crystalm2
+牛头魔	94	Minotaur	proposed
+牛头魔0	94	Minotaur	proposed
+神兽	79	Shinsu	crystalm2
+神兽1	80	Shinsu1	crystalm2
+红野猪	45	RedBoar	crystalm2
+红野猪0	45	RedBoar	crystalm2
+红野猪8	45	RedBoar	crystalm2
+雕			unresolved
+骷髅弓箭手	92	BoneArcher	crystalm2
+骷髅弓箭手0	92	BoneArcher	crystalm2
+骷髅弓箭手8	92	BoneArcher	crystalm2
+骷髅长枪兵	90	BoneSpearman	crystalm2
+骷髅长枪兵0	90	BoneSpearman	crystalm2
+骷髅长枪兵8	90	BoneSpearman	crystalm2
+牛魔战士	95	IceMinotaur	proposed
+牛魔战士0	95	IceMinotaur	proposed
+宝箱	164	Treasurebox	crystalm2
+宝箱1	164	Treasurebox	crystalm2
+宝箱2	164	Treasurebox	crystalm2
+宝箱3	164	Treasurebox	crystalm2
+宝箱4	164	Treasurebox	crystalm2
+宝箱5	164	Treasurebox	crystalm2
+宝箱6	164	Treasurebox	crystalm2
+宝箱7	164	Treasurebox	crystalm2
+宝箱8	164	Treasurebox	crystalm2
+恶灵尸王	88	ToxicGhoul	crystalm2
+恶灵尸王0	88	ToxicGhoul	crystalm2
+恶灵尸王8	88	ToxicGhoul	crystalm2
+蝎蛇	47	SnakeScorpion	crystalm2
+蝎蛇0	47	SnakeScorpion	crystalm2
+蝎蛇8	47	SnakeScorpion	crystalm2
+骷髅刀斧手	91	BoneBlademan	crystalm2
+骷髅刀斧手0	91	BoneBlademan	crystalm2
+骷髅刀斧手8	91	BoneBlademan	crystalm2
+骷髅锤兵	89	BoneCaptain	proposed
+骷髅锤兵0	89	BoneCaptain	proposed
+骷髅锤兵8	89	BoneCaptain	proposed
+黑野猪	46	BlackBoar	crystalm2
+黑野猪0	46	BlackBoar	crystalm2
+黑野猪8	46	BlackBoar	crystalm2
+神兽0	79	Shinsu	crystalm2
+尸王	74	Ghoul	crystalm2
+尸王8	74	Ghoul	crystalm2
+牛魔侍卫	97	WindMinotaur	proposed
+牛魔侍卫0	97	WindMinotaur	proposed
+牛魔侍卫8	97	WindMinotaur	proposed
+牛魔斗士	96	ElectricMinotaur	proposed
+牛魔斗士0	96	ElectricMinotaur	proposed
+牛魔法师			unresolved
+牛魔法师0			unresolved
+牛魔法师8			unresolved
+祖玛弓箭手	64	ZumaArcher	crystalm2
+祖玛弓箭手0	64	ZumaArcher	crystalm2
+祖玛弓箭手3	64	ZumaArcher	crystalm2
+祖玛弓箭手8	64	ZumaArcher	crystalm2
+祖玛弓箭手83	64	ZumaArcher	crystalm2
+红野猪3	45	RedBoar	crystalm2
+蝎蛇3	47	SnakeScorpion	crystalm2
+骷髅精灵	26	BoneElite	crystalm2
+骷髅精灵8	26	BoneElite	crystalm2
+黑野猪3	46	BlackBoar	crystalm2
+祖玛雕像	65	ZumaStatue	crystalm2
+祖玛雕像0	65	ZumaStatue	crystalm2
+祖玛雕像3	65	ZumaStatue	crystalm2
+祖玛雕像8	65	ZumaStatue	crystalm2
+祖玛雕像83	65	ZumaStatue	crystalm2
+天狼蜘蛛	53	VenomSpider	crystalm2
+天狼蜘蛛0	53	VenomSpider	crystalm2
+天狼蜘蛛8	53	VenomSpider	crystalm2
+暴牙蜘蛛			unresolved
+暴牙蜘蛛0			unresolved
+祖玛卫士	66	ZumaGuardian	crystalm2
+祖玛卫士0	66	ZumaGuardian	crystalm2
+祖玛卫士3	66	ZumaGuardian	crystalm2
+祖玛卫士8	66	ZumaGuardian	crystalm2
+祖玛卫士83	66	ZumaGuardian	crystalm2
+神兽2	79	Shinsu	crystalm2
+牛魔将军	98	FireMinotaur	proposed
+牛魔将军0	98	FireMinotaur	proposed
+牛魔将军8	98	FireMinotaur	proposed
+牛魔祭司			unresolved
+牛魔祭司0			unresolved
+牛魔祭司8			unresolved
+蜘蛛雷			unresolved
+蜘蛛雷0			unresolved
+血僵尸			unresolved
+血僵尸0			unresolved
+血僵尸8			unresolved
+剧毒蜘蛛			unresolved
+半兽勇士1	18	OmaWarrior	crystalm2
+半兽勇士2	18	OmaWarrior	crystalm2
+半兽统领	126	OmaKing	proposed
+半兽统领9	126	OmaKing	proposed
+双头金刚	59	GrayEvilApe	crystalm2
+双头金刚8	59	GrayEvilApe	crystalm2
+双头金刚80	59	GrayEvilApe	crystalm2
+双头金刚9	59	GrayEvilApe	crystalm2
+变异史莱姆			unresolved
+变异史莱姆8			unresolved
+变异骷髅0	78	BoneFamiliar	crystalm2
+地狱犬	148	DarkBrownWolf	proposed
+夕			unresolved
+夕0			unresolved
+多钩猫王	6	HookingCat	derived:多钩猫
+多钩猫王8	6	HookingCat	derived:多钩猫
+尸王1	74	Ghoul	crystalm2
+尸王2	74	Ghoul	crystalm2
+楔蛾王	44	WedgeMoth	derived:楔蛾
+沃玛卫士	33	WoomaGuardian	crystalm2
+沃玛卫士1	33	WoomaGuardian	crystalm2
+沃玛卫士2	33	WoomaGuardian	crystalm2
+沃玛卫士8	33	WoomaGuardian	crystalm2
+电僵王			unresolved
+电僵王8			unresolved
+白野猪	48	WhiteBoar	crystalm2
+白野猪0	48	WhiteBoar	crystalm2
+白野猪1	48	WhiteBoar	crystalm2
+白野猪300	48	WhiteBoar	crystalm2
+白野猪8	48	WhiteBoar	crystalm2
+白野猪80	48	WhiteBoar	crystalm2
+祖玛卫士00	66	ZumaGuardian	crystalm2
+祖玛卫士80	66	ZumaGuardian	crystalm2
+神鹰			unresolved
+稻草人1	5	Scarecrow	crystalm2
+红蛇王	111	RedSnake	derived:红蛇
+虎蛇王	112	TigerSnake	derived:虎蛇
+蛤蟆王	8	Yob	derived:蛤蟆
+蜈蚣王	37	Centipede	derived:蜈蚣
+蝎子王	21	Scorpion	derived:蝎子
+邪恶毒蛇	49	EvilSnake	crystalm2
+邪恶毒蛇1	49	EvilSnake	crystalm2
+邪恶毒蛇8	49	EvilSnake	crystalm2
+钉耙猫王	7	RakingCat	derived:钉耙猫
+雪人王			unresolved
+雪球3			unresolved
+雪蚕王			unresolved
+骷髅精灵1	26	BoneElite	crystalm2
+骷髅精灵2	26	BoneElite	crystalm2
+骷髅精灵9	26	BoneElite	crystalm2
+鹿1	4	Deer	crystalm2
+黄泉教主			unresolved
+黄泉教主8			unresolved
+月魔蜘蛛	52	SpiderBat	crystalm2
+月魔蜘蛛0	52	SpiderBat	crystalm2
+月魔蜘蛛8	52	SpiderBat	crystalm2
+爆裂蜘蛛	206	CrackingWeaver	crystalm2
+爆裂蜘蛛0	206	CrackingWeaver	crystalm2
+幻影蜘蛛	51	RootSpider	crystalm2
+钢牙蜘蛛	54	GangSpider	crystalm2
+钢牙蜘蛛0	54	GangSpider	crystalm2
+钢牙蜘蛛8	54	GangSpider	crystalm2
+黑锷蜘蛛	55	GreatSpider	crystalm2
+黑锷蜘蛛0	55	GreatSpider	crystalm2
+黑锷蜘蛛8	55	GreatSpider	crystalm2
+花吻蜘蛛	56	LureSpider	crystalm2
+花吻蜘蛛0	56	LureSpider	crystalm2
+花吻蜘蛛8	56	LureSpider	crystalm2
+双头血魔	60	RedEvilApe	crystalm2
+双头血魔8	60	RedEvilApe	crystalm2
+双头血魔80	60	RedEvilApe	crystalm2
+双头血魔9	60	RedEvilApe	crystalm2
+暗之触龙神			unresolved
+暗之触龙神8			unresolved
+灰血恶魔			unresolved
+石墓尸王	93	BoneLord	proposed
+石墓尸王8	93	BoneLord	proposed
+血巨人	57	BigApe	crystalm2
+血巨人0	57	BigApe	crystalm2
+血巨人8	57	BigApe	crystalm2
+赤血恶魔			unresolved
+飞火流星1			unresolved
+飞火流星2			unresolved
+血金刚			unresolved
+千年树妖			unresolved
+圣域侍卫	97	WindMinotaur	derived:牛魔侍卫:weak
+圣域修罗			unresolved
+圣域冥狼			unresolved
+圣域刀斧手	91	BoneBlademan	derived:骷髅刀斧手:weak
+圣域力士			unresolved
+圣域勇士			unresolved
+圣域卫士	0	Guard	derived:卫士
+圣域多钩猫	6	HookingCat	derived:多钩猫
+圣域天狼	53	VenomSpider	derived:天狼蜘蛛:weak
+圣域将军	98	FireMinotaur	derived:牛魔将军:weak
+圣域尸王	74	Ghoul	derived:尸王
+圣域巨虫			unresolved
+圣域弓箭手	139	ArcherGuard	derived:弓箭手
+圣域护法			unresolved
+圣域教主			unresolved
+圣域月魔	52	SpiderBat	derived:月魔蜘蛛:weak
+圣域杀手			unresolved
+圣域楔蛾	44	WedgeMoth	derived:楔蛾
+圣域炎兽			unresolved
+圣域牛魔			unresolved
+圣域牛魔王	101	MinotaurKing	derived:牛魔王
+圣域猪卫	76	KingHog	derived:虹魔猪卫:weak
+圣域神鹰			unresolved
+圣域神龙			unresolved
+圣域祭司			unresolved
+圣域稻草人	5	Scarecrow	derived:稻草人
+圣域精灵	26	BoneElite	derived:骷髅精灵:weak
+圣域花吻	56	LureSpider	derived:花吻蜘蛛:weak
+圣域蛇王			unresolved
+圣域蝎卫	75	KingScorpion	derived:虹魔蝎卫:weak
+圣域蝙蝠	19	CaveBat	derived:蝙蝠
+圣域血魔	60	RedEvilApe	derived:双头血魔:weak
+圣域金刚	59	GrayEvilApe	derived:双头金刚:weak
+圣域钳虫	39	Tongs	derived:钳虫
+圣域雕像	65	ZumaStatue	derived:祖玛雕像:weak
+圣域骷髅	22	Skeleton	derived:骷髅
+圣域魔蝎	75	KingScorpion	derived:虹魔蝎卫:weak
+圣域魔魂			unresolved
+宝扇使者1			unresolved
+宝扇使者2			unresolved
+宝扇使者3			unresolved
+宝扇使者4			unresolved
+宝扇使者5			unresolved
+宝扇使者6			unresolved
+宝扇使者7			unresolved
+暗之双头血魔	60	RedEvilApe	derived:双头血魔
+暗之双头金刚	59	GrayEvilApe	derived:双头金刚
+暗之沃玛教主	34	WoomaTaurus	crystalm2
+暗之牛魔王	101	MinotaurKing	derived:牛魔王
+暗之牛魔王8	101	MinotaurKing	derived:牛魔王
+暗之虹魔教主			unresolved
+暗之骷髅精灵	26	BoneElite	derived:骷髅精灵
+暗之黄泉教主			unresolved
+沃玛教主	34	WoomaTaurus	crystalm2
+沃玛教主1	34	WoomaTaurus	crystalm2
+沃玛教主9	34	WoomaTaurus	crystalm2
+牛魔王	101	MinotaurKing	proposed
+牛魔王8	101	MinotaurKing	proposed
+祖玛教主	68	ZumaTaurus	crystalm2
+祖玛教主9	68	ZumaTaurus	crystalm2
+虹魔教主			unresolved
+虹魔教主0			unresolved
+虹魔教主8			unresolved
+虹魔猪卫	76	KingHog	crystalm2
+虹魔猪卫0	76	KingHog	crystalm2
+虹魔猪卫8	76	KingHog	crystalm2
+虹魔猪卫80	76	KingHog	crystalm2
+虹魔猪卫9	76	KingHog	crystalm2
+虹魔蝎卫	75	KingScorpion	crystalm2
+虹魔蝎卫0	75	KingScorpion	crystalm2
+虹魔蝎卫8	75	KingScorpion	crystalm2
+虹魔蝎卫80	75	KingScorpion	crystalm2
+触龙神			unresolved
+触龙神8			unresolved
+赤月恶魔	62	RedMoonEvil	crystalm2
+赤月恶魔1	62	RedMoonEvil	crystalm2
+赤月恶魔8	62	RedMoonEvil	crystalm2
+赤月恶魔9	62	RedMoonEvil	crystalm2
+邪恶钳虫	40	EvilTongs	crystalm2
+邪恶钳虫1	40	EvilTongs	crystalm2
+邪恶钳虫2	40	EvilTongs	crystalm2
+邪恶钳虫8	40	EvilTongs	crystalm2
+邪恶钳虫9	40	EvilTongs	crystalm2
+重装使者			unresolved
+雪球4			unresolved
+黄泉教主0			unresolved
+SabukDoor	950	SabukGate	proposed
+SabukW1	957	SSabukWall1	proposed
+SabukW2	958	SSabukWall2	proposed
+SabukW3	959	SSabukWall3	proposed
+卫士	0	Guard	crystalm2
+带刀护卫	1	TaoistGuard	crystalm2
+带刀护卫1	1	TaoistGuard	crystalm2
+弓箭守卫	378	ArcherGuard3	crystalm2
+弓箭手	139	ArcherGuard	proposed
+恶魔卫士	66	ZumaGuardian	crystalm2
+恶魔弓箭手	64	ZumaArcher	crystalm2
+护卫	123	OmaGuard	crystalm2
+练功师	140	KatanaGuard	crystalm2

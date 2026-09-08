@@ -201,6 +201,30 @@ opacity on 1999 hardware; replacing it with a solid region at alpha 128 gives a
 better shadow than the original engine could draw. It is on 100% of `AArmour`,
 71% of `CArmour` and 60% of monster frames -- exactly the things that cast one.
 
+## The mir-176 content pack
+
+A second content pack, built from the GPL 1.76 baseline in
+`docs/research/legend-176-sources.md`. `Tools/Mir176Import` rebuilds its
+`Server.MirDB` from source on every run and writes nothing without `--write`; the
+report it produces either way is how a stage is signed off.
+
+Skills and items are done: 33 of 33 and 352 of 352. The damage curves reconciled
+exactly rather than approximately, because both engines are linear in level, and
+the item table's three mode-dependent fields -- a potion's Ac being what it
+restores, a book's Shape being its class and its DuraMax its required level --
+each turned out to yield a check rather than just a conversion.
+
+Monsters are blocked on sprite identity and `Packs/mir-176/README.md` has the
+full account. The short version is a lesson worth keeping: verifying that
+`Monster/NN.Lib` exists for every `RaceImg` proved nothing, because 1.76's
+numbering is not Crystal's. Rendering the sprites is what caught it -- 鹿 came
+out a ForestYeti. The item side had been checked that way and was fine.
+
+Two rules came out of it. Sprite libraries live outside `Data/Monster/` for
+sieges and pets (`MonsterObject.cs:158-180`), so enumerating one directory
+silently drops the Sabuk gate. And which monsters count as 1.76 is the user's
+call, not a heuristic's -- four attempts at that classification were wrong.
+
 ## Finding where a monster lives
 
 Respawn tables exist only inside the binary `Server.MirDB`, and the admin console

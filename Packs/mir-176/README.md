@@ -43,7 +43,7 @@ dotnet Server.Console.dll --pack /path/to/Packs/mir-176/pack.yaml --state state-
 | Skills | `GEEM2.db` `Magic` | done, 33 of 33 |
 | Items | `GEEM2.db` `StdItems` | not started, 352 rows |
 | Maps and connections | `Envir/mapinfo.txt` | not started, 542 maps |
-| Monsters | `GEEM2.db` `Monster` | not started, 389 rows |
+| Monsters | `GEEM2.db` `Monster` | **blocked on sprite identity**, see below |
 | Spawns | `Envir/mongen.txt` | not started, 3,443 lines |
 | Drops | `Envir/MonItems/` | not started, 363 files |
 | NPCs | `Envir/merchant.txt`, `market_def/` | not started, 426 scripts |
@@ -54,7 +54,69 @@ stage has run.
 
 ## Client assets
 
-Shared with `classic`, and verified rather than assumed: all 352 item `Looks`
-values land on real frames of `Items.Lib`, and all 389 monster `RaceImg` values
-(9 to 99) have a matching `Monster/NN.Lib`. The `clientAssets` field in the
-manifest is metadata -- `ContentPack` declares it and nothing reads it.
+Shared with `classic`. The `clientAssets` field in the manifest is metadata --
+`ContentPack` declares it and nothing reads it.
+
+Items are verified: all 352 `Looks` values land on real frames of `Items.Lib`,
+and a contact sheet of a sample confirmed the icons are the right icons -- rings
+render as rings, potions as potions.
+
+Monsters are not, and the reason is worth stating plainly. An earlier note here
+claimed all 389 `RaceImg` values were verified because each had a matching
+`Monster/NN.Lib`. That checked only that a file existed at that number. Rendering
+them showed the numbering is unrelated: 鹿 asks for image 11, which in these
+assets is a ForestYeti, and 稻草人 asks for 18, an OmaWarrior. Both `RaceImg` and
+`Appr` index the M2 client's own library order, and Crystal's `Monster` enum is
+Crystal's numbering of its own files. There is no arithmetic between them.
+
+## Monsters: the sprite identity problem
+
+`monster-sprites.tsv` holds the mapping as it stands. 247 of 389 rows are
+settled; the rest need a person.
+
+Three bridges were tried, and only one survived.
+
+**Spawn coordinates.** The English original server's `MongenOriginal.txt` and the
+Chinese `mongen.txt` are the same spawn table, so the same map and cell names the
+same creature in two languages. That yields 39 pairs -- 鹿 to Deer, 稻草人 to
+Scarecrow, 食人花 to CannibalPlant -- exactly Crystal's enum names. Too few to
+build on, but exactly what a reference set is for.
+
+**Drop-rate fingerprints.** Matching `MonItems` files by their sequence of drop
+odds gives 13 pairs and false ones among them: 猎鹰 paired to skystinger, a
+falcon to a wasp. Abandoned.
+
+**crystalm2-176's `Image` column.** An unrelated Crystal server carrying these
+Chinese names. It was dismissed at first because its `Image` disagreed with
+`RaceImg` on 170 of 171 shared monsters -- which, once `RaceImg` turned out not
+to be a sprite index, is what a correct column would look like. Checked against
+the 39 coordinate anchors it agrees on 31 of 33 comparable ones, the two
+exceptions being near-misses (CaveBat against ValeBat, VisceralWorm against
+SandWorm). That gives 171 rows directly and 76 more through the M2 convention
+that a numbered variant shares its base's sprite.
+
+For the remaining 142, `monster-pairing.py` derives 64 suggestions by taking
+names apart -- 圣域稻草人 resolves through 稻草人, 暗之牛魔王 through 牛魔王,
+蝎子王 through 蝎子 -- iterated to a fixed point. They are suggestions, marked
+`derived:` in the file, and none is confirmed.
+
+That leaves about 40 base creatures with no evidence at all: 触龙神, 虹魔教主,
+黄泉教主, 牛魔法师, 牛魔祭司, 血僵尸, 电僵王, 雪人王, 剧毒蜘蛛, 千年树妖,
+龙卫, 鹰卫, 虎卫, and most of the 圣域 set. Their numbered variants follow
+whatever the base gets.
+
+Two things that are settled and should not be re-litigated:
+
+- **Which monsters belong in 1.76 is not this tool's call.** Four guesses at it
+  were wrong -- the 暗之 set, 黄泉教主, 重装使者 and the whole 圣域 set are all
+  1.76. The file has no exclusion list: a row with a sprite is in the pack, a row
+  without one is out, and that judgement is a person's.
+- **Siege sprites are not under `Monster/`.** `MonsterObject.cs:158-180` sends
+  940-944 to `Data/Siege/`, 950-964 to `Data/Gate/` and 10000+ to `Data/Pets/`.
+  Enumerating only `Monster/NNN.Lib` silently drops the Sabuk gate and walls,
+  which is most of a castle siege. `SabukDoor` is `SabukGate` 950 in
+  `Data/Gate/00.Lib`, and `SabukW1` to `SabukW3` are 957 to 959.
+
+Still open for the siege stage: M2Server models the gate and walls as monsters
+with hit points, while Crystal has a conquest system where they are
+`ConquestGuildGateInfo` and `ConquestWalls` rather than spawns.
