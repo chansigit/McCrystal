@@ -339,5 +339,14 @@ using (var ranged = JsonDocument.Parse(JsonSerializer.Serialize(
         ranged.RootElement.GetProperty("ObjectID").GetUInt32() == 7,
         "The ranged attack variant reaches the browser instead of being dropped");
 
+// ZumaMonster.GetInfo puts its Stoned flag in S.ObjectMonster.Extra (Server/MirObjects/
+// Monsters/ZumaMonster.cs:180-184), and native reads it back before choosing the statue's
+// first action. The browser cannot render a dormant statue if the field is dropped here.
+using (var statue = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectMonster { ObjectID = 9, Image = Monster.ZumaStatue, Extra = true }, GameSession.Json)))
+    Check(statue.RootElement.GetProperty("Extra").GetBoolean() &&
+        statue.RootElement.GetProperty("Image").GetUInt16() == 65,
+        "A dormant statue's Extra flag reaches the browser");
+
 Console.WriteLine($"{count}/{count} passed");
 
