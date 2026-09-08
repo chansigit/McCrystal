@@ -97,7 +97,7 @@ Two defects found in review, both worth remembering because they recur:
 
 ## Web client
 
-Coverage: 125 of 278 server packets handled, 49 of 153 client packets sendable.
+Coverage: 126 of 278 server packets handled, 50 of 153 client packets sendable.
 Unhandled packets are logged to the console rather than dropped silently;
 `window.__unhandledPackets` lists what a session saw.
 
@@ -109,9 +109,25 @@ Ctrl+F1..F8, combat feedback (struck, poisoned, pushed), the day/night lighting
 pass, and the animation work below.
 
 Not built, and all of it post-1.76 or cosmetic: mail, the auction market, heroes,
-awakening, mounts as a subsystem, `PlayerInspect`, `Roll`, `ObjectSitDown`,
-`MergeItem`/`CombineItem`. The two gaps that *are* 1.76 content are `Opendoor`
-(the Zuma and Sabuk doors) and `Roll` (the Mongchon lottery clerk).
+awakening, mounts as a subsystem, `PlayerInspect`, `ObjectSitDown`,
+`MergeItem`/`CombineItem`.
+
+`Roll` was on that list as 1.76 content, described as the lottery clerk. That was
+wrong. `S.Roll` only ever comes from the script actions `ROLLDIE` and `ROLLYUT`,
+and **neither appears anywhere in the mir-176 pack**. The lottery NPCs (`9Blo`,
+`9Mlo`) sell 彩票 through a plain `[TRADE]` block and print the prize table as
+text; the scratching happens in M2's own item handling, not through this packet.
+Nothing in 1.76 can make the server send it.
+
+`Opendoor` is built, and it was real: the pack's maps carry door cells -- 182 in
+Bichon Province, 123 in Mongchon, 99 on Moonglow Isle, 12 in Zuma Temple 1F and
+12 on the first illusion floor. Doors are per *index*, not per cell: `Map.AddDoor`
+masks the map byte with `0x7F` and hands back the door it already has, so every
+cell of index 3 is one door and they swing together -- which is why `S.Opendoor`
+names only an index. The two timers differ on purpose: `Map.Process` closes a door
+5000ms after it opened and the client asks again after 4000ms, renewing it before
+the server drops it under the player. Doors go to the browser as their own sparse
+list rather than two more columns on 490,000 cells.
 
 Four subsystems landed together and each carried a protocol surprise worth
 keeping, all recorded in the modules themselves:
@@ -312,6 +328,41 @@ offers four more. `docs/reports/classic-pack-report.json` has been regenerated -
 it had been written before the geometry checks existed and still claimed 2 errors,
 where that pack now reports 75 errors and 106 warnings against mir-176's 0 and 19.
 
+## What else was missing from the maps
+
+The illusion floors were missed entirely until they were asked about, so the whole
+map set was audited rather than spot-checked: build the graph from `MapInfo.Movements`
+plus every script `MOVE` (the NPC's map is in its file name), then walk it from the
+towns 1.76 actually starts players in.
+
+**332 of 386 maps are reachable.** The 54 that are not all have an explanation, and
+none of them is a content region that failed to import:
+
+- 19 are event and system maps the engine teleports into rather than the world
+  connecting to -- guild-war (`F001`-`F013`), the football pitch (`G003`-`G013`),
+  the two quiz rooms, the three jail maps (which `StartPoint.txt` does list as
+  revival points).
+- 15 are unnumbered duplicate floors with no spawns and no NPCs: three extra
+  沃玛寺庙 pairs, `D2054`-`D2056`, `D2065`, `D2066`, `D2074`, `D2077`.
+- 7 are the quest maps (`Q011`-`Q016`), and they stay shut because 1.76's
+  `MapQuest_def/` had nothing to import.
+- The rest are strays: a jail, one of the three advanced-class houses, `D10071`,
+  and three literally titled 待定 ("to be decided").
+
+**新手训练营 (`D12`) is the one to know about.** It is the second-largest spawn
+table in the pack -- 16 lines, 1,830 monsters -- and nothing in the world reaches
+it: no movement cell, no script `MOVE`, and it is not a start point either.
+
+Two scares in that audit were my own script rather than the pack, and both are
+worth recording because they are the same mistake twice. 石墓阵, the 28-map maze
+behind Stone Tomb, looked cut off with 240 spawn lines stranded; the maze's
+movement lines write their coordinates with spaces instead of commas
+(`D71601 17 12 -> D71609 36 34`), and the importer already accepts both -- with a
+comment saying exactly how many lines do it. And 幻境 looked unreachable because
+1.76 spells the action `MAPMOVE`, which the importer renames to the engine's
+`MOVE`; reading the source instead of the pack missed the rename. Check the
+converted artefact, not the input.
+
 ## Finding where a monster lives
 
 Respawn tables exist only inside the binary `Server.MirDB`, and the admin console
@@ -361,7 +412,7 @@ the fleeing ones are worth more when skinned. They look identical.
 
 ```sh
 dotnet run --project Tests/Regression/Regression.csproj   # engine, 36 checks
-cd Client.Web && npm test                                 # 231 JS, then 159 gateway
+cd Client.Web && npm test                                 # 238 JS, then 165 gateway
 python3 Tools/Mir176Import/monster-audit.py               # sprite table consistency
 ```
 

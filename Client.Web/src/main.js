@@ -173,6 +173,7 @@ window.__monsters = () => [...world.entities.values()]
   .filter((e) => e.kind === "monster")
   .map((e) => ({ Name: e.Name, Image: e.Image, Extra: e.Extra, stoned: e.stoned }));
 world.minimap.send = send;
+world.doors.send = send;
 await world.init();
 function send(type, data = {}) {
   if (state.socket?.readyState === WebSocket.OPEN) {
@@ -466,6 +467,11 @@ function receive(type, p) {
       break;
     case "StartGameBanned":
       status(`角色被封禁：${p.Reason}`);
+      break;
+    // The server sends the open to the asker and broadcasts it, and Map.Process broadcasts
+    // the close 5000ms later, so both directions arrive as this one packet.
+    case "Opendoor":
+      world.doors.receive(p);
       break;
     case "MapChanged":
     case "MapInformation":
@@ -1341,8 +1347,14 @@ setInterval(() => {
   const now = performance.now();
   const canRun = running && state.lastMovedAt > 0 && now - state.lastMovedAt < 1000 &&
     now >= (state.runBlockedUntil || 0) && state.user.HP >= 10;
-  const steps = movementLength(state.user.Location, state.path, canRun,
+  let steps = movementLength(state.user.Location, state.path, canRun,
     state.user.RidingMount || (state.user.Sprint && !state.user.Sneaking) ? 3 : 2);
+  // Every cell of the step is checked, the way GameScene checks a run cell by cell. A closed
+  // door is asked to open and the step stops short of it; the server refuses the move anyway
+  // (Map.CheckDoorOpen), so without this the player stops with no explanation and no request.
+  const shortened = state.path.slice(0, steps).findIndex((cell) => !world.doors.check(cell.X, cell.Y));
+  if (shortened === 0) { state.path = []; return; }
+  if (shortened > 0) steps = shortened;
   state.pendingTarget = state.path[steps - 1];
   state.path.splice(0, steps);
   if (dx || dy) state.path = [];

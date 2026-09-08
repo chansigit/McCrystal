@@ -174,10 +174,15 @@ public sealed class GameAssets : IDisposable
         if (!maps.TryGetValue(name, out var path)) throw new FileNotFoundException();
         var map = new MapReader(path);
         var cells = new int[checked(map.Width * map.Height)][];
+        // Doors go out as their own sparse list rather than two more columns on every cell:
+        // Bichon Province has 182 door cells out of 490,000, and the cell array is already
+        // the largest thing this endpoint sends.
+        var doors = new List<int[]>();
         for (int y = 0; y < map.Height; y++)
         for (int x = 0; x < map.Width; x++)
         {
             var cell = map.MapCells[x, y] ?? throw new InvalidDataException("Incomplete map");
+            if (cell.DoorIndex > 0) doors.Add(new[] { x, y, cell.DoorIndex, cell.DoorOffset });
             cells[y * map.Width + x] = new[]
             {
                 (int)cell.BackIndex, (cell.BackImage & 0x1FFFFFFF) - 1,
@@ -189,7 +194,7 @@ public sealed class GameAssets : IDisposable
                 cell.TileAnimationImage, cell.TileAnimationOffset, cell.TileAnimationFrames
             };
         }
-        return new { map.Width, map.Height, Cells = cells, Libraries = MapLibraries() };
+        return new { map.Width, map.Height, Cells = cells, Doors = doors, Libraries = MapLibraries() };
     }
 
     private static Dictionary<int, string> MapLibraries()

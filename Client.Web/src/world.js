@@ -8,6 +8,7 @@ import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps } from "./footsteps.js";
+import { Doors } from "./doors.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth, assetScale } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
@@ -78,6 +79,8 @@ export class World {
     this.effectID = 0;
     this.attackInput = new AttackInput();
     this.footsteps = new Footsteps();
+    // Given its sender by main.js once the socket exists; a door is asked for by the client.
+    this.doors = new Doors(null);
     this.minimap = new Minimap(document.getElementById("minimap-canvas"));
   }
   async init() {
@@ -187,6 +190,8 @@ export class World {
     await Promise.all([...libraries].map((library) => this.manifestLoads.get(library)));
     if (this.mapToken !== token) return false;
     this.scenery = new SceneIndex();
+    // Before the scenery loop, which asks each cell whether it carries a door.
+    this.doors.load(data.doors, data.width);
     for (let y = 0; y < data.height; y++) for (let x = 0; x < data.width; x++) {
       const cell = data.cells[y * data.width + x];
       for (const layer of [1, 2]) {
@@ -204,7 +209,7 @@ export class World {
           bounds.width = right - bounds.x; bounds.height = bottom - bounds.y;
         }
         this.scenery.add({ key: `${layer}:${x},${y}`, library, index, x, y, cell, layer, animation,
-          z: y * 32 + 31, bounds });
+          z: y * 32 + 31, bounds, door: layer === 2 ? this.doors.at(x, y) : null });
       }
     }
     this.map = data;
@@ -677,7 +682,8 @@ export class World {
       }
     for (const object of this.scenery.query({ x: viewport.x - 96, y: viewport.y - 96,
       width: viewport.width + 192, height: viewport.height + 192 })) {
-      const index = mapEffectFrame(object.index, object.animation, now);
+      // An open door is the same cell with its front image shifted along by DoorOffset.
+      const index = mapEffectFrame(object.index, object.animation, now) + this.doors.shift(object.door, now);
       const frame = this.manifests.get(object.library)?.frames[index];
       if (!frame) continue;
       const position = mapPlacement(object.cell, object.layer, index, frame, object.x, object.y);

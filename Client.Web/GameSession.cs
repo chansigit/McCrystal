@@ -214,6 +214,8 @@ public static class GameSession
             "RefineItem" => typeof(C.RefineItem), "CheckRefine" => typeof(C.CheckRefine),
             "DepositRefineItem" => typeof(C.DepositRefineItem),
             "RetrieveRefineItem" => typeof(C.RetrieveRefineItem),
+            // Doors. Map.AddDoor masks the map byte with 0x7F, so 1..127 is the whole range.
+            "Opendoor" => typeof(C.Opendoor),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -231,6 +233,10 @@ public static class GameSession
         if (packet is C.SRepairItem specialRepair && specialRepair.UniqueID == 0)
             throw new InvalidDataException("Invalid special repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
+        // Map.OpenDoor walks its door list looking for the index and returns false when it is
+        // not there, silently. Index 0 is "no door" in the map data and can never match.
+        if (packet is C.Opendoor door && (door.DoorIndex == 0 || door.DoorIndex > 0x7F))
+            throw new InvalidDataException("Invalid door");
         // Both trade grids and the refine grid are fixed-size arrays on CharacterInfo, and the
         // server answers an index outside them with a bare failure. Refusing here costs the
         // player a round trip rather than a silent nothing.

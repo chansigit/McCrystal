@@ -343,6 +343,43 @@ using (var other = JsonDocument.Parse(JsonSerializer.Serialize(
     finally { Directory.Delete(root, true); }
 }
 
+// Doors reach the browser as their own sparse list. Nothing else in the map payload carries
+// them, so without this the client cannot know which cell is a door and the player walks into
+// an invisible wall -- Map.CheckDoorOpen refuses the step and says nothing.
+{
+    var root = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString("N"));
+    try
+    {
+        Directory.CreateDirectory(Path.Combine(root, "Map"));
+        Directory.CreateDirectory(Path.Combine(root, "Data"));
+        // An OldSchool (type 0) map: 52-byte header, then 12 bytes per cell in column-major
+        // order -- back, middle, front, doorIndex, doorOffset, frontFrame, frontTick,
+        // frontIndex, light (Client/MirObjects/MapCode.cs LoadMapType0).
+        const int width = 2, height = 2;
+        var bytes = new byte[52 + width * height * 12];
+        BitConverter.GetBytes((short)width).CopyTo(bytes, 0);
+        BitConverter.GetBytes((short)height).CopyTo(bytes, 2);
+        int Cell(int x, int y) => 52 + (x * height + y) * 12;
+        // The door byte carries a flag in its top bit that MapCode masks off, so 0x83 is door 3.
+        bytes[Cell(1, 0) + 6] = 0x83;
+        bytes[Cell(1, 0) + 7] = 5;      // DoorOffset
+        File.WriteAllBytes(Path.Combine(root, "Map", "Doorway.map"), bytes);
+        using var assets = new GameAssets(root, Path.Combine(root, "Map"));
+        var json = JsonSerializer.Serialize(assets.Map("Doorway"),
+            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase });
+        using var payload = JsonDocument.Parse(json);
+        var doors = payload.RootElement.GetProperty("doors");
+        Check(doors.GetArrayLength() == 1, "Only the door cells are sent, not two columns on every cell");
+        var entry = doors[0];
+        Check(entry[0].GetInt32() == 1 && entry[1].GetInt32() == 0 &&
+            entry[2].GetInt32() == 3 && entry[3].GetInt32() == 5,
+            "A door reaches the browser as x, y, index and image offset");
+        Check(payload.RootElement.GetProperty("cells").GetArrayLength() == width * height,
+            "The cell array is unchanged by the door list");
+    }
+    finally { Directory.Delete(root, true); }
+}
+
 // S.ObjectRangeAttack was never handled in the browser; its Type picks AttackRange1..3
 // (Client/MirScenes/GameScene.cs:5143-5165), so the field has to survive serialization.
 using (var ranged = JsonDocument.Parse(JsonSerializer.Serialize(
@@ -421,6 +458,13 @@ Reject("""{"type":"CheckRefine","data":{"UniqueID":"0"}}""", "Refine check witho
 var special = (ClientPackets.SRepairItem)Parse("""{"type":"SRepairItem","data":{"UniqueID":"7"}}""");
 Check(special.UniqueID == 7, "Special repair reaches the server as its own command");
 Reject("""{"type":"SRepairItem","data":{"UniqueID":"0"}}""", "Special repair without an item rejected");
+
+// Doors. Map.AddDoor masks the map byte with 0x7F, so 1..127 is the whole range and index
+// 0 means "no door on this cell", which Map.OpenDoor would answer with a silent false.
+var door = (ClientPackets.Opendoor)Parse("""{"type":"Opendoor","data":{"DoorIndex":127}}""");
+Check(door.DoorIndex == 127, "The highest door index reaches the server");
+Reject("""{"type":"Opendoor","data":{"DoorIndex":0}}""", "Door index zero rejected");
+Reject("""{"type":"Opendoor","data":{"DoorIndex":128}}""", "Door index past the 0x7F mask rejected");
 
 var invite = (ClientPackets.AddMember)Parse("""{"type":"AddMember","data":{"Name":"Someone"}}""");
 Check(invite.Name == "Someone", "A party invite carries the character name");
