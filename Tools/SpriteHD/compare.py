@@ -85,6 +85,9 @@ def main():
     library = Library(data / f"{args.library}.Lib")
     tiles = Library(data / "Map/WemadeMir2/SmTiles.Lib")
 
+    if args.action not in library.animations:
+        raise SystemExit(f"{args.library} has no {args.action}; it has "
+                         + ", ".join(sorted(library.animations)))
     animation = library.animations[args.action]
     stride = animation.count + animation.skip
     indices = [animation.start + args.direction * stride + step for step in range(animation.count)]

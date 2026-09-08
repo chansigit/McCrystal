@@ -35,6 +35,19 @@ class Frame:
     shadow: int
     position: int
     length: int
+    # A frame can carry a second image layer, flagged by the top bit of the shadow
+    # byte (Client/MirGraphics/MLibrary.cs:892).  It has to be upscaled with
+    # identical settings or the two layers desynchronise.
+    mask_width: int = 0
+    mask_height: int = 0
+    mask_x: int = 0
+    mask_y: int = 0
+    mask_position: int = 0
+    mask_length: int = 0
+
+    @property
+    def has_mask(self):
+        return self.shadow >> 7 == 1
 
 
 @dataclass
@@ -72,7 +85,15 @@ class Library:
             if w <= 0 or h <= 0 or w > 4096 or h > 4096 or length <= 0:
                 self.frames.append(None)
                 continue
-            self.frames.append(Frame(w, h, x, y, sx, sy, shadow, position + 17, length))
+            frame = Frame(w, h, x, y, sx, sy, shadow, position + 17, length)
+            if frame.has_mask:
+                at = frame.position + length
+                mw, mh, mx, my = struct.unpack_from("<4h", self.blob, at)
+                mask_length = struct.unpack_from("<i", self.blob, at + 8)[0]
+                frame.mask_width, frame.mask_height = mw, mh
+                frame.mask_x, frame.mask_y = mx, my
+                frame.mask_position, frame.mask_length = at + 12, mask_length
+            self.frames.append(frame)
 
         self.animations = {}
         if animation_position > 0:
@@ -93,15 +114,32 @@ class Library:
     def __len__(self):
         return len(self.frames)
 
-    def rgba(self, index):
-        """Decode one frame to an (h, w, 4) uint8 RGBA array, or None."""
+    def _decode(self, position, length, width, height, apply_client_rule=True):
+        raw = gzip.decompress(self.blob[position:position + length])
+        pixels = np.frombuffer(raw, np.uint8, width * height * 4)
+        bgra = pixels.reshape(height, width, 4).copy()
+        if apply_client_rule:
+            hidden = (bgra[..., 3] == 0) & (bgra[..., :3].any(axis=2))
+            bgra[hidden, 3] = 255
+        return bgra[..., [2, 1, 0, 3]]
+
+    def rgba(self, index, apply_client_rule=True):
+        """Decode one frame to an (h, w, 4) uint8 RGBA array, or None.
+
+        `apply_client_rule` is the loader's `a == 0 && rgb != 0 -> a = 255`
+        (Client/MirGraphics/MLibrary.cs). Every pipeline wants it on; measuring how
+        many pixels it actually touches is the one reason to turn it off.
+        """
         frame = self.frames[index]
         if frame is None:
             return None
-        raw = gzip.decompress(self.blob[frame.position:frame.position + frame.length])
-        pixels = np.frombuffer(raw, np.uint8, frame.width * frame.height * 4)
-        bgra = pixels.reshape(frame.height, frame.width, 4).copy()
-        # The client's own rule, applied before anything else looks at alpha.
-        hidden = (bgra[..., 3] == 0) & (bgra[..., :3].any(axis=2))
-        bgra[hidden, 3] = 255
-        return bgra[..., [2, 1, 0, 3]]
+        return self._decode(frame.position, frame.length, frame.width, frame.height,
+                            apply_client_rule)
+
+    def mask_rgba(self, index):
+        """Decode a frame's second layer, or None when it has none."""
+        frame = self.frames[index]
+        if frame is None or not frame.has_mask or frame.mask_length <= 0:
+            return None
+        return self._decode(frame.mask_position, frame.mask_length,
+                            frame.mask_width, frame.mask_height)

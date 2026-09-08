@@ -5,9 +5,21 @@ less blocky on a Retina display by upscaling the art 2x and drawing it at the
 same on-screen size?
 
 Every figure below was measured on this repository's own assets in
-`Build/Client/Debug/Data`, not taken from documentation. Corpus: 854 `.Lib` v3
-libraries, 461,902 frames, 7.6 GB, about 6.90 gigapixels, of which 510
-libraries and 211,897 frames are monsters.
+`Build/Client/Debug/Data`, not taken from documentation.
+
+The corpus was re-counted by `Tools/SpriteHD/survey.py`, which walks every
+`*.Lib` under `Data` and reads every frame header. **The first pass undercounted
+it by a factor of four.**
+
+| | Measured |
+| --- | --- |
+| Libraries | 1,443 |
+| Frames | 1,870,142 |
+| Pixels | 13.14 Gpx, so 52.55 Gpx at 2x |
+| On disk | 7.10 GiB compressed |
+| Monsters | 5.24 Gpx, 39.9% |
+| Map | 4.40 Gpx, 33.5% |
+| Character armour | 1.07 Gpx, 8.1% |
 
 ## The finding that decides the tool: this art is not pixel art
 
@@ -40,9 +52,15 @@ So the real choice is xBRZ or nothing.
 
 ## Recommendation: xBRZ
 
-**Alpha is verified, not assumed.** A torture-test sprite with bright red hidden
-under alpha-0 pixels, matching this codebase's legacy convention, was run
-through everything. `ffmpeg -vf xbr` silently outputs RGB, because
+**Alpha is verified, not assumed**, now against the scaler this project actually
+uses. Running `@kayahr/xbrz` on the torture case -- bright red hidden under
+alpha-0 pixels, this codebase's own convention -- leaks **192 of 256** output
+pixels that satisfy the loader's `a == 0 && rgb != 0` rule. Zeroing the RGB of
+transparent pixels first drops that to **exactly 0**, and no red ever reaches a
+visible pixel either way. That is what makes pre-pass 1 mandatory rather than
+tidy, and `Tools/SpriteHD/xbrz.py` re-zeroes the output as well.
+
+The same torture case was run across the field. `ffmpeg -vf xbr` silently outputs RGB, because
 `libavfilter/vf_xbr.c` declares the alpha-less pixel format and libavfilter
 strips alpha before the filter runs. No flag fixes it. `hqx` and `super2xsai`
 bled the hidden colour into visible edge pixels. **xBRZ produced zero
@@ -63,6 +81,9 @@ The nearest-neighbour row validates the metric, since it cannot add temporal
 noise. xBRZ sits 16% above that floor, fully explained by bounded neighbourhood
 spread. Perturbing a 6x6 block in one source frame changes the xBRZ output only
 within a 3-pixel halo, so nothing outside that radius can differ between frames.
+
+The deer's walk cycle, re-measured through the finished pipeline rather than a
+sample, came out at 22.54% against a 22.54% floor: **ratio 1.114**.
 
 **Speed:** 27.2 Mpx/s single threaded, so the whole corpus in about 4 minutes.
 
@@ -99,8 +120,27 @@ output. That is the shimmer mechanism, conceded upstream.
 
 The highest-value finding here, and it is not about upscaling. The shadow in a
 real frame is a perfect 50% checkerboard dither: one colour, `RGBA(16,8,8,255)`,
-206 pixels on one parity and exactly zero on the other. It appears in 81% of
-frames. It was a 1999 trick to fake 50% opacity on hardware that ignored alpha.
+laid on one parity of `(x + y) % 2` with nothing on the other. It was a 1999
+trick to fake 50% opacity on hardware that ignored alpha.
+
+The earlier "81% of frames" was a monster-only figure. Over a 4,000-frame random
+sample of the whole corpus it is 21.3%, and the breakdown is the useful part,
+because it says the dither is exactly and only on the things that cast a shadow:
+
+| Group | Frames with a dither region |
+| --- | --- |
+| `AArmour` | 100% |
+| `CArmour` | 71.4% |
+| `Monster` | 59.9% |
+| `Transform` | 57.6% |
+| `Map` | 5.7% |
+| Weapons and weapon effects | 0% |
+
+Detection has to be per frame **and** per colour. A whole-frame parity test only
+reaches 93% on the deer because the animal's own dark pixels dilute it; grouping
+on the exact colour first gives 99.4-100%. And the parity flips between frames of
+one cycle -- deer frame 48 sits on the opposite parity to the other five -- so a
+parity assumed once and reused would shift the shadow by a pixel mid-animation.
 
 xBRZ reads the checkerboard as diagonal geometry and turns it into lumpy blobs
 with round holes. HQX smears it into grey mush. Neither is right and both are
@@ -110,18 +150,15 @@ The fix beats any upscaler: detect the single-parity dither, replace it with a
 solid region at alpha 128, then upscale. That produces a better shadow than the
 original engine could render, and may be worth doing even if nothing else ships.
 
-Cheap test: for the dark pixels in a frame, compute `(x+y) % 2` and check
-whether one parity holds more than 97% of them.
-
 The LOMCN community predicted this three years ago, so it is a corpus-wide
 property rather than an artefact of one sample.
 
 ### The alpha-0-with-colour convention
 
-Measured across 60 libraries, 1,306 frames and 19.5M pixels: alpha is 99.9%
-binary, 61.8% at zero and 38.1% at 255, with only 0.0995% genuinely
-semi-transparent. The pathology is real but rare: one library in 60, 0.05% of
-pixels.
+Measured over a 4,000-frame random sample of the whole corpus: alpha is 99.3%
+binary, 47.8% at zero, with 0.69% genuinely semi-transparent. Pixels that are
+transparent *and* carry colour -- the ones the loader would force opaque -- are
+**0.27% of all pixels**, nearly three times the first estimate.
 
 The danger is its interaction with the loader. `Client/MirGraphics/MLibrary.cs`
 forces `a == 0 && rgb != 0` to `a = 255`. Upscalers faithfully quadruple those
@@ -132,12 +169,16 @@ Cheap test: assert no output pixel satisfies `a == 0 && (r|g|b) != 0`.
 
 ### Three more
 
-Mask layers, where `HasMask` gives a frame a second image layer that must be
-upscaled with identical settings or the two desynchronise. Per-frame offsets,
-which are cropped bounding-box origins and **must be doubled** on re-import or
-the animation jitters. Storage, since 7.6 GB at four times the pixels is about
-30 GB, and 61.8% of pixels are transparent padding, so cropping first is worth
-real money.
+Mask layers, where `HasMask` -- the top bit of the shadow byte -- gives a frame a
+second image layer that must be upscaled with identical settings or the two
+desynchronise. Counted across the whole corpus this is **120 frames out of
+1,870,142, or 0.01%**, so it is a correctness detail rather than a workload.
+
+Per-frame offsets, which are cropped bounding-box origins and **must be doubled**
+on re-import or the animation jitters.
+
+Storage, since 7.10 GiB at four times the pixels is about 30 GB, and 47.8% of
+pixels are transparent padding, so cropping first is worth real money.
 
 ## Pre-passes, in order
 
@@ -234,3 +275,26 @@ every still comparison, including the ones in this document, is blind to the
 failure mode that matters most.
 
 Comparison images were generated to `~/Desktop/mir-upscale-evidence/`.
+
+## The experiment, run
+
+`Tools/SpriteHD/` implements it. `compare.py` renders a cycle four ways over real
+grass tiles, aligned on the frame anchor so the only differences are the ones
+under test: the art as the browser draws it today, the shadow fix alone, xBRZ,
+and xBRZ with the ground upscaled too. It writes an animated GIF at the
+animation's own interval, because that is the only view that can see shimmer.
+
+```sh
+npm install --prefix Tools/SpriteHD
+python3 Tools/SpriteHD/compare.py --library Monster/004 --action Walking \
+    --direction 2 --out /tmp/deer --zoom 2 --fps-divisor 0.5
+```
+
+Results on the deer, Zuma Taurus and Behemoth: no shimmer, and the shadow fix is
+the change you notice first, exactly as predicted. The fourth panel answers the
+one open design question -- a 2x monster standing on 1x ground does not read as
+wrong, because the ground is high-frequency noise that xBRZ barely alters.
+
+The GIF writer uses ffmpeg with one palette for the whole sequence. Pillow
+quantises each page separately, which invents dithering on top of the art being
+judged for dithering artefacts.
