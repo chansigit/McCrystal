@@ -143,6 +143,8 @@ const skills = new Skills(() => state.user, send, world, () => {
   cancelAttack(); state.path = []; world.runPointer = null;
 }, (delay) => { state.nextMove = performance.now() + delay; state.nextAttack = state.nextMove; });
 world.onStep = (sound) => gameAudio.play(sound, 80);
+// A missile's impact sound plays when the flight ends, not when it was fired.
+world.onEffectSound = (sound) => gameAudio.play(sound);
 // A live session can only be inspected from the browser console, so keep a read-only
 // handle on the world and the session state there. __monsters() prints what the server
 // actually said about every monster in view, which is the only way to tell a client
@@ -522,6 +524,15 @@ function receive(type, p) {
       world.addSpellObject(p);
       if (spellObjectSound(p.Spell)) gameAudio.play(spellObjectSound(p.Spell));
       break;
+    case "ObjectEffect":
+      for (const entry of world.addObjectEffect(p, state.user))
+        if (entry.sound) gameAudio.play(entry.sound);
+      break;
+    case "ObjectProjectile": {
+      const missile = world.addProjectile(p, state.user);
+      if (missile?.sound) gameAudio.play(missile.sound);
+      break;
+    }
     case "ObjectDied": {
       if (p.ObjectID === state.user?.ObjectID) skills.cancel();
       if (state.attackTarget === p.ObjectID || p.ObjectID === state.user?.ObjectID) cancelAttack();

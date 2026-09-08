@@ -10,6 +10,8 @@ import { Footsteps } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
+import { objectEffects } from "./object-effect.js";
+import { createMissile } from "./missile.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
   liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
 
@@ -49,6 +51,7 @@ export class World {
     this.damageEvents = [];
     this.spellEffects = [];
     this.spellObjects = new Map();
+    this.missiles = [];
     this.effectID = 0;
     this.attackInput = new AttackInput();
     this.footsteps = new Footsteps();
@@ -239,7 +242,7 @@ export class World {
     this.damageEvents = [];
     this.spellEffects = [];
     this.spellObjects.clear();
-    this.spellObjects = new Map();
+    this.missiles = [];
     for (const n of this.nodes.values()) n.destroy();
     for (const n of this.labels.values()) n.destroy();
     this.nodes.clear();
@@ -310,10 +313,54 @@ export class World {
   removeSpellObject(objectID) {
     this.spellObjects.delete(objectID);
   }
-  addSpellEffect(effect, targetID, location) {
+  // MagicShieldDown and ElementalBarrierDown remove the effect their Up twin left running
+  // (GameScene.cs:4780-4800), which is the only reason an effect carries a key.
+  clearObjectEffect(objectID, key) {
+    this.spellEffects = this.spellEffects.filter((e) => !(e.key === key && e.targetID === objectID));
+  }
+  // S.ObjectEffect: an effect attached to an object, which is why it follows the object
+  // rather than a cell (Client/MirScenes/GameScene.cs:4719-4924).
+  addObjectEffect(packet, user) {
+    const source = packet.ObjectID === user?.ObjectID ? user : this.entities.get(packet.ObjectID);
+    if (!source?.Location) return [];
+    const entries = objectEffects(packet, source);
+    for (const entry of entries) {
+      if (entry.clear) { this.clearObjectEffect(source.ObjectID, entry.clear); continue; }
+      const owner = entry.on === "other"
+        ? (packet.EffectType === user?.ObjectID ? user : this.entities.get(packet.EffectType))
+        : source;
+      if (entry.on === "other" && !owner?.Location) continue;
+      if (entry.detach) this.addSpellEffect(entry.effect, null, owner.Location, entry);
+      else this.addSpellEffect(entry.effect, owner.ObjectID, owner.Location, entry);
+    }
+    return entries;
+  }
+  // Only one projectile exists natively: FireBounce (GameScene.cs:4689-4717).
+  addProjectile(packet, user) {
+    const source = packet.Source === user?.ObjectID ? user : this.entities.get(packet.Source);
+    const target = packet.Destination === user?.ObjectID ? user : this.entities.get(packet.Destination);
+    const missile = createMissile(packet.Spell, source, target);
+    if (!missile) return null;
+    this.missiles.push({ id: ++this.effectID, started: performance.now(), ...missile });
+    this.manifest(missile.library);
+    return missile;
+  }
+  // Native's Effect carries a delayed start, a blend flag, and a repeat that runs until a
+  // deadline rather than for one pass (Client/MirObjects/Effect.cs:23-110). options is how
+  // an ObjectEffect asks for those; a plain cast or impact effect needs none of them.
+  addSpellEffect(effect, targetID, location, options = {}) {
     if (!effect || !location) return;
-    this.spellEffects.push({ id: ++this.effectID, effect, targetID, location, started: performance.now() });
-    if (this.spellEffects.length > 32) this.spellEffects.shift();
+    const { blend = true, delay = 0, until = 0, behind = false, key = null } = options;
+    this.spellEffects.push({ id: ++this.effectID, effect, targetID, location,
+      started: performance.now(), blend, delay, until, behind, key });
+    if (this.spellEffects.length > 64) this.spellEffects.shift();
+  }
+  // An effect ends when its one pass is over, or -- when it repeats -- at its deadline.
+  spellEffectLive(effect, now) {
+    const elapsed = now - effect.started - effect.delay;
+    if (elapsed < 0) return true;
+    if (effect.until > 0) return effect.started + effect.delay + (effect.until - effect.started) > now;
+    return elapsed < effect.effect[3];
   }
   showCastSpell(spell, caster) {
     if (!caster?.Location) return;
@@ -797,18 +844,46 @@ export class World {
         sprite.alpha = definition.blend ? 0.8 : 1;
       }
     }
-    this.spellEffects = this.spellEffects.filter((effect) => now - effect.started < effect.effect[3]);
+    this.spellEffects = this.spellEffects.filter((effect) => this.spellEffectLive(effect, now));
     for (const effect of this.spellEffects) {
       const [library, start, count, duration] = effect.effect;
+      const elapsed = now - effect.started - effect.delay;
+      if (elapsed < 0) continue; // Effect.Draw returns while CMain.Time < Start
       const target = effect.targetID === u.ObjectID ? u : this.entities.get(effect.targetID);
       const point = target ? motionPosition(target, now) : effect.location;
-      const index = start + Math.min(count - 1, Math.floor((now - effect.started) / duration * count));
+      const step = Math.floor(elapsed / (duration / count));
+      const index = start + (effect.until > 0 ? step % count : Math.min(count - 1, step));
       // Effect.Blend defaults to true and Effect.Draw calls DrawBlend
       // (Client/MirObjects/Effect.cs:23, 129-132), so a spell effect is additive. Drawn
       // normally the black background of an effect frame reads as a box over the ground.
       const sprite = this.sprite(`entity:effect:${effect.id}`, library, index, point.X * 48, point.Y * 32,
-        point.Y * 32 + 102, this.objects, true);
-      if (sprite) sprite.blendMode = "add";
+        point.Y * 32 + (effect.behind ? -1 : 102), this.objects, true);
+      if (sprite) sprite.blendMode = effect.blend ? "add" : "normal";
+    }
+    // Missiles fly from where they were fired to wherever their target is now
+    // (Client/MirObjects/Effect.cs:172-215).
+    this.missiles = this.missiles.filter((missile) => {
+      if (now - missile.started < missile.duration) return true;
+      // Missile.Complete: the impact lands on the target, unless it died in flight.
+      const target = this.entities.get(missile.targetID);
+      if (missile.impact && target && !target.Dead) {
+        this.addSpellEffect(missile.impact.effect, missile.targetID, target.Location);
+        if (missile.impact.sound) this.onEffectSound?.(missile.impact.sound);
+      }
+      return false;
+    });
+    for (const missile of this.missiles) {
+      const target = missile.targetID === u.ObjectID ? u : this.entities.get(missile.targetID);
+      const destination = target ? motionPosition(target, now) : missile.destination;
+      const progress = Math.min(1, (now - missile.started) / missile.duration);
+      const x = (missile.source.X + (destination.X - missile.source.X) * progress) * 48;
+      const y = (missile.source.Y + (destination.Y - missile.source.Y) * progress) * 32;
+      const step = Math.floor((now - missile.started) / missile.interval);
+      const index = missile.start + (step % missile.count) +
+        missile.direction * (missile.skip + missile.count);
+      const sprite = this.sprite(`entity:missile:${missile.id}`, missile.library, index,
+        x, y, y + 102, this.objects, true);
+      if (sprite) sprite.blendMode = missile.blend ? "add" : "normal";
     }
     this.damageEvents = this.damageEvents.filter((event) => now - event.started < 900);
     for (const event of this.damageEvents) {

@@ -110,8 +110,23 @@ packet receipt. Structurally out of reach:
   randomness.
 - Weapon swing trails, which are inline overlays with no independent lifetime.
 
-`S.ObjectEffect` and `S.ObjectProjectile` are still not handled at all.
-`S.ObjectSpell` **is** now: `src/spell-object.js` is `SpellObject.Load`'s switch
+All three of `S.ObjectEffect`, `S.ObjectProjectile` and `S.ObjectSpell` are now
+handled.
+
+`S.ObjectEffect` is `src/object-effect.js`, GameScene's 33-case switch as data:
+heals, teleport flashes, bleeding, hemorrhage, the magic shield and elemental
+barrier with their Down twins clearing them, the awakening results with their
+delayed pairs, stuns and webs that repeat for the duration the packet carries,
+and the boss effects. Effects now have a real lifetime -- a delayed start, an
+additive or opaque draw, a repeat-until deadline, a draw-behind band, and a
+target they follow -- which is what the flat table could not express.
+
+`S.ObjectProjectile` is `src/missile.js`. Native has exactly one projectile,
+FireBounce: it flies 50 ms a cell along one of sixteen headings, re-aims at its
+target while in flight, and lands an impact effect on arrival unless the target
+died on the way.
+
+`S.ObjectSpell` is `src/spell-object.js` is `SpellObject.Load`'s switch
 as data, so the fire wall, the poison cloud, blizzard, meteor strike, the traps,
 the portal, the healing circle and the boss ground attacks stand on their cell
 until an `ObjectRemove`, additive at native's 0.8 where `Blend` is set. Direction
