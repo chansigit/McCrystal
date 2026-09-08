@@ -381,9 +381,39 @@ canvas {
   display: flex;
   align-items: center;
   gap: 26px;
-  padding: 12px 24px;
+  padding: 24px 24px 12px;
   background: #152019;
   border-top: 1px solid #49644d;
+}
+/* Native MainDialog.ExperienceBar: Prguse image 8 (1004x8) drawn at (9,143) inside the 1024x152
+   frame and clipped to Experience / MaxExperience, with the percentage above it
+   (Client/MirScenes/Dialogs/MainDialogs.cs:253-267, 513-523). Only the skinned layout below can
+   place it there; here it is a plain bar along the top edge of the bar area. */
+#experience-bar {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  top: 5px;
+  height: 13px;
+  overflow: hidden;
+  background: #0b100c;
+  border: 1px solid #46603e;
+  border-radius: 2px;
+}
+#experience-fill {
+  width: 0;
+  height: 100%;
+  background: linear-gradient(#d3b45c, #8a6a1f);
+}
+#experience-label {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 10px/1 Arial, sans-serif;
+  color: #f6efd6;
+  text-shadow: 0 1px 1px #000, 0 0 2px #000;
 }
 .identity {
   min-width: 120px;
@@ -535,6 +565,26 @@ progress::-moz-progress-bar {
 .equipment-entry { position:absolute; font-size:0; }
 .equipment-entry .slot { width:36px; height:32px; }
 .equipment-entry:nth-child(1){left:123px;top:7px}.equipment-entry:nth-child(2){left:163px;top:7px}.equipment-entry:nth-child(3){left:203px;top:7px}.equipment-entry:nth-child(4){left:203px;top:134px}.equipment-entry:nth-child(5){left:203px;top:98px}.equipment-entry:nth-child(6){left:8px;top:170px}.equipment-entry:nth-child(7){left:203px;top:170px}.equipment-entry:nth-child(8){left:8px;top:206px}.equipment-entry:nth-child(9){left:203px;top:206px}.equipment-entry:nth-child(10){left:8px;top:242px}.equipment-entry:nth-child(11){left:48px;top:242px}.equipment-entry:nth-child(12){left:88px;top:242px}.equipment-entry:nth-child(13){left:128px;top:242px}.equipment-entry:nth-child(14){left:203px;top:62px}
+/* The native CharacterDialog is one window with an equipment page and a stats page
+   (Client/MirScenes/Dialogs/CharacterDialog.cs), so the two share this frame and its title bar. */
+#equipment [role="tablist"] { display:flex; gap:4px; margin-right:4px; }
+#equipment [role="tab"] {
+  padding:2px 10px; font:11px/16px serif; color:#c7b183;
+  background:#2a1a14; border:1px solid #7d5a34; border-radius:2px;
+}
+#equipment [role="tab"][aria-selected="true"] { color:#f4e2ac; background:#4f2f20; border-color:#c69c59; }
+#character-stats { position:absolute; inset:90px 8px 8px; display:flex; flex-direction:column; gap:4px; }
+/* The author display above would otherwise beat the user agent's [hidden] rule. */
+#character-stats[hidden] { display:none; }
+#stat-rows {
+  margin:0; flex:1; min-height:0; overflow:auto;
+  display:grid; grid-template-columns:repeat(2, 1fr); gap:1px 8px; align-content:start;
+}
+.stat-row { display:flex; align-items:baseline; justify-content:space-between; gap:6px; padding:2px 4px; background:#0507059c; }
+.stat-row dt { font:11px/14px Arial, sans-serif; color:#b9ad86; white-space:nowrap; }
+.stat-row dd { margin:0; font:11px/14px Arial, sans-serif; color:#f0e5bd; white-space:nowrap; overflow-wrap:anywhere; }
+#stat-notes { margin:0; font-size:10px; line-height:1.4; color:#f0c599; }
+#stat-notes:empty { display:none; }
 #item-details { position:fixed; right:340px; top:70px; width:220px; background:#080b08ed; border:1px solid #a58a53; padding:10px; }
 #item-name { display: block; overflow-wrap: anywhere; font-size: 16px; color: #eadca9; }
 #item-stats, #inventory-status { font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
@@ -606,6 +656,31 @@ progress::-moz-progress-bar {
     margin: 0;
   }
   #hud #vitals-orb { width: 100%; height: 100%; }
+  /* 9/1024, 143/152, 1004/1024, 8/152: the native bar's own place in the frame. The fill keeps
+     the image at the track's scale (its aspect matches the track exactly) and clips it on the
+     right, which is what MirImageControl.Draw does with its section rectangle. */
+  #hud #experience-bar {
+    left: 0.879%;
+    right: auto;
+    top: 94.079%;
+    width: 98.047%;
+    height: 5.263%;
+    overflow: visible;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    pointer-events: auto;
+  }
+  #hud #experience-fill {
+    background: url("/assets/frame?library=Prguse&index=8") 0 0 / auto 100% no-repeat;
+    overflow: hidden;
+  }
+  #hud #experience-label {
+    inset: auto 0 100% 0;
+    display: block;
+    text-align: center;
+    font: 11px/1 Arial, sans-serif;
+  }
   #hud .identity {
     position: absolute;
     left: 0.49%;
@@ -718,7 +793,7 @@ progress::-moz-progress-bar {
 }
 @media (max-width: 650px) {
   #hud {
-    padding: 10px 12px;
+    padding: 22px 12px 10px;
     gap: 10px;
     height: 210px;
     flex-wrap: wrap;

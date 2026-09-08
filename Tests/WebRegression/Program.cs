@@ -280,5 +280,17 @@ Check(worn.RepairPrice() == 2475 && upgraded.RepairPrice() == 3713 && rented.Rep
     (uint)(upgraded.RepairPrice() * 1.35F) == 5012,
     "Item repair prices, including the NPC rate, match the values the browser price module is pinned to");
 
+// The head layer needs the Hair byte in the browser. It arrives on the local player's
+// S.UserInformation and on the S.ObjectPlayer that describes everyone else, and both reach
+// the browser only because the gateway serializer includes public fields.
+using (var self = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.UserInformation { Hair = 5, Gender = MirGender.Female, Class = MirClass.Wizard }, GameSession.Json)))
+using (var other = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectPlayer { Hair = 5, Gender = MirGender.Female, TransformType = -1 }, GameSession.Json)))
+    Check(self.RootElement.GetProperty("Hair").GetByte() == 5 &&
+        other.RootElement.GetProperty("Hair").GetByte() == 5 &&
+        other.RootElement.GetProperty("TransformType").GetInt16() == -1,
+        "The hair style reaches the browser for the local player and for everyone else");
+
 Console.WriteLine($"{count}/{count} passed");
 

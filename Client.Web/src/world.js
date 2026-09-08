@@ -2,7 +2,7 @@ import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js"
 import PF from "pathfinding";
 import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
-import { weaponLayer } from "./appearance.js";
+import { hairLayer, weaponLayer } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
@@ -691,6 +691,16 @@ export class World {
         }
       }
       if (e.kind === "player" && body) {
+        // PlayerObject.Draw puts the head straight after the body and before the front
+        // weapon pass in all eight directions; the direction test around DrawHead only
+        // orders it against the wings, which are not drawn here.
+        const hair = hairLayer(e, body.assetIndex);
+        if (hair) {
+          const key = `entity:hair:${e.ObjectID}:${e.Hair}`;
+          this.sprite(key, hair.library, hair.index, x, y, depth + 0.1, this.objects, true);
+          const sprite = this.nodes.get(key);
+          if (sprite) sprite.tint = body.tint;
+        }
         const weapon = weaponLayer(action === "Harvest" ? { ...e, Weapon: 1, WeaponEffect: 0 } : e, body.assetIndex);
         if (weapon) {
           const key = `entity:weapon:${e.ObjectID}:${e.Weapon}`;

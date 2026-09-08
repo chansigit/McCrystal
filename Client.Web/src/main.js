@@ -31,6 +31,8 @@ import { ReviveOverlay } from "./revive.js";
 import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
+import { ExperienceBar } from "./experience.js";
+import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
@@ -56,6 +58,7 @@ createIcons({ icons });
 const gameAudio = new GameAudio();
 gameAudio.setMusic(INTRO_MUSIC);
 const vitals = new Vitals($("vitals-orb"));
+const experience = new ExperienceBar($("experience-bar"), $("experience-fill"), $("experience-label"));
 const state = {
   socket: null,
   ready: false,
@@ -78,6 +81,9 @@ const inventory = new InventoryUI(() => state.user, (index) => state.items.get(i
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
 const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), send);
+// The server sends no player stats at all, so this panel derives them the way the native
+// client does; see src/stats.js.
+const characterStats = new CharacterStats(() => state.user, () => state.items);
 const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
@@ -199,6 +205,10 @@ function leaveWorld() {
   skills.reset();
   $("skills-panel").hidden = true;
   $("equipment").hidden = true;
+  // The growth table is per class, so the next character starts from its own S.BaseStatsInfo.
+  characterStats.reset();
+  experience.reset();
+  showCharacterTab("equipment");
   inventory.reset();
   // The vault belongs to the account, not to the character, and the server sends it once
   // per connection (PlayerObject.SendStorage), so only close the window here: dropping the
@@ -403,6 +413,7 @@ function receive(type, p) {
       state.maxMP = 1;
       world.user = state.user;
       state.inWorld = true;
+      experience.set(p.Experience, p.MaxExperience);
       $("account-screen").hidden = true;
       for (const id of ["world-header", "hud", "chat-panel", "minimap"])
         $(id).hidden = false;
@@ -581,6 +592,22 @@ function receive(type, p) {
         updateHud();
       }
       break;
+    // S.GainExperience is a delta and S.LevelChanged a whole new pair
+    // (Client/MirScenes/GameScene.cs:3836-3856).
+    case "GainExperience":
+      experience.gain(p.Amount);
+      break;
+    case "LevelChanged":
+      if (state.user) state.user.Level = p.Level;
+      experience.set(p.Experience, p.MaxExperience);
+      updateHud();
+      break;
+    // The growth table the stat panel starts from, and the buffs that move it afterwards.
+    case "BaseStatsInfo":
+    case "AddBuff":
+    case "RemoveBuff":
+      characterStats.receive(type, p);
+      break;
     case "NewItemInfo":
       if (p.Info) {
         state.items.set(p.Info.Index, p.Info);
@@ -722,6 +749,7 @@ function addMessage(message, type = 0) {
 function updateHud() {
   const u = state.user;
   if (!u) return;
+  characterStats.render();
   $("player-name").textContent = u.Name;
   $("player-level").textContent =
     `${CLASS_NAMES[u.Class] || ""} · ${u.Level}`;
@@ -734,6 +762,9 @@ function gainItem(item) {
   addInventoryItem(state.user.Inventory, item, state.items.get(item.ItemIndex));
 }
 function updateInventory() {
+  // Equipment carries most of a character's stats, and a broken or repaired item changes them
+  // too, so every item packet that lands here has to reach the stat panel as well.
+  characterStats.render();
   if (shop.goods) shop.details();
   trade.refresh();
   storage.refresh();
@@ -838,7 +869,21 @@ $("exit-account").onclick = () => { cancelAttack(); state.path=[]; state.socket.
 $("open-inventory").onclick = () => {
   $("inventory").hidden = !$("inventory").hidden;
 };
-$("open-equipment").onclick = () => { $("equipment").hidden = !$("equipment").hidden; inventory.render(); };
+function showCharacterTab(name) {
+  const stats = name === "stats";
+  $("equipment-grid").hidden = stats;
+  $("character-stats").hidden = !stats;
+  $("tab-equipment").setAttribute("aria-selected", String(!stats));
+  $("tab-stats").setAttribute("aria-selected", String(stats));
+  if (stats) characterStats.render(); else inventory.render();
+}
+$("tab-equipment").onclick = () => showCharacterTab("equipment");
+$("tab-stats").onclick = () => showCharacterTab("stats");
+$("open-equipment").onclick = () => {
+  $("equipment").hidden = !$("equipment").hidden;
+  inventory.render();
+  characterStats.render();
+};
 $("open-skills").onclick = () => {
   $("skills-panel").hidden = !$("skills-panel").hidden;
   skills.render();

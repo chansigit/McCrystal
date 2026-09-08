@@ -170,8 +170,12 @@
       </div>
     </aside>
     <aside id="equipment" hidden>
-      <header><h2>装备</h2><button id="close-equipment" class="icon" title="关闭" aria-label="关闭装备"><i data-lucide="x"></i></button></header>
+      <header><h2>角色</h2><div role="tablist" aria-label="角色窗口"><button id="tab-equipment" type="button" role="tab" aria-selected="true" aria-controls="equipment-grid">装备</button><button id="tab-stats" type="button" role="tab" aria-selected="false" aria-controls="character-stats">状态</button></div><button id="close-equipment" class="icon" title="关闭" aria-label="关闭角色窗口"><i data-lucide="x"></i></button></header>
       <div id="equipment-grid"></div>
+      <section id="character-stats" role="tabpanel" aria-labelledby="tab-stats" hidden>
+        <dl id="stat-rows"></dl>
+        <p id="stat-notes" role="status"></p>
+      </section>
     </aside>
     <aside id="skills-panel" hidden>
       <header><h2>技能</h2><button id="close-skills" class="icon" title="关闭技能" aria-label="关闭技能"><i data-lucide="x"></i></button></header>
@@ -190,6 +194,17 @@
       </div>
       <div class="vitals">
         <canvas id="vitals-orb" width="104" height="120" role="img" aria-label="HP / MP"></canvas>
+      </div>
+      <div
+        id="experience-bar"
+        role="progressbar"
+        aria-label="经验"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div id="experience-fill"></div>
+        <span id="experience-label"></span>
       </div>
       <section id="chat-panel" hidden>
         <div id="messages" role="log" aria-label="聊天消息"></div>

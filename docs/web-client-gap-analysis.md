@@ -59,9 +59,9 @@ These stop a player from doing something normal. Roughly in order of severity.
    five quest packets are dropped.
 7. **No group or party.** Invites arrive as unhandled packets, so the player is
    never even told they were invited.
-8. **No character stat panel.** AC/MAC/DC/MC/SC, experience and weight are
-   invisible, so gear cannot be compared. `CharacterDialog` exists only as an
-   equipment grid.
+8. ~~**No character stat panel.**~~ Shipped: the equipment window now has a
+   stats tab with the native field list (`src/stats.js`). Note this one is *not*
+   render-only -- see below.
 9. **No buff, debuff or poison display.** Neither the icon strip
    (`BuffDialog.cs:79`) nor the in-world auras (`MapObject.cs:210-298`) nor the
    poison status dots (`MapObject.cs:508-568`).
@@ -91,13 +91,15 @@ bind a newly learned spell, because that needs `AssignKeyPanel` and `C.MagicKey`
 
 Missing outright: all lighting and the day/night cycle (also needs a gateway
 change, since `GameAssets.Map()` never exports the per-cell `Light` byte,
-`GameAssets.cs:135-148`); weather particles, all ten flags; hair and head layer;
+`GameAssets.cs:135-148`); weather particles, all ten flags;
 wings; mount and transform sprites; projectiles in flight; ground spell objects
 such as fire walls; melee skill trails; buff auras; level-up effect.
 
-The web draws body plus one weapon layer against the native seven-pass stack
+The web draws body, head and one weapon layer against the native seven-pass stack
 (`PlayerObject.cs:4877-4926`), and always uses `CArmour`, so Assassins and
-Archers get warrior animation sets. Spell effects are a hand-coded table of 38
+Archers get warrior animation sets. The head is drawn between the body and the
+front weapon pass, which is where native puts it in all eight directions; the
+direction test around `DrawHead` only orders it against the wings. Spell effects are a hand-coded table of 38
 cast and 18 impact effects against roughly 200 native spawn sites.
 
 Two gameplay-relevant ones that read as bugs rather than missing polish:
@@ -196,15 +198,31 @@ browser side is missing.
 `NewRecipeInfo`, `CompleteQuest`, `ReceiveMail`, `FriendUpdate`, `LoverUpdate`,
 `MentorUpdate`, `SwitchGroup`, `GuildBuffList`, `DefaultNPC`, `Connected`.
 
-That makes the experience bar, the character stat panel and the buff display
-cheaper than the original estimate: the data arrives already, so they are
-render-only work with no gateway change.
+That makes the buff display cheaper than the original estimate: the data arrives
+already, so it is render-only work with no gateway change. The experience bar
+was exactly that -- `S.GainExperience` (a delta), `S.LevelChanged` and
+`S.UserInformation` are the whole of it, and the HUD now carries the bar.
+
+The character stat panel is the exception, and the packet list above is what
+misled the estimate. `S.BaseStatsInfo` does arrive, but it is the per-class
+*growth table*, not the character's stats. No packet the server sends a player
+carries their computed stats at all: `S.UserInformation`
+(`Shared/ServerPackets.cs:587`) has Level, HP, MP, Experience and the bags and no
+`Stats` field, and `PlayerObject.RefreshStats` enqueues nothing. The native
+client derives every number in the character window itself, in
+`UserObject.RefreshStats` (`Client/MirObjects/UserObject.cs:144-700`), from the
+growth table plus equipment, sockets, item sets, passive skills and buffs. The
+browser panel is a port of that computation (`Client.Web/src/stats.js`), not a
+display of received values -- still no gateway change, but not free either. Two
+contributions stay out of reach and the panel says so rather than under-reporting
+silently: awakening bonuses (`Awake.listAwake` is a private field, so the
+serializer never sees the values) and guild buffs (this client has no guild
+support).
 
 ## Suggested order for what remains
 
-1. The read-only displays whose data already arrives: experience bar, character
-   stat panel (`BaseStatsInfo`), buff and poison icons (`AddBuff`), day and night
-   (`TimeOfDay`).
+1. The read-only displays whose data already arrives: buff and poison icons
+   (`AddBuff`), day and night (`TimeOfDay`).
 2. Quests and groups, the two remaining Tier 1 systems that are real feature
    work.
 3. Presentation, in the order players notice it: lighting, the missing character
