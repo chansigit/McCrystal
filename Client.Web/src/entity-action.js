@@ -17,15 +17,33 @@ export const NPC_DEFAULTS = {
   Standing: { start: 0, count: 4, skip: 0, interval: 450 },
   Harvest: { start: 12, count: 10, skip: 0, interval: 200 },
 };
+// FrameSet.Player in full (Client/MirObjects/Frames.cs:155-198). A player library carries
+// no table of its own, so this is the only source of a player's frames. The Archer's
+// bow actions and the Assassin's Sneek and DashAttack read a different body set and are
+// left out until that set is served.
 export const PLAYER_DEFAULTS = {
-  Standing: { start: 0, count: 4, skip: 0, interval: 500 },
-  Walking: { start: 32, count: 6, skip: 0, interval: 100 },
-  Running: { start: 80, count: 6, skip: 0, interval: 100 },
-  Attack1: { start: 136, count: 6, skip: 0, interval: 100 },
-  Spell: { start: 296, count: 6, skip: 0, interval: 100 },
-  Harvest: { start: 344, count: 2, skip: 0, interval: 300 },
-  Die: { start: 384, count: 4, skip: 0, interval: 100 },
-  Dead: { start: 387, count: 1, skip: 3, interval: 1000 },
+  Standing: { start: 0, count: 4, skip: 0, interval: 500, effect: { start: 0, count: 8, skip: 0, interval: 250 } },
+  Walking: { start: 32, count: 6, skip: 0, interval: 100, effect: { start: 64, count: 6, skip: 0, interval: 100 } },
+  Running: { start: 80, count: 6, skip: 0, interval: 100, effect: { start: 112, count: 6, skip: 0, interval: 100 } },
+  Stance: { start: 128, count: 1, skip: 0, interval: 1000, effect: { start: 160, count: 1, skip: 0, interval: 1000 } },
+  Stance2: { start: 300, count: 1, skip: 5, interval: 1000, effect: { start: 332, count: 1, skip: 5, interval: 1000 } },
+  Attack1: { start: 136, count: 6, skip: 0, interval: 100, effect: { start: 168, count: 6, skip: 0, interval: 100 } },
+  Attack2: { start: 184, count: 6, skip: 0, interval: 100, effect: { start: 216, count: 6, skip: 0, interval: 100 } },
+  Attack3: { start: 232, count: 8, skip: 0, interval: 100, effect: { start: 264, count: 8, skip: 0, interval: 100 } },
+  Attack4: { start: 416, count: 6, skip: 0, interval: 100, effect: { start: 448, count: 6, skip: 0, interval: 100 } },
+  Spell: { start: 296, count: 6, skip: 0, interval: 100, effect: { start: 328, count: 6, skip: 0, interval: 100 } },
+  Harvest: { start: 344, count: 2, skip: 0, interval: 300, effect: { start: 376, count: 2, skip: 0, interval: 300 } },
+  Struck: { start: 360, count: 3, skip: 0, interval: 100, effect: { start: 392, count: 3, skip: 0, interval: 100 } },
+  Die: { start: 384, count: 4, skip: 0, interval: 100, effect: { start: 416, count: 4, skip: 0, interval: 100 } },
+  Dead: { start: 387, count: 1, skip: 3, interval: 1000, effect: { start: 419, count: 1, skip: 3, interval: 1000 } },
+  Revive: { start: 384, count: 4, skip: 0, interval: 100, reverse: true, effect: { start: 416, count: 4, skip: 0, interval: 100 } },
+  Mine: { start: 184, count: 6, skip: 0, interval: 100, effect: { start: 216, count: 6, skip: 0, interval: 100 } },
+  Lunge: { start: 139, count: 1, skip: 5, interval: 1000, effect: { start: 300, count: 1, skip: 5, interval: 1000 } },
+  MountStanding: { start: 416, count: 4, skip: 0, interval: 500, effect: { start: 448, count: 4, skip: 0, interval: 500 } },
+  MountWalking: { start: 448, count: 8, skip: 0, interval: 100, effect: { start: 480, count: 8, skip: 0, interval: 500 } },
+  MountRunning: { start: 512, count: 6, skip: 0, interval: 100, effect: { start: 544, count: 6, skip: 0, interval: 100 } },
+  MountStruck: { start: 560, count: 3, skip: 0, interval: 100, effect: { start: 592, count: 3, skip: 0, interval: 100 } },
+  MountAttack: { start: 584, count: 6, skip: 0, interval: 100, effect: { start: 616, count: 6, skip: 0, interval: 100 } },
 };
 
 export function defaultFrames(library) {
@@ -77,6 +95,16 @@ export function hasDeclaredAction(animations, library, action) {
   if (animations && Object.keys(animations).length) return !!animations[action];
   return !!defaultFrames(library)[action];
 }
+
+// PlayerObject.StanceDelay, and MirClass.Archer (Shared/Enums.cs).
+// A mounted player swaps five of its actions for the mount's own
+// (Client/MirObjects/PlayerObject.cs:914-933). Everything else keeps its usual frames.
+export const MOUNT_ACTIONS = {
+  Standing: "MountStanding", Walking: "MountWalking", Running: "MountRunning",
+  Struck: "MountStruck", Attack1: "MountAttack",
+};
+export const STANCE_DELAY = 2500;
+const ARCHER = 4;
 
 // Standing and the terminal poses cycle; everything else is a one-shot that holds
 // its last frame, the way native stops advancing FrameIndex at Frame.Count.
@@ -133,12 +161,21 @@ export function liveAction(entity, position, now, { length, declares }) {
     return { action: attack, startedAt: entity.attackStartedAt, duration: attackDuration };
   // Struck waits for a swing to finish and never interrupts a step, the closest a
   // window model gets to native queueing it behind whatever is already playing.
-  if (entity.kind === "monster" && entity.struckStartedAt != null && !position.moving &&
+  if (entity.kind !== "npc" && entity.struckStartedAt != null && !position.moving &&
       declares("Struck") && now - entity.struckStartedAt < length("Struck"))
     return { action: "Struck", startedAt: entity.struckStartedAt };
   if (position.moving)
     return { action: entity.running ? "Running" : "Walking",
       startedAt: entity.movedAt, duration: entity.moveDuration };
+  // For 2.5 seconds after a swing or a cast a player stands ready rather than idle
+  // (PlayerObject.cs:79, 941, 2505). An Archer holding a bow never does.
+  if (entity.kind === "player" && !entity.RidingMount && entity.Class !== ARCHER && declares("Stance")) {
+    const ready = Math.max(
+      entity.attackStartedAt != null ? entity.attackStartedAt + attackDuration : 0,
+      entity.castUntil || 0);
+    if (ready > 0 && now < ready + STANCE_DELAY)
+      return { action: "Stance", startedAt: ready };
+  }
   return { action: entity.stoned ? "Stoned" : "Standing" };
 }
 

@@ -32,3 +32,33 @@ export function weaponLayer(actor, bodyFrame) {
     effectLibrary: actor.WeaponEffect > 0 ? `CWeaponEffect/${String(actor.WeaponEffect).padStart(2, "0")}` : null,
   };
 }
+
+// PlayerObject.DrawWings: WingEffect 1..99 selects CHumEffect[WingEffect - 1] and the
+// frame comes off the action's parallel effect strip -- EffectStart plus the direction
+// times EffectCount + EffectSkip -- not off the body strip (PlayerObject.cs:757-763,
+// 5074-5081). Assassins and Archers read AHumEffect and ARHumEffect with their own body
+// sets, which this client does not draw yet.
+// Data/CHumEffect holds 00..05, and InitLibrary sizes the array from the highest file,
+// so a larger WingEffect draws nothing rather than reading past the end.
+export const WING_LIBRARIES = 6;
+const WARRIOR = 0, WIZARD = 1, TAOIST = 2;
+
+// WingOffset: males draw from zero and females 840 frames on (PlayerObject.cs:587).
+export function wingOffset(gender) {
+  return gender === 1 ? 840 : 0;
+}
+
+export function wingLayer(actor, frames, direction, step) {
+  if (!actor || !frames?.effect) return null;
+  if (![WARRIOR, WIZARD, TAOIST].includes(actor.Class)) return null;
+  if (Number.isInteger(actor.TransformType) && actor.TransformType > -1) return null;
+  const wing = actor.WingEffect;
+  if (!Number.isInteger(wing) || wing <= 0 || wing >= 100) return null;
+  if (wing - 1 >= WING_LIBRARIES) return null;
+  const e = frames.effect;
+  const cursor = Math.min(Math.max(0, step), Math.max(0, e.count - 1));
+  return {
+    library: `CHumEffect/${String(wing - 1).padStart(2, "0")}`,
+    index: e.start + direction * (e.count + e.skip) + cursor + wingOffset(actor.Gender),
+  };
+}

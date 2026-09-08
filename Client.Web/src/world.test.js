@@ -86,7 +86,7 @@ test("Struck and Revive only play where the library declares them", () => {
   assert.equal(w.declaresAction("Monster/371", "Struck"), true);
   assert.equal(w.declaresAction("Monster/001", "Struck"), false);
   assert.equal(w.declaresAction("Monster/002", "Struck"), true);
-  assert.equal(w.declaresAction("CArmour/00", "Struck"), false);
+  assert.equal(w.declaresAction("CArmour/00", "Struck"), true); // FrameSet.Player has one
   const struck = { kind: "monster", Image: 371, struckStartedAt: 500 };
   assert.equal(w.resolveAction(struck, "Monster/371", still, 800).action, "Struck");
   assert.equal(w.resolveAction({ ...struck, Image: 1 }, "Monster/001", still, 800).action, "Standing");

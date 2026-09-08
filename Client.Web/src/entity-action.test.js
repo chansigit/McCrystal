@@ -61,8 +61,11 @@ test("the default frame set is only reachable for libraries with no table", () =
   assert.equal(hasDeclaredAction(sparse, "Monster/001", "Struck"), false);
   assert.equal(hasDeclaredAction({}, "Monster/002", "Struck"), true);
   assert.equal(hasDeclaredAction({}, "Monster/002", "Revive"), true);
-  // A player or an NPC must never inherit the monster Struck or Revive layout.
-  assert.equal(hasDeclaredAction({}, "CArmour/00", "Struck"), false);
+  // A player or an NPC must never inherit the *monster* Struck or Revive layout, but
+  // FrameSet.Player has its own Struck at 360 and its own Revive, and an NPC has neither.
+  assert.equal(hasDeclaredAction({}, "CArmour/00", "Struck"), true);
+  assert.equal(PLAYER_DEFAULTS.Struck.start, 360); // Frames.cs:167, not the monster's 128
+  assert.equal(PLAYER_DEFAULTS.Revive.reverse, true);
   assert.equal(hasDeclaredAction({}, "NPC/00", "Struck"), false);
   assert.equal(NPC_DEFAULTS.Standing.interval, 450);
 });
@@ -215,4 +218,22 @@ test("a player only rolls for a second swing at empty air with shift held", () =
   assert.equal(playerAttackAction(true, false, () => 0.19), "Attack3"); // 19, still under
   assert.equal(playerAttackAction(true, false, () => 0.20), "Attack1"); // 20, the cutoff
   assert.equal(playerAttackAction(true, false, () => 0.99), "Attack1");
+});
+
+test("a player stands ready for two and a half seconds after a swing", () => {
+  // PlayerObject.cs:941 and 2505: StanceTime is set when the swing ends and the idle pose
+  // is Stance until it passes. FrameSet.Player's Stance is one frame at 128.
+  const table = { length: () => 600, declares: (a) => !!PLAYER_DEFAULTS[a] };
+  const player = { kind: "player", Class: 0, attackStartedAt: 1000 };
+  assert.equal(liveAction(player, { moving: false }, 1300, table).action, "Attack1");
+  assert.equal(liveAction(player, { moving: false }, 1700, table).action, "Stance");
+  assert.equal(liveAction(player, { moving: false }, 4099, table).action, "Stance");
+  assert.equal(liveAction(player, { moving: false }, 4101, table).action, "Standing");
+  // Walking still wins over standing ready.
+  assert.equal(liveAction(player, { moving: true }, 1700, table).action, "Walking");
+  // An Archer never stands ready, and neither does anything that is not a player.
+  assert.equal(liveAction({ ...player, Class: 4 }, { moving: false }, 1700, table).action, "Standing");
+  assert.equal(liveAction({ ...player, kind: "monster" }, { moving: false }, 1700, table).action, "Standing");
+  // And a player who has not swung at all simply stands.
+  assert.equal(liveAction({ kind: "player", Class: 0 }, { moving: false }, 9000, table).action, "Standing");
 });

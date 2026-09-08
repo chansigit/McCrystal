@@ -175,7 +175,9 @@ except where noted.
 11. ~~Player attack variety.~~ **Done.** Native only rolls for a warrior, wizard or
     taoist when shift is held with no target: one in five is Attack3. The Assassin's
     own weights wait for its body set.
-12. Player Struck, Stance and Stance2. **Open.**
+12. ~~Player Struck and Stance.~~ **Done.** FrameSet.Player is now complete, so a
+    player has real Struck frames at 360 and stands ready for 2.5 seconds after a swing.
+    Stance2 stays open: it is the Blizzard channel pose, and Blizzard has no channel here.
 13. ~~Poison body tints and status dots.~~ **Done**, both tables, and they are not the
     same order: the tint is a priority switch and the dots are drawn in flag order.
 14. ~~Per-monster manual draw offsets, which put EvilMir and the siege gates 10
@@ -189,11 +191,15 @@ cast and impact separation, projectiles, server-pushed one-shot effects, ground
 spells, a draw-behind band, buff auras that stop gracefully, frame sub-loops,
 backlog catch-up, and weapon trails.
 
-**Group 3, asset or protocol work.** All the asset directories already exist and
-are already served. Assassin and Archer body sets need the per-action alternate
-rule and per-branch female offsets. Mounts and transforms need no gateway
-change. Wings do, because they use the parallel effect frame strip that the
-gateway currently discards.
+**Group 3, asset or protocol work.** Mounts and wings are **done**, and neither
+needed a gateway change. A mount swaps five actions for the mount library's own,
+whose frames start exactly where the player table's MountStanding does -- the
+library is 216 frames, which is 632 - 416 to the frame. Wings ride the parallel
+effect strip, which lives in FrameSet.Player for a player and so was never the
+gateway's to discard; the earlier note was wrong about that.
+
+Still open: the Assassin and Archer body sets, which need the per-action
+alternate rule and per-branch female offsets, and transforms.
 
 ## Do not "fix" these
 

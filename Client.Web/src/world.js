@@ -2,7 +2,7 @@ import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js"
 import PF from "pathfinding";
 import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
-import { hairLayer, weaponLayer } from "./appearance.js";
+import { hairLayer, weaponLayer, wingLayer } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
@@ -15,7 +15,7 @@ import { monsterOverlays } from "./monster-overlay.js";
 import { poisonTint, poisonDots } from "./poison.js";
 import { createMissile } from "./missile.js";
 import { resolveFrames, hasDeclaredAction, animationStep, actionLength, advanceAction,
-  liveAction, manualDrawOffset, MOVING_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
+  liveAction, manualDrawOffset, MOVING_ACTIONS, MOUNT_ACTIONS, REMOVED_ON_HIDE, STONED_ON_HIDE } from "./entity-action.js";
 
 export const directions = [
   [0, -1],
@@ -691,7 +691,7 @@ export class World {
         // One frame cursor for every actor: the action decides the frame table, and the
         // phase is measured from that action's own start rather than from a wall clock.
         const resolved = this.resolveAction(e, library, position, now);
-        action = resolved.action;
+        action = e.RidingMount ? (MOUNT_ACTIONS[resolved.action] || resolved.action) : resolved.action;
         const elapsed = advanceAction(e, resolved, now);
         const f = this.animationDefinition(library, action);
         if (f) {
@@ -709,6 +709,15 @@ export class World {
       // set (Client/MirObjects/MonsterObject.cs:4306); the gateway now carries that byte.
       const blend = action != null && e.kind !== "item" &&
         !!this.animationDefinition(library, action)?.blend;
+      // PlayerObject.Draw calls DrawMount before the body and the weapon
+      // (PlayerObject.cs:4884, 5084-5090); the mount's own frames start where the player
+      // table's MountStanding does, so the body frame carries straight across.
+      if (e.kind === "player" && e.RidingMount && e.MountType >= 0 && index >= 0) {
+        const mount = this.sprite(`entity:mount:${e.ObjectID}`,
+          `Mount/${String(e.MountType).padStart(2, "0")}`, index - offset - 416,
+          x, y, depth - 0.3, this.objects, true);
+        if (mount) mount.tint = poisonTint(e.Poison);
+      }
       if (e.kind === "player" && !e.Dead) {
         const key = `shadow:${e.ObjectID}`;
         let shadow = this.nodes.get(key);
@@ -755,9 +764,9 @@ export class World {
       }
       if (body) {
         // The pink flash is kept only where the real Struck animation is not playing:
-        // players, NPCs, and the monster libraries that declare no Struck frames. Where
-        // the animation does play it is the hit feedback, and tinting it as well would
-        // double-signal something native never tints.
+        // NPCs, and the monster libraries that declare no Struck frames. Where the
+        // animation does play it is the hit feedback on its own, and tinting as well
+        // would double-signal something native never tints.
         // A poisoned actor is tinted by its poison, which is what DrawColour carries; the
         // pink flash only stands in where nothing else is colouring the body.
         const poison = poisonTint(e.Poison);
@@ -797,6 +806,14 @@ export class World {
           this.sprite(key, hair.library, hair.index, x, y, depth + 0.1, this.objects, true);
           const sprite = this.nodes.get(key);
           if (sprite) sprite.tint = body.tint;
+        }
+        // DrawWings runs off the action's own effect strip, and native draws it blended
+        // (PlayerObject.cs:5074-5081).
+        const wing = wingLayer(e, this.animationDefinition(library, action), direction, e.frameStep || 0);
+        if (wing) {
+          const sprite = this.sprite(`entity:wing:${e.ObjectID}:${e.WingEffect}`,
+            wing.library, wing.index, x, y, depth + 0.05, this.objects, true);
+          if (sprite) { sprite.blendMode = "add"; sprite.tint = body.tint; }
         }
         const weapon = weaponLayer(action === "Harvest" ? { ...e, Weapon: 1, WeaponEffect: 0 } : e, body.assetIndex);
         if (weapon) {
