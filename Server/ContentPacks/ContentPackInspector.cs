@@ -166,24 +166,44 @@ namespace Server.ContentPacks
             ContentPackReport report)
         {
             // Loaded through the engine's own Map so the verdict here is the verdict at run
-            // time, wall rules and map format variants included.
-            var loaded = new Dictionary<int, Map>();
-            Map Open(int index)
+            // time, wall rules and map format variants included. Only the walkable bits are
+            // kept: a Map holds a cell object per square, and holding 386 of those at once
+            // costs gigabytes, where the same answer fits in one bit per square.
+            var walkable = new Dictionary<int, (int Width, int Height, System.Collections.BitArray Cells)>();
+            (int Width, int Height, System.Collections.BitArray Cells)? Open(int index)
             {
-                if (loaded.TryGetValue(index, out var cached)) return cached;
-                if (!maps.TryGetValue(index, out var info)) return loaded[index] = null;
+                if (walkable.TryGetValue(index, out var cached))
+                    return cached.Cells == null ? null : cached;
+                if (!maps.TryGetValue(index, out var info))
+                {
+                    walkable[index] = default;
+                    return null;
+                }
                 var map = new Map(info);
-                return loaded[index] = map.Load() ? map : null;
+                if (!map.Load())
+                {
+                    walkable[index] = default;
+                    return null;
+                }
+                var bits = new System.Collections.BitArray(map.Width * map.Height);
+                for (int x = 0; x < map.Width; x++)
+                    for (int y = 0; y < map.Height; y++)
+                        bits[y * map.Width + x] = map.ValidPoint(x, y);
+                var entry = (map.Width, map.Height, bits);
+                walkable[index] = entry;
+                return entry;
             }
+            static bool Valid((int Width, int Height, System.Collections.BitArray Cells) map, System.Drawing.Point at)
+                => at.X >= 0 && at.X < map.Width && at.Y >= 0 && at.Y < map.Height
+                    && map.Cells[at.Y * map.Width + at.X];
 
             int blockedNpcs = 0, blockedMovements = 0, offMapZones = 0;
             foreach (var map in environment.MapInfoList)
             {
-                var loadedMap = Open(map.Index);
-                if (loadedMap == null) continue;
+                if (Open(map.Index) is not { } loadedMap) continue;
 
                 foreach (var npc in map.NPCs)
-                    if (!loadedMap.ValidPoint(npc.Location))
+                    if (!Valid(loadedMap, npc.Location))
                     {
                         blockedNpcs++;
                         Add(report, ContentIssueSeverity.Error, "NPC_CELL_BLOCKED",
@@ -194,26 +214,25 @@ namespace Server.ContentPacks
 
                 foreach (var movement in map.Movements)
                 {
-                    if (!loadedMap.ValidPoint(movement.Source))
+                    if (!Valid(loadedMap, movement.Source))
                     {
                         blockedMovements++;
                         Add(report, ContentIssueSeverity.Warning, "MOVEMENT_SOURCE_BLOCKED",
                             $"Map '{map.FileName}' has a movement whose source {movement.Source.X},{movement.Source.Y} "
                             + "cannot be stood on, so it can never trigger.", entity: map.FileName);
                     }
-                    var target = Open(movement.MapIndex);
-                    if (target != null && !target.ValidPoint(movement.Destination))
+                    if (Open(movement.MapIndex) is { } target && !Valid(target, movement.Destination))
                     {
                         blockedMovements++;
                         Add(report, ContentIssueSeverity.Error, "MOVEMENT_DESTINATION_BLOCKED",
                             $"Map '{map.FileName}' sends {movement.Source.X},{movement.Source.Y} to "
-                            + $"{movement.Destination.X},{movement.Destination.Y} on '{target.Info.FileName}', "
+                            + $"{movement.Destination.X},{movement.Destination.Y} on map {movement.MapIndex}, "
                             + "which is off the map or a wall.", entity: map.FileName);
                     }
                 }
 
                 foreach (var zone in map.SafeZones)
-                    if (!loadedMap.ValidPoint(zone.Location))
+                    if (!Valid(loadedMap, zone.Location))
                     {
                         offMapZones++;
                         Add(report, ContentIssueSeverity.Warning, "SAFEZONE_CENTRE_BLOCKED",
