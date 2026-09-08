@@ -284,8 +284,8 @@
 双头血魔8	60	RedEvilApe	crystalm2
 双头血魔80	60	RedEvilApe	crystalm2
 双头血魔9	60	RedEvilApe	crystalm2
-暗之触龙神			unresolved
-暗之触龙神8			unresolved
+暗之触龙神	41		user:邪恶蜈蚣就是触龙神
+暗之触龙神8	41		user:邪恶蜈蚣就是触龙神
 灰血恶魔	59		appr:双头金刚
 石墓尸王	93	BoneLord	proposed
 石墓尸王8	93	BoneLord	proposed
@@ -320,7 +320,7 @@
 圣域牛魔王	101	MinotaurKing	derived:牛魔王
 圣域猪卫	76	KingHog	derived:虹魔猪卫:weak
 圣域神鹰	108		appr:猎鹰
-圣域神龙			unresolved
+圣域神龙	41		user:邪恶蜈蚣就是触龙神
 圣域祭司	100		appr-run:与牛魔祭司同 Appr179
 圣域稻草人	5	Scarecrow	derived:稻草人
 圣域精灵	26	BoneElite	derived:骷髅精灵:weak
@@ -334,7 +334,7 @@
 圣域雕像	65	ZumaStatue	derived:祖玛雕像:weak
 圣域骷髅	22	Skeleton	derived:骷髅
 圣域魔蝎	75	KingScorpion	derived:虹魔蝎卫:weak
-圣域魔魂			unresolved
+圣域魔魂	77		visual:虹魔蝎卫75/虹魔猪卫76 连号，77 DarkDevil 是直立犄角魔
 宝扇使者1	101		appr:圣域牛魔王
 宝扇使者2	101		appr:圣域牛魔王
 宝扇使者3	101		appr:圣域牛魔王
@@ -347,7 +347,7 @@
 暗之沃玛教主	34	WoomaTaurus	crystalm2
 暗之牛魔王	101	MinotaurKing	derived:牛魔王
 暗之牛魔王8	101	MinotaurKing	derived:牛魔王
-暗之虹魔教主			unresolved
+暗之虹魔教主	77		visual:虹魔蝎卫75/虹魔猪卫76 连号，77 DarkDevil 是直立犄角魔
 暗之骷髅精灵	26	BoneElite	derived:骷髅精灵
 暗之黄泉教主			unresolved
 沃玛教主	34	WoomaTaurus	crystalm2
@@ -357,9 +357,9 @@
 牛魔王8	101	MinotaurKing	proposed
 祖玛教主	68	ZumaTaurus	crystalm2
 祖玛教主9	68	ZumaTaurus	crystalm2
-虹魔教主			unresolved
-虹魔教主0			unresolved
-虹魔教主8			unresolved
+虹魔教主	77		visual:虹魔蝎卫75/虹魔猪卫76 连号，77 DarkDevil 是直立犄角魔
+虹魔教主0	77		visual:虹魔蝎卫75/虹魔猪卫76 连号，77 DarkDevil 是直立犄角魔
+虹魔教主8	77		visual:虹魔蝎卫75/虹魔猪卫76 连号，77 DarkDevil 是直立犄角魔
 虹魔猪卫	76	KingHog	crystalm2
 虹魔猪卫0	76	KingHog	crystalm2
 虹魔猪卫8	76	KingHog	crystalm2
@@ -369,8 +369,8 @@
 虹魔蝎卫0	75	KingScorpion	crystalm2
 虹魔蝎卫8	75	KingScorpion	crystalm2
 虹魔蝎卫80	75	KingScorpion	crystalm2
-触龙神			unresolved
-触龙神8			unresolved
+触龙神	41		user:邪恶蜈蚣就是触龙神
+触龙神8	41		user:邪恶蜈蚣就是触龙神
 赤月恶魔	62	RedMoonEvil	crystalm2
 赤月恶魔1	62	RedMoonEvil	crystalm2
 赤月恶魔8	62	RedMoonEvil	crystalm2

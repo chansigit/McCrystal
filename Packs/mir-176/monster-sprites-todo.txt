@@ -1,28 +1,13 @@
-# mir-176 还没定的怪：17 行，其实是 5 个决定
-# 在第二列填 Crystal 的 Image 编号；留空表示这只怪不收进本包。
-# 候选见 monster-sprites-decide.png。
+# mir-176 还没定的怪：7 行 = 3 个决定
+# 第二列填 Crystal 的 Image 编号；留空表示不收进本包。候选见 monster-sprites-decide.png。
 
-# Appr 3  等级1 HP9999 攻0   候选：149 Football（流星1/2 用的）/ 231 IcePillar / 130 TrapRock / 133 CloudElement / 132 ThunderElement
+# Appr 3  等级1 HP9999 攻0   候选：149 Football（流星1/2 用的）/ 231 IcePillar / 133 CloudElement / 132 ThunderElement / 130 TrapRock
 飞火流星	
 
 # Appr 48  等级16 HP50 攻9   候选：42 BugBat / 160 PoisonHugger / 161 Hugger / 152 GhastlyLeeche / 261 DeathCrawler
 威思而小虫	
 
-# Appr 122  等级60 HP4000 攻60   候选：41 EvilCentipede / 194 BoneWhoo / 247 HellLord / 900 EvilMir / 229 ManectricKing
-圣域魔魂	
-暗之虹魔教主	
-虹魔教主	
-虹魔教主0	
-虹魔教主8	
-
-# Appr 140  等级55 HP2200 攻140   候选：84 KekTal / 85 VioletKekTal / 41 EvilCentipede / 371 WaterDragon / 387 CrystalBeast
-暗之触龙神	
-暗之触龙神8	
-圣域神龙	
-触龙神	
-触龙神8	
-
-# Appr 148  等级50 HP3000 攻70   候选：194 BoneWhoo / 247 HellLord / 900 EvilMir / 296 TucsonGeneral / 386 DarkSpirit
+# Appr 148  等级50 HP3000 攻70   候选：93 BoneLord（石墓尸王也用它）/ 247 HellLord / 194 BoneWhoo / 296 TucsonGeneral / 386 DarkSpirit
 黄泉教主	
 黄泉教主8	
 圣域修罗	
