@@ -171,6 +171,21 @@ Next step is a single-monster experiment judged by flipbooking a walk cycle —
 shimmer is invisible in stills, so every still comparison is blind to the
 failure mode that matters. Deer is `Monster/004.Lib`.
 
+## Finding where a monster lives
+
+Respawn tables exist only inside the binary `Server.MirDB`, and the admin console
+does not expose them, so "which map has Zuma statues" cannot be answered from
+memory — Zuma Temple 1F and 2F have none at all, despite the name.
+
+```sh
+curl -s -b jar 'http://127.0.0.1:5081/api/db/monsters?q=' > monsters.json
+python3 Tools/DumpSpawns/dump_spawns.py --monsters monsters.json --monster ZumaStatue
+```
+
+The script parses the header and the `MapInfo` block, which is the first block in
+the file, and stops there. Monster names come from the admin console because the
+name table sits behind the item table in the same file.
+
 ## Game mechanics learned
 
 Deer are AI 2, the `Deer` behaviour class. One in seven rolls `_runAway` at
@@ -227,6 +242,7 @@ modified config files are backed up in
 | `docs/web-client-gap-analysis.md` | Native vs web feature comparison and roadmap |
 | `docs/web-client-animation-audit.md` | Animation comparison, what is done, what remains |
 | `docs/sprite-upscaling-research.md` | Upscaling tool evidence, landmines and verdict |
+| `Tools/DumpSpawns/dump_spawns.py` | Every map's respawn table, read out of `Server.MirDB` |
 | `docs/research/legend-176-sources.md` | Downloaded 1.76 packs, revisions, licences |
 | `docs/reports/classic-pack-report.json` | Content pack validation baseline |
 | `Server.Admin/README.md` | Admin console setup and security model |
