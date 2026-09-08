@@ -126,17 +126,24 @@ public sealed class GameAssets : IDisposable
 
     public ImageData? Frame(string library, int index)
     {
+        // The override is looked up before the cache, and its cache key carries the
+        // file's write time. Tools/SpriteHD writes HD frames while the gateway is
+        // running, and a decoded 1x frame that is being drawn every tick has its
+        // sliding expiry refreshed for ever -- so a cache-first order pins exactly the
+        // frames the player is looking at to the art they had before the build ran.
+        if (OverridePath(library, index) is { } hd)
+        {
+            string overrideKey = $"hd:{hd}:{File.GetLastWriteTimeUtc(hd).Ticks}";
+            if (cache.TryGetValue(overrideKey, out ImageData? overridden)) return overridden;
+            var loaded = new ImageData(File.ReadAllBytes(hd),
+                hd.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp" : "image/png");
+            cache.Set(overrideKey, loaded, new MemoryCacheEntryOptions { Size = loaded.Png.Length, SlidingExpiration = TimeSpan.FromMinutes(10) });
+            return loaded;
+        }
         string key = $"frame:{library}:{index}";
         if (cache.TryGetValue(key, out ImageData? cached)) return cached;
         var manifest = Manifest(library);
         if (index < 0 || index >= manifest.Frames.Length || manifest.Frames[index] is not { } frame) return null;
-        if (OverridePath(library, index) is { } hd)
-        {
-            var loaded = new ImageData(File.ReadAllBytes(hd),
-                hd.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp" : "image/png");
-            cache.Set(key, loaded, new MemoryCacheEntryOptions { Size = loaded.Png.Length, SlidingExpiration = TimeSpan.FromMinutes(10) });
-            return loaded;
-        }
         using var input = File.OpenRead(libraries[library]);
         input.Position = frame.Position;
         byte[] compressed = new byte[frame.Length];
