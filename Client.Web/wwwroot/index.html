@@ -221,6 +221,19 @@
         </form>
         <p id="chat-status" role="status"></p>
       </section>
+      <div
+        id="weight-bar"
+        role="progressbar"
+        aria-label="背包负重"
+        aria-valuemin="0"
+        aria-valuemax="100"
+        aria-valuenow="0"
+      >
+        <div id="weight-fill"></div>
+      </div>
+      <span id="weight-label" aria-hidden="true"></span>
+      <span id="space-label" aria-hidden="true"></span>
+      <p id="hud-gold" aria-label="金币"></p>
       <div id="belt" aria-label="快捷栏"></div>
       <div class="actions">
         <button id="open-equipment" class="icon" title="装备" aria-label="装备"><i data-lucide="shirt"></i></button>

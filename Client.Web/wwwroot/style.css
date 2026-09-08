@@ -616,6 +616,13 @@ progress::-moz-progress-bar {
   font-size: 14px;
   color: #e7d396;
 }
+/* The weight block only exists inside the native frame; the narrow layout has no
+   place for it and the stat panel carries the same numbers. */
+#weight-bar, #weight-label, #space-label, #hud-gold { display: none; }
+@media (min-width: 1101px) {
+  #weight-bar { display: block; }
+  #weight-label, #space-label, #hud-gold { display: inline; }
+}
 #game.aiming { cursor: crosshair; }
 #skills-panel { position:fixed; right:16px; top:70px; width:264px; height:378px; overflow:hidden; background:url("/assets/frame?library=Title&index=504") 0 0/100% 100% no-repeat; padding:90px 8px 8px; color:#ded3ad; image-rendering:pixelated; }
 #skills-panel header { position:absolute; inset:0 0 auto; display:flex; justify-content:space-between; align-items:center; }
@@ -643,7 +650,9 @@ progress::-moz-progress-bar {
     display: block;
     transform: translateX(-50%);
     border: 0;
-    background: url("/assets/frame?library=Prguse&index=2") 0 0 / 1024px 152px no-repeat;
+    /* 100% 100%, not the art's own 1024x152: the panel is min(1280px, 100vw) wide with
+       the same aspect ratio, and every child below is placed as a percentage of it. */
+    background: url("/assets/frame?library=Prguse&index=2") 0 0 / 100% 100% no-repeat;
     image-rendering: pixelated;
     pointer-events: none;
   }
@@ -693,6 +702,49 @@ progress::-moz-progress-bar {
   }
   #hud .identity strong { order: 2; font: 12px Arial, sans-serif; line-height: 16px; }
   #hud .identity span { order: 1; font: 11px Arial, sans-serif; line-height: 12px; color: #ddd5b8; }
+  /* MainDialog's bottom-right block: WeightBar is 76x12 at 919,103 in the 1024x152 frame,
+     with WeightLabel at 919,101 (40x14), SpaceLabel at 994,101 (26x14) and GoldLabel at
+     919,119 (99x13) (Client/MirScenes/Dialogs/MainDialogs.cs:271-309). */
+  #hud #weight-bar {
+    position: absolute;
+    left: 89.746%;
+    top: 67.763%;
+    width: 7.422%;
+    height: 7.895%;
+    background: none;
+    border: 0;
+    border-radius: 0;
+    pointer-events: auto;
+  }
+  #hud #weight-fill {
+    height: 100%;
+    background: url("/assets/frame?library=Prguse&index=76") 0 0 / auto 100% no-repeat;
+    image-rendering: pixelated;
+    overflow: hidden;
+  }
+  #hud #weight-label,
+  #hud #space-label,
+  #hud #hud-gold {
+    position: absolute;
+    margin: 0;
+    font: 11px/14px Arial, sans-serif;
+    color: #ded3ad;
+    text-shadow: 0 1px 2px #000;
+    pointer-events: none;
+  }
+  #hud #weight-label { left: 89.746%; top: 66.447%; width: 3.906%; }
+  #hud #space-label { left: 97.070%; top: 66.447%; width: 2.539%; text-align: right; }
+  #hud #hud-gold {
+    left: 89.746%;
+    top: 78.289%;
+    width: 9.668%;
+    line-height: 13px;
+    color: #e7d396;
+    text-align: right;
+  }
+
+  /* 230,2 and 240x38 in the panel: BeltDialog's own place beside MainDialog
+     (Client/MirScenes/Dialogs/InventoryDialog.cs:600-666). */
   #hud #belt {
     position: absolute;
     left: 22.46%;
@@ -700,19 +752,30 @@ progress::-moz-progress-bar {
     width: 23.44%;
     height: 25%;
     margin: 0;
-    padding: 2px 0 2px 5%;
-    gap: 1.25%;
+    padding: 0;
+    gap: 0;
     background: url("/assets/frame?library=Prguse&index=1932") 0 0 / 100% 100% no-repeat;
     image-rendering: pixelated;
     pointer-events: auto;
   }
+  /* Each cell is 32x32 at (12 + 35 * i, 3) inside that 240x38 panel. They are placed
+     rather than flowed because a percentage padding or gap here would resolve against
+     #hud, the containing block, and not against the belt. */
   #hud #belt .slot {
-    width: 13.33%;
-    height: 100%;
-    flex: 0 0 13.33%;
+    position: absolute;
+    top: 7.895%;
+    width: 13.333%;
+    height: 84.211%;
+    flex: none;
     background: transparent;
     border: 0;
   }
+  #hud #belt .slot:nth-child(1) { left: 5%; }
+  #hud #belt .slot:nth-child(2) { left: 19.583%; }
+  #hud #belt .slot:nth-child(3) { left: 34.167%; }
+  #hud #belt .slot:nth-child(4) { left: 48.75%; }
+  #hud #belt .slot:nth-child(5) { left: 63.333%; }
+  #hud #belt .slot:nth-child(6) { left: 77.917%; }
   #hud #chat-panel {
     position: absolute;
     left: 22.46%;

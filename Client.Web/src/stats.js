@@ -427,6 +427,19 @@ export class CharacterStats {
     else return;
     this.render();
   }
+  // The HUD weight bar needs these whether or not the stat panel is open, so it cannot
+  // ride on render(), which returns early while the panel is hidden.
+  summary() {
+    const user = this.getUser();
+    if (!user) return null;
+    const { stats, weights } = refreshStats(user, this.getInfos(), this.baseStats, [...this.buffs.values()]);
+    return {
+      current: weights.bag,
+      capacity: stats.BagWeight,
+      // SpaceLabel counts empty inventory slots, belt included (MainDialogs.cs:462).
+      free: user.Inventory.filter((slot) => !slot).length,
+    };
+  }
   render() {
     const panel = $("character-stats");
     if (!panel || panel.hidden) return;

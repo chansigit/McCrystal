@@ -32,11 +32,12 @@ import { CharacterScreen, CLASS_NAMES } from "./characters.js";
 import { actorSound, audible } from "./sound-events.js";
 import { Vitals } from "./vitals.js";
 import { ExperienceBar } from "./experience.js";
+import { WeightBar } from "./weight.js";
 import { CharacterStats } from "./stats.js";
 import { itemUseSound, itemGainSound } from "./item-sounds.js";
 import { INTRO_MUSIC, SELECT_MUSIC, LOGIN_EFFECT, registrationData, playDoor } from "./classic-login.js";
 import { goldImage, beginAttackAnimation } from "./entity-presentation.js";
-import { attackAction, rangeAttackAction } from "./entity-action.js";
+import { attackAction, rangeAttackAction, stonedAtSpawn } from "./entity-action.js";
 
 const $ = (id) => document.getElementById(id);
 const icons = {
@@ -60,6 +61,7 @@ const gameAudio = new GameAudio();
 gameAudio.setMusic(INTRO_MUSIC);
 const vitals = new Vitals($("vitals-orb"));
 const experience = new ExperienceBar($("experience-bar"), $("experience-fill"), $("experience-label"));
+const weight = new WeightBar($("weight-bar"), $("weight-fill"), $("weight-label"), $("space-label"));
 const state = {
   socket: null,
   ready: false,
@@ -452,6 +454,9 @@ function receive(type, p) {
           ObjectNPC: "npc",
           ObjectItem: "item",
         }[type],
+        // A statue can already be stoned when it comes into view; the spawn packet
+        // says so and native reads it before picking the first action.
+        stoned: type === "ObjectMonster" && stonedAtSpawn(p),
       });
       world.preloadEntity(world.entities.get(p.ObjectID));
       break;
@@ -777,6 +782,13 @@ function updateHud() {
   state.maxHP = Math.max(state.maxHP || 1, u.HP);
   state.maxMP = Math.max(state.maxMP || 1, u.MP);
   vitals.update(u, state.maxHP, state.maxMP);
+  updateWeight();
+}
+// Equipment carries BagWeight and every item carries weight, so the bar moves on stat
+// changes and on inventory changes alike.
+function updateWeight() {
+  weight.update(characterStats.summary());
+  $("hud-gold").textContent = Number(state.user?.Gold || 0).toLocaleString();
 }
 function gainItem(item) {
   addInventoryItem(state.user.Inventory, item, state.items.get(item.ItemIndex));
@@ -785,6 +797,7 @@ function updateInventory() {
   // Equipment carries most of a character's stats, and a broken or repaired item changes them
   // too, so every item packet that lands here has to reach the stat panel as well.
   characterStats.render();
+  updateWeight();
   if (shop.goods) shop.details();
   trade.refresh();
   storage.refresh();
