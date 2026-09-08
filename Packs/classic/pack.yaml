@@ -5,7 +5,7 @@ engine: crystal
 databaseSchema: 111
 locale: en-US
 clientAssets: crystal-classic-assets@1
-contentRoot: ../..
+contentRoot: ../../Build/Server/Debug
 paths:
   configs: Configs
   envir: Envir
