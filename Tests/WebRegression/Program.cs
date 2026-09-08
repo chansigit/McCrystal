@@ -125,6 +125,17 @@ for (int mode = 0; mode <= 5; mode++)
         "Native attack mode survives round trip: " + mode);
 }
 Reject("""{"type":"ChangeAMode","data":{"Mode":6}}""", "Unknown attack mode rejected");
+
+// F1..F8 map to UserMagic.Key 1..8. MirConnection.MagicKey routes any key above 16 to the
+// hero, which this client never spawns, so the gateway keeps the range at 8.
+{
+    var command = Parse("""{"type":"MagicKey","data":{"Spell":1,"Key":3,"OldKey":0}}""");
+    var sent = (ClientPackets.MagicKey)Packet.ReceivePacket(command.GetPacketBytes().ToArray(), out _);
+    Check(sent.Spell == Spell.Fencing && sent.Key == 3 && sent.OldKey == 0,
+        "A skill hotkey assignment reaches the server");
+}
+Reject("""{"type":"MagicKey","data":{"Spell":1,"Key":9,"OldKey":0}}""", "A hero skill key is rejected");
+Reject("""{"type":"MagicKey","data":{"Spell":0,"Key":1,"OldKey":0}}""", "A keyed non-spell is rejected");
 var pricedInfo = new ItemInfo { Index = 99, Price = 1000, Durability = 10000 };
 var pricedItem = new UserItem(pricedInfo) { UniqueID = 45, Count = 7, MaxDura = 9000, CurrentDura = 5000 };
 pricedItem.AddedStats[Stat.MaxDC] = 3;

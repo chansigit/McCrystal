@@ -764,8 +764,12 @@ export class World {
       const target = effect.targetID === u.ObjectID ? u : this.entities.get(effect.targetID);
       const point = target ? motionPosition(target, now) : effect.location;
       const index = start + Math.min(count - 1, Math.floor((now - effect.started) / duration * count));
-      this.sprite(`entity:effect:${effect.id}`, library, index, point.X * 48, point.Y * 32,
+      const sprite = this.sprite(`entity:effect:${effect.id}`, library, index, point.X * 48, point.Y * 32,
         point.Y * 32 + 102, this.objects, true);
+      // Effect.Blend defaults to true and Effect.Draw calls DrawBlend
+      // (Client/MirObjects/Effect.cs:23, 129-132), so a spell effect is additive. Drawn
+      // normally its dark frame background reads as a grey box over the ground.
+      if (sprite) sprite.blendMode = "add";
     }
     this.damageEvents = this.damageEvents.filter((event) => now - event.started < 900);
     for (const event of this.damageEvents) {

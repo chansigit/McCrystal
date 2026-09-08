@@ -114,6 +114,33 @@ export class Skills {
       }
     }
   }
+  // F1..F8 map to UserMagic.Key 1..8. The server stores the assignment, so it survives a
+  // relog, and MirConnection.MagicKey clears the key off whatever else was holding it
+  // (Server/MirNetwork/MirConnection.cs:1543-1566) -- mirrored here so the panel agrees
+  // with the server without waiting for a packet the server does not send back.
+  keySelect(magic) {
+    const select = document.createElement("select");
+    select.className = "skill-key";
+    select.title = `${magic.Name} 的快捷键`;
+    select.setAttribute("aria-label", `${magic.Name} 的快捷键`);
+    for (let key = 0; key <= 8; key++) {
+      const option = document.createElement("option");
+      option.value = String(key); option.textContent = key ? `F${key}` : "—";
+      select.append(option);
+    }
+    select.value = String(magic.Key >= 1 && magic.Key <= 8 ? magic.Key : 0);
+    select.onchange = () => this.assignKey(magic, Number(select.value));
+    return select;
+  }
+  assignKey(magic, key) {
+    const user = this.getUser();
+    const old = magic.Key || 0;
+    if (!user || key === old) return;
+    if (key !== 0) for (const entry of user.Magics) if (entry.Key === key) entry.Key = 0;
+    magic.Key = key;
+    this.send("MagicKey", { Spell: magic.Spell, Key: key, OldKey: old });
+    this.render();
+  }
   hotkey(number) {
     const magics = this.getUser()?.Magics || [];
     const magic = magics.find((entry) => entry.Key === number);
@@ -133,7 +160,9 @@ export class Skills {
       meta.textContent = `Lv.${magic.Level} · MP ${manaCost(magic)}${magic.Key >= 1 && magic.Key <= 8 ? ` · F${magic.Key}` : ""}${button.disabled ? " · 暂不可施放" : ""}`;
       const text = document.createElement("span"); text.append(name, meta);
       const cooldown = document.createElement("span"); cooldown.className = "skill-cooldown"; cooldown.dataset.spell = magic.Spell;
-      button.append(icon, text, cooldown); button.onclick = () => this.select(magic.Spell); grid.append(button);
+      button.append(icon, text, cooldown); button.onclick = () => this.select(magic.Spell);
+      const row = document.createElement("div"); row.className = "skill-row";
+      row.append(button, this.keySelect(magic)); grid.append(row);
     }
     if (!grid.children.length) { const empty = document.createElement("p"); empty.textContent = "尚未学习技能"; grid.append(empty); }
     this.updateCooldowns();

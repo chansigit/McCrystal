@@ -629,6 +629,9 @@ progress::-moz-progress-bar {
 #skills-panel h2 { font:12px serif; margin:5px 10px; }
 #skill-list { display:grid; height:280px; overflow:auto; background:url("/assets/frame?library=Title&index=508") 0 0/248px 280px no-repeat; padding:4px; }
 .skill-entry { display:flex; align-items:center; gap:8px; min-height:44px; padding:4px; background:#050705a8; border:0; border-bottom:1px solid #4e4936; color:#eee5c6; text-align:left; }
+.skill-row { display: flex; align-items: center; gap: 4px; }
+.skill-row .skill-entry { flex: 1; min-width: 0; }
+.skill-key { flex: 0 0 auto; background: #1c1f18; color: #ded3ad; border: 1px solid #4e4936; font-size: 11px; padding: 2px; }
 .skill-entry[aria-pressed="true"] { background: #3b4b32; outline: 1px solid #d3c587; outline-offset: -1px; }
 .skill-entry img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
 .skill-entry > span { min-width: 0; }

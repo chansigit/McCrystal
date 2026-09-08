@@ -186,6 +186,7 @@ public static class GameSession
             "DeleteCharacter" => typeof(C.DeleteCharacter),
             "TownRevive" => typeof(C.TownRevive),
             "StoreItem" => typeof(C.StoreItem), "TakeBackItem" => typeof(C.TakeBackItem),
+            "MagicKey" => typeof(C.MagicKey),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -200,6 +201,11 @@ public static class GameSession
         if (packet is C.RepairItem repair && repair.UniqueID == 0)
             throw new InvalidDataException("Invalid repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
+        // MirConnection.MagicKey routes anything above 16 to the hero, which this client does
+        // not have, and key 0 is how the server records "no key" (MirNetwork/MirConnection.cs:1543).
+        if (packet is C.MagicKey magicKey && (magicKey.Key > 8 || magicKey.OldKey > 8 ||
+            !Enum.IsDefined(magicKey.Spell) || magicKey.Spell == Spell.None))
+            throw new InvalidDataException("Invalid skill key");
         if (packet is C.NPCConfirmInput input && (input.NPCID == 0 || string.IsNullOrEmpty(input.PageName) ||
             input.PageName.Length > 200 || input.PageName.Any(char.IsControl) || input.Value is null ||
             input.Value.Length > 200 || input.Value.Any(char.IsControl)))
