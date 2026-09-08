@@ -134,7 +134,7 @@ Reject("""{"type":"ChangeAMode","data":{"Mode":6}}""", "Unknown attack mode reje
     Check(sent.Spell == Spell.Fencing && sent.Key == 3 && sent.OldKey == 0,
         "A skill hotkey assignment reaches the server");
 }
-Reject("""{"type":"MagicKey","data":{"Spell":1,"Key":9,"OldKey":0}}""", "A hero skill key is rejected");
+Reject("""{"type":"MagicKey","data":{"Spell":1,"Key":17,"OldKey":0}}""", "A hero skill key is rejected");
 Reject("""{"type":"MagicKey","data":{"Spell":0,"Key":1,"OldKey":0}}""", "A keyed non-spell is rejected");
 var pricedInfo = new ItemInfo { Index = 99, Price = 1000, Durability = 10000 };
 var pricedItem = new UserItem(pricedInfo) { UniqueID = 45, Count = 7, MaxDura = 9000, CurrentDura = 5000 };

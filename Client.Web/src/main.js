@@ -994,8 +994,11 @@ window.addEventListener("keydown", (e) => {
     state.path = []; state.destination = null; state.pickupTarget = false;
     world.attackInput.pointer = pointer; world.attackInput.held = held; world.attackInput.shift = shift; world.attackInput.alt = alt;
   }
-  if (/^f[1-8]$/.test(key) && !e.ctrlKey && !e.metaKey && !e.altKey) {
-    e.preventDefault(); if (!e.repeat) skills.hotkey(Number(key.slice(1))); return;
+  // F1..F8 are keys 1..8 and Ctrl+F1..F8 are 9..16, matching AssignKeyPanel's two rows.
+  if (/^f[1-8]$/.test(key) && !e.metaKey && !e.altKey) {
+    e.preventDefault();
+    if (!e.repeat) skills.hotkey(Number(key.slice(1)) + (e.ctrlKey ? 8 : 0));
+    return;
   }
   if (
     [

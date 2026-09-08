@@ -201,9 +201,10 @@ public static class GameSession
         if (packet is C.RepairItem repair && repair.UniqueID == 0)
             throw new InvalidDataException("Invalid repair");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
-        // MirConnection.MagicKey routes anything above 16 to the hero, which this client does
-        // not have, and key 0 is how the server records "no key" (MirNetwork/MirConnection.cs:1543).
-        if (packet is C.MagicKey magicKey && (magicKey.Key > 8 || magicKey.OldKey > 8 ||
+        // A player's own keys are 1..16, F1..F8 then Ctrl+F1..F8; 0 clears the binding.
+        // MirConnection.MagicKey routes anything above 16 to a hero this client never
+        // spawns (Server/MirNetwork/MirConnection.cs:1543-1553).
+        if (packet is C.MagicKey magicKey && (magicKey.Key > 16 || magicKey.OldKey > 16 ||
             !Enum.IsDefined(magicKey.Spell) || magicKey.Spell == Spell.None))
             throw new InvalidDataException("Invalid skill key");
         if (packet is C.NPCConfirmInput input && (input.NPCID == 0 || string.IsNullOrEmpty(input.PageName) ||

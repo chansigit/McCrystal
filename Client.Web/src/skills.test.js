@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { castError, manaCost, skillModes } from "./skills.js";
+import { castError, manaCost, skillModes, keyName } from "./skills.js";
 
 const fireball = { Spell: 31, BaseCost: 5, LevelCost: 2, Level: 3, Range: 8 };
 const user = () => ({ ObjectID: 1, MP: 100, Location: { X: 10, Y: 10 }, Magics: [fireball] });
@@ -36,4 +36,14 @@ test("healing targets self and ground spells accept empty cells", () => {
   assert.equal(castError(u, healing, u, u.Location, 1000), "");
   assert.equal(castError(u, wall, null, { X: 11, Y: 12 }, 1000), "");
   assert.match(castError(u, wall, null, null, 1000), /位置/);
+});
+
+test("hotkey names follow AssignKeyPanel's two rows", () => {
+  assert.equal(keyName(0), ""); // 0 is how the server records "no key"
+  assert.equal(keyName(1), "F1");
+  assert.equal(keyName(8), "F8");
+  assert.equal(keyName(9), "Ctrl+F1"); // the second row starts at 9
+  assert.equal(keyName(16), "Ctrl+F8");
+  assert.equal(keyName(17), ""); // 17 and up belong to a hero this client never spawns
+  assert.equal(keyName(undefined), "");
 });

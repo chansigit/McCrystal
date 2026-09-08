@@ -388,6 +388,7 @@ export class World {
     sprite.zIndex = z;
     sprite.visible = true;
     sprite.seen = this.tick;
+    return sprite;
   }
   animationDefinition(library, action) {
     const manifest = this.manifest(library);
@@ -764,11 +765,11 @@ export class World {
       const target = effect.targetID === u.ObjectID ? u : this.entities.get(effect.targetID);
       const point = target ? motionPosition(target, now) : effect.location;
       const index = start + Math.min(count - 1, Math.floor((now - effect.started) / duration * count));
-      const sprite = this.sprite(`entity:effect:${effect.id}`, library, index, point.X * 48, point.Y * 32,
-        point.Y * 32 + 102, this.objects, true);
       // Effect.Blend defaults to true and Effect.Draw calls DrawBlend
       // (Client/MirObjects/Effect.cs:23, 129-132), so a spell effect is additive. Drawn
-      // normally its dark frame background reads as a grey box over the ground.
+      // normally the black background of an effect frame reads as a box over the ground.
+      const sprite = this.sprite(`entity:effect:${effect.id}`, library, index, point.X * 48, point.Y * 32,
+        point.Y * 32 + 102, this.objects, true);
       if (sprite) sprite.blendMode = "add";
     }
     this.damageEvents = this.damageEvents.filter((event) => now - event.started < 900);
