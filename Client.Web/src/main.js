@@ -145,7 +145,12 @@ world.onStep = (sound) => gameAudio.play(sound, 80);
 // handle on the world and the session state there. __monsters() prints what the server
 // actually said about every monster in view, which is the only way to tell a client
 // rendering bug apart from a server state the client is reporting faithfully.
-window.__debug = { world, state };
+// Stamped by the build (package.json passes --define:__BUILD__). Today's longest
+// wrong turn was a stale bundle in the browser, so make "which build is this?" a
+// question the console can answer in one line.
+// eslint-disable-next-line no-undef
+window.__build = typeof __BUILD__ === "undefined" ? "dev" : __BUILD__;
+window.__debug = { world, state, build: window.__build };
 window.__monsters = () => [...world.entities.values()]
   .filter((e) => e.kind === "monster")
   .map((e) => ({ Name: e.Name, Image: e.Image, Extra: e.Extra, stoned: e.stoned }));

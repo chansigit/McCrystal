@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "build": "esbuild src/main.js --bundle --format=esm --minify --outfile=wwwroot/client.js",
+    "build": "esbuild src/main.js --bundle --format=esm --minify --outfile=wwwroot/client.js --define:__BUILD__=\"'$(date -u +%Y-%m-%dT%H:%M:%SZ)'\"",
     "test": "node --test src/*.test.js && dotnet run --project ../Tests/WebRegression/WebRegression.csproj"
   },
   "dependencies": {
