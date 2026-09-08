@@ -97,13 +97,14 @@ Two defects found in review, both worth remembering because they recur:
 
 ## Web client
 
-Coverage: 87 of 279 server packets handled, 32 of 153 client packets sendable.
+Coverage: 97 of 279 server packets handled, 33 of 153 client packets sendable.
 Unhandled packets are logged to the console rather than dropped silently;
 `window.__unhandledPackets` lists what a session saw.
 
 Done: town revive, character creation and deletion, item drop and split, drop
 gold, NPC sell and repair with prices, NPC storage, the character stat panel,
-the experience bar, the hair layer, and the animation foundation below.
+the experience bar and the weight block, the hair layer, skill hotkeys on
+F1..F8 and Ctrl+F1..F8, and the animation work below.
 
 **`src/*.js` is not what the browser runs.** `index.html` loads
 `wwwroot/client.js`, an esbuild bundle. Editing a module changes nothing in the
@@ -140,25 +141,29 @@ Full native-versus-web comparison and roadmap: `docs/web-client-gap-analysis.md`
 ## Animation
 
 `docs/web-client-animation-audit.md` is the specification and records what is
-now done.
+done. **Groups 1 and 2 are complete**, and Group 3 is complete except for the
+two classes this pack turns off.
 
-The foundation is complete. Every actor carries a current action and the
-timestamp it began, and frames are measured from that start —
-`src/entity-action.js` holds the rules. This replaced a `performance.now()`
-modulo that put every monster of the same image on the same frame at the same
-instant. Also done: attack duration from the manifest, the `Blend` flag through
-the gateway, native's action fallbacks, Struck and Revive, attack variants from
-`Type`, `ObjectRangeAttack`, generalised Show and Hide, and per-monster draw
-offsets.
+Landed: the frame cursor anchored to each action's own start; per-monster attack
+duration; the `Blend` flag; native's action fallbacks; Struck and Revive; attack
+variants; `ObjectRangeAttack`; Show and Hide with the burrowers and the statues;
+per-monster draw offsets; a statue's spawn-time stoned state; the 275-call
+monster overlay table over 85 monsters; ground spells (`S.ObjectSpell`);
+attached effects with real lifetimes (`S.ObjectEffect`); the one projectile
+(`S.ObjectProjectile`); poison tints and status dots; the complete player frame
+set with Struck, Stance, the attack variants, Revive, Mine and Lunge; mounts;
+wings; and transforms.
 
-**The largest remaining item** is the 275-call per-monster overlay table: native
-has overlays for 71 monsters, the web implements one, the Hydra, and that one is
-exactly right. The Scarecrow's burning death overlay is among the 70 missing and
-was never implemented. The table is indexed by frame index, which now exists, so
-it is no longer blocked.
+Deliberately not done: the Assassin and Archer body sets. `Configs/Setup.ini`
+carries `AllowCreateAssassin=False` and `AllowCreateArcher=False`, which is
+right for a 1.76 pack, so no character on this server can reach that code.
 
-After that come the effect model with real lifetimes, projectiles, ground
-spells, and the Assassin and Archer body sets.
+Two techniques worth reusing. The overlay table was **generated** from the C# by
+a parser and then checked by evaluating all 275 frame expressions in both
+languages over nine frame-and-direction pairs; hand transcription of 1,260 lines
+would have been worse in every way. And the Hydra overlay, the one entry that
+had been verified by hand before, is kept as a regression guard: its generated
+row must reproduce the old shortcut exactly.
 
 ## Sprite upscaling
 
@@ -224,8 +229,11 @@ the fleeing ones are worth more when skinned. They look identical.
 
 ```sh
 dotnet run --project Tests/Regression/Regression.csproj   # engine, 36 checks
-cd Client.Web && npm test                                 # 166 JS + 127 gateway
+cd Client.Web && npm test                                 # 205 JS + 131 gateway
 ```
+
+`npm test` runs the sources. **It says nothing about what the browser is
+running** -- see the bundle warning above.
 
 `Tests/Regression` uses a plain array of named checks in `Program.cs`, not a
 test framework.
