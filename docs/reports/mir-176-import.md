@@ -3,6 +3,30 @@
 源：`ThirdParty/legend-176/snapshots/geem2-official-176`
 包：`Packs/mir-176/pack.yaml`
 
+## 地图 mapinfo.txt -> MapInfo
+
+读入 386 段，写出 386 张地图，错误 0 条。
+传送点 2401 条已接上，0 条指向未声明的地图（丢弃）。
+出生点 11 个，安全区半径 10（1.76 没有这个字段，本工具给的默认值）。
+地图文件：需要 386，缺 0；`Map/` 里另有 178 个文件没有被 mapinfo.txt 声明，不会进包。
+
+| 属性 | 出现 | 对应到 |
+| --- | ---: | --- |
+| DARK | 165 | `Light = Night` |
+| DAY | 39 | `Light = Day` |
+| FIGHT | 87 | `Fight`（允许 PK，不是 Crystal 的 NoFight） |
+| FIGHT3 | 16 | `Fight`（允许 PK，不是 Crystal 的 NoFight） |
+| MINE | 20 | `MineIndex = 1` |
+| NEEDHOLE | 3 | `NeedHole` |
+| NODRUG | 1 | `NoDrug` |
+| NOPOSITIONMOVE | 6 | `NoPosition` |
+| NORANDOMMOVE | 38 | `NoRandom` |
+| NOREBONNECT | 2 | `NoReconnect` + `NoReconnectMap`（后者是原文里的拼写错误） |
+| NORECALL | 137 | `NoRecall` |
+| NORECONNECT | 73 | `NoReconnect` + `NoReconnectMap`（后者是原文里的拼写错误） |
+| QUIZ | 7 | **丢弃**，Crystal 没有对应机制 |
+| SAFE | 10 | `NoFight`（整图安全区，Crystal 只有分区安全区） |
+
 ## 技能 Magic -> MagicInfo
 
 读入 33 条，写出 33 条，错误 0 条。

@@ -3438,7 +3438,7 @@ namespace Server.MirEnvir
 
             if (StatusPortEnabled)
             {
-                _StatusPort = new TcpListener(IPAddress.Parse(Settings.IPAddress), 3000);
+                _StatusPort = new TcpListener(IPAddress.Parse(Settings.IPAddress), Settings.StatusPort);
                 _StatusPort.Start();
                 _StatusPort.BeginAcceptTcpClient(StatusConnection, null);
             }

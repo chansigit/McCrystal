@@ -42,6 +42,16 @@ public sealed record Item(
     int Ac, int Ac2, int Mac, int Mac2, int Dc, int Dc2, int Mc, int Mc2, int Sc, int Sc2,
     int Need, int NeedLevel, int Price, int Stock);
 
+/// <summary>One map section of Envir/mapinfo.txt, plus the movements leaving it.</summary>
+public sealed record MapSection(string File, string Title, List<string> Attributes)
+{
+    public List<Movement> Movements { get; } = new();
+}
+
+public sealed record Movement(string ToFile, int FromX, int FromY, int ToX, int ToY);
+
+public sealed record StartPoint(string File, int X, int Y);
+
 public sealed class GeeM2Source
 {
     private readonly string root;
@@ -88,5 +98,76 @@ public sealed class GeeM2Source
                 reader.GetInt32(16), reader.GetInt32(17), reader.GetInt32(18), reader.GetInt32(19),
                 reader.GetInt32(20)));
         return items;
+    }
+
+    // The file is CP936 and its sections look like `[0 比奇省 0] DARK NORECALL`, with
+    // movement lines `0 346,186 -> 0122 11,41` following the section they leave. The third
+    // field of every one of the 387 headers is 0, so it carries nothing.
+    private static readonly System.Text.RegularExpressions.Regex Header =
+        new(@"^\[\s*(\S+)\s+(.*?)\s+(\S+)\s*\](.*)$");
+    // 103 of the 2,401 movement lines separate their coordinates with a space rather than
+    // a comma -- `D71601 17 12 -> D71609 36 34` -- so both are accepted. Requiring the
+    // comma silently drops the teleports into the illusion dungeons.
+    private static readonly System.Text.RegularExpressions.Regex Move =
+        new(@"^(\S+)\s+(\d+)[\s,]+(\d+)\s*->\s*(\S+)\s+(\d+)[\s,]+(\d+)");
+    private static readonly System.Text.RegularExpressions.Regex Attribute =
+        new(@"[A-Z][A-Z0-9_]*(\([^)]*\))?");
+
+    public List<MapSection> Maps()
+    {
+        var maps = new List<MapSection>();
+        MapSection current = null;
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "mapinfo.txt")))
+        {
+            var line = raw.Split(';')[0].Trim();
+            if (line.Length == 0) continue;
+            var header = Header.Match(line);
+            if (header.Success)
+            {
+                var attributes = Attribute.Matches(header.Groups[4].Value)
+                    .Select(m => m.Value).ToList();
+                var file = header.Groups[1].Value;
+                // D12 is declared twice with the same attributes in a different order. A
+                // repeated section continues the first rather than replacing it, so its
+                // movements are kept.
+                var existing = maps.FirstOrDefault(m => string.Equals(m.File, file, StringComparison.OrdinalIgnoreCase));
+                if (existing != null)
+                {
+                    foreach (var a in attributes)
+                        if (!existing.Attributes.Contains(a)) existing.Attributes.Add(a);
+                    current = existing;
+                    continue;
+                }
+                current = new MapSection(file, header.Groups[2].Value.Trim(), attributes);
+                maps.Add(current);
+                continue;
+            }
+            var move = Move.Match(line);
+            if (move.Success && current != null)
+                current.Movements.Add(new Movement(move.Groups[4].Value,
+                    int.Parse(move.Groups[2].Value), int.Parse(move.Groups[3].Value),
+                    int.Parse(move.Groups[5].Value), int.Parse(move.Groups[6].Value)));
+        }
+        return maps;
+    }
+
+    public List<StartPoint> StartPoints()
+    {
+        var points = new List<StartPoint>();
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "StartPoint.txt")))
+        {
+            var fields = raw.Split(';')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            if (fields.Length >= 3 && int.TryParse(fields[1], out int x) && int.TryParse(fields[2], out int y))
+                points.Add(new StartPoint(fields[0], x, y));
+        }
+        return points;
+    }
+
+    public string MapDirectory => Path.Combine(root, "Map");
+
+    private static IEnumerable<string> ReadGbk(string path)
+    {
+        System.Text.Encoding.RegisterProvider(System.Text.CodePagesEncodingProvider.Instance);
+        return File.ReadAllLines(path, System.Text.Encoding.GetEncoding(936));
     }
 }

@@ -40,9 +40,10 @@ public static class Program
         var rawMagics = geeM2.Magics();
         var magics = MagicStage.Convert(rawMagics);
         var items = ItemStage.Convert(geeM2.Items(), rawMagics);
-        int errors = magics.Errors + items.Errors;
+        var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MapDirectory);
+        int errors = magics.Errors + items.Errors + maps.Errors;
 
-        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{magics.Report}\n{items.Report}";
+        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}";
         if (report != null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
@@ -66,9 +67,19 @@ public static class Program
         envir.MagicInfoList.AddRange(magics.Magics);
         envir.ItemInfoList.AddRange(items.Items);
         envir.ItemIndex = items.Items.Count == 0 ? 0 : items.Items.Max(i => i.Index);
+        envir.MapInfoList.AddRange(maps.Maps);
+        envir.MapIndex = maps.Maps.Count;
         envir.SaveDB();
+
+        // The pack keeps its own copy of every map it declares, so it stays self-contained
+        // and nothing reaches back into ThirdParty at run time.
+        var mapTarget = ContentPack.Current.MapPath;
+        Directory.CreateDirectory(mapTarget);
+        foreach (var file in maps.MapFiles)
+            File.Copy(file, Path.Combine(mapTarget, Path.GetFileName(file)), true);
         Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：" +
-            $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品");
+            $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品，{maps.Maps.Count} 张地图" +
+            $"（复制了 {maps.MapFiles.Count} 个地图文件）");
         return 0;
     }
 

@@ -63,6 +63,7 @@ namespace Server
 
         //Network
         public static string IPAddress = "127.0.0.1";
+        public static ushort StatusPort = 3000;
 
         public static ushort Port = 7000,
                              TimeOut = 10000,
@@ -396,6 +397,10 @@ namespace Server
             //Paths
             IPAddress = Reader.ReadString("Network", "IPAddress", IPAddress);
             Port = Reader.ReadUInt16("Network", "Port", Port);
+            // The status listener used to be hardcoded to 3000, which meant two content
+            // packs could never run side by side -- the second one bound the game port
+            // fine and then threw "Address already in use" on this one.
+            StatusPort = Reader.ReadUInt16("Network", "StatusPort", StatusPort);
             TimeOut = Reader.ReadUInt16("Network", "TimeOut", TimeOut);
             MaxUser = Reader.ReadUInt16("Network", "MaxUser", MaxUser);
             MaxIP = Reader.ReadUInt16("Network", "MaxIP", MaxIP);
@@ -687,6 +692,7 @@ namespace Server
 
             //Paths
             Reader.Write("Network", "IPAddress", IPAddress);
+            Reader.Write("Network", "StatusPort", StatusPort);
             Reader.Write("Network", "Port", Port);
             Reader.Write("Network", "TimeOut", TimeOut);
             Reader.Write("Network", "MaxUser", MaxUser);

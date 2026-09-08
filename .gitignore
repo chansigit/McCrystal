@@ -370,3 +370,6 @@ FodyWeavers.xsd
 /ThirdParty/legend-176/repos/
 /ThirdParty/legend-176/extracted/
 /ThirdParty/legend-176/snapshots/
+
+# mir-176 的地图是导入器从 ThirdParty 复制来的，158 MB，可随时重建
+Packs/mir-176/Maps/*.map
