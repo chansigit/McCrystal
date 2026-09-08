@@ -1,6 +1,6 @@
 # Project status
 
-As of 2026-09-07, `main` at `0c908485`. Living document — update the date and
+As of 2026-09-08, `main` at `ff37fec3`. Living document — update the date and
 the sections that changed rather than starting a new file.
 
 ## What runs where
@@ -97,14 +97,49 @@ Two defects found in review, both worth remembering because they recur:
 
 ## Web client
 
-Coverage: 97 of 279 server packets handled, 33 of 153 client packets sendable.
+Coverage: 125 of 278 server packets handled, 49 of 153 client packets sendable.
 Unhandled packets are logged to the console rather than dropped silently;
 `window.__unhandledPackets` lists what a session saw.
 
 Done: town revive, character creation and deletion, item drop and split, drop
-gold, NPC sell and repair with prices, NPC storage, the character stat panel,
-the experience bar and the weight block, the hair layer, skill hotkeys on
-F1..F8 and Ctrl+F1..F8, and the animation work below.
+gold, NPC sell, repair and special repair with prices, NPC storage, player
+trading, parties, the refine and appraisal window, the character stat panel, the
+experience bar and the weight block, the hair layer, skill hotkeys on F1..F8 and
+Ctrl+F1..F8, combat feedback (struck, poisoned, pushed), the day/night lighting
+pass, and the animation work below.
+
+Not built, and all of it post-1.76 or cosmetic: mail, the auction market, heroes,
+awakening, mounts as a subsystem, `PlayerInspect`, `Roll`, `ObjectSitDown`,
+`MergeItem`/`CombineItem`. The two gaps that *are* 1.76 content are `Opendoor`
+(the Zuma and Sabuk doors) and `Roll` (the Mongchon lottery clerk).
+
+Four subsystems landed together and each carried a protocol surprise worth
+keeping, all recorded in the modules themselves:
+
+- **`S.TradeConfirm` is not a lock.** `PlayerObject.TradeConfirm` is sent to both
+  sides *after* the items and gold have already changed hands. And `C.TradeGold`
+  accumulates: it debits the account the moment it arrives, so the box means "add
+  this much" and the running total only moves on `S.LoseGold`. Whether the partner
+  has locked in cannot be shown at all — the server says it in chat and sends no
+  packet.
+- **`S.DeleteGroup` is not "someone left".** It goes to the player being removed,
+  so it clears the whole roster. A member who is not the leader has no leave
+  command either: `C.DelMember` is refused for anyone but `GroupMembers[0]`, and
+  turning grouping off is what calls `LeaveGroup`.
+- **`CharacterInfo.AllowGroup` is an uninitialised bool** and the server never
+  states it — `S.SwitchGroup` is only ever an echo of a change. Native has the
+  same gap and assumes the same default, so the first press of the button is what
+  synchronises the two.
+- **Special repair is the same handler.** `PlayerObject.RepairItem` charges
+  `RepairPrice() * 3` and skips the line that shaves a thirtieth off `MaxDura`;
+  there is no `S.SRepairItem`, the reply is `S.RepairItem`.
+
+The vault, both trade grids and the refine grid behave identically on the server
+-- fill the target only if it is empty, never swap, never merge, echo `From`/`To`
+plus a bare `Success` -- so that logic lives once in `src/grid-transfer.js`. It
+throws rather than shrugs: an accepted move the browser cannot apply means the
+two have diverged, so the panel asks for a reload instead of letting the player
+drag items that are not there.
 
 **`src/*.js` is not what the browser runs.** `index.html` loads
 `wwwroot/client.js`, an esbuild bundle. Editing a module changes nothing in the
@@ -208,22 +243,49 @@ A second content pack, built from the GPL 1.76 baseline in
 `Server.MirDB` from source on every run and writes nothing without `--write`; the
 report it produces either way is how a stage is signed off.
 
-Skills and items are done: 33 of 33 and 352 of 352. The damage curves reconciled
-exactly rather than approximately, because both engines are linear in level, and
-the item table's three mode-dependent fields -- a potion's Ac being what it
-restores, a book's Shape being its class and its DuraMax its required level --
-each turned out to yield a check rather than just a conversion.
+Every stage now imports: 33 skills, 352 items, 386 maps, 172 NPCs, 388 of 389
+monsters, 336 drop tables, 3,438 of 3,442 spawn lines, 13 recipes, and Sabuk with
+its gate, three walls and twelve wall archers. `--validate-pack` reports **0
+errors and 19 warnings**, and the pack boots with 53,942 monsters alive on a 14ms
+loop. Every one of those 19 is 1.76's own data -- 8 movement sources on cells
+nobody can stand on, 9 spawn boxes with no walkable cell in them, 2 duplicate
+item names -- and they fail identically on the original engine, which is why they
+are warnings. `Packs/mir-176/README.md` has the per-stage account, along with the
+17 drop lines naming items that never existed and the 13 script links 1.76 itself
+left dangling.
 
-Monsters are blocked on sprite identity and `Packs/mir-176/README.md` has the
-full account. The short version is a lesson worth keeping: verifying that
+Skills and items reconciled exactly rather than approximately: both engines are
+linear in level, and the item table's three mode-dependent fields -- a potion's Ac
+being what it restores, a book's Shape being its class and its DuraMax its
+required level -- each turned out to yield a check rather than just a conversion.
+
+Monsters were the hard stage, and the lesson generalises. Verifying that
 `Monster/NN.Lib` exists for every `RaceImg` proved nothing, because 1.76's
-numbering is not Crystal's. Rendering the sprites is what caught it -- 鹿 came
-out a ForestYeti. The item side had been checked that way and was fine.
+numbering is not Crystal's -- rendering caught it when 鹿 came out a ForestYeti.
+What finally settled all 389 rows was **`(Race, Appr)` as the sprite identity**:
+`Appr` is the appearance index and `Race` the behaviour class, and together they
+partition the table into 95 groups with exactly one conflict across 247 anchors.
+That rule filled the remaining gaps *and* found eleven of my own name-derived
+guesses to be wrong. `Tools/Mir176Import/monster-audit.py` re-runs the check.
 
-Two rules came out of it. Sprite libraries live outside `Data/Monster/` for
-sieges and pets (`MonsterObject.cs:158-180`), so enumerating one directory
-silently drops the Sabuk gate. And which monsters count as 1.76 is the user's
-call, not a heuristic's -- four attempts at that classification were wrong.
+Behaviour keys off the same column: M2 dispatches on `Race`, Crystal on
+`MonsterInfo.AI`, so `Packs/mir-176/monster-ai.tsv` maps 38 races with per-name
+overrides where one race covers two creatures (宝箱 and 触龙神 are both Race 107).
+
+Three more rules came out of it. Sprite libraries live outside `Data/Monster/`
+for sieges and pets (`MonsterObject.cs:158-180`), so enumerating one directory
+silently drops the Sabuk gate. Rendering settles what a sprite *looks like*, not
+which sprite 1.76 *used* -- one correction went the wrong way for exactly that
+reason. And which monsters count as 1.76 is the user's call, not a heuristic's:
+four attempts at that classification were wrong.
+
+Everything here fails silently, which is why each stage ships with a check. A
+wrong sprite still loads. A spawn on a wall never fires. A conquest part whose AI
+is not 81/82/80 returns from `ConquestGuildInfo.Spawn` without a word. A crafting
+NPC read as a shop happily sells 赤血魔剑 for gold -- which it did, until the
+importer learned to require both `[@makedrug]` and an all-recipe `[goods]` block.
+The new validator codes `RESPAWN_NOWHERE_TO_STAND` and `CONQUEST_PART_BLOCKED`
+exist to make two of those speak.
 
 ## Finding where a monster lives
 
@@ -260,12 +322,24 @@ the fleeing ones are worth more when skinned. They look identical.
   does not resolve on macOS. Logged at startup, cosmetic.
 - log4net 3.0.3 carries a moderate advisory (NU1902).
 - `gan` cannot run until its weight is under the level-10 cap.
+- Nothing in the mir-176 pack has been verified by a human in game: the monsters
+  rendering, the drops, the darkness on dark maps, the four new panels and
+  Sabuk's shop surcharge are all checked only by tests, validators and rendered
+  harnesses.
+- Guild and conquest polish is deprioritised by the user. The 17 castle shop
+  surcharges and the refine window both need an owning guild to be seen
+  end-to-end.
+- `152 GhastlyLeeche` is unclaimed. The user reads it as 恶灵尸王; the run-based
+  evidence puts 恶灵尸王 on 88 ToxicGhoul (`Appr 143`, the second step of a
+  six-times-verified 142..148 run), so the table still says 88 pending their
+  decision.
 
 ## Tests
 
 ```sh
 dotnet run --project Tests/Regression/Regression.csproj   # engine, 36 checks
-cd Client.Web && npm test                                 # 205 JS + 131 gateway
+cd Client.Web && npm test                                 # 231 JS, then 159 gateway
+python3 Tools/Mir176Import/monster-audit.py               # sprite table consistency
 ```
 
 `npm test` runs the sources. **It says nothing about what the browser is
@@ -302,6 +376,8 @@ modified config files are backed up in
 | `Tools/SpriteHD/README.md` | How to build and preview HD sprite overrides |
 | `Tools/DumpSpawns/dump_spawns.py` | Every map's respawn table, read out of `Server.MirDB` |
 | `docs/research/legend-176-sources.md` | Downloaded 1.76 packs, revisions, licences |
+| `Packs/mir-176/README.md` | Per-stage import account, sprite evidence, source faults |
+| `docs/reports/mir-176-import.md` | Regenerated by every import run; how a stage is signed off |
 | `docs/reports/classic-pack-report.json` | Content pack validation baseline |
 | `Server.Admin/README.md` | Admin console setup and security model |
 | `PORTING_LOG.md` | The original Windows to macOS client port |
