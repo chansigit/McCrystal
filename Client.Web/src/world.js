@@ -538,12 +538,20 @@ export class World {
       if (!this.manifests.get(library).frames[index]) continue;
       if (!this.texture(library, index, true) && !this.failedTextures.has(`${library}:${index}`)) ready = false;
     }
-    if (!ready) { entity.frameStep = 0; return start; }
+    if (!ready) { entity.frameStep = 0; entity.dyingAction = "Die"; return start; }
     entity.deathPlaybackAt ??= now;
     const elapsed = now - entity.deathPlaybackAt;
-    return elapsed < actionLength(f)
-      ? this.frameAt(library, "Die", entity.Direction || 0, deathFrame(elapsed, f.count, f.interval), offset)
-      : this.frameAt(library, "Dead", entity.Direction || 0, 0, offset);
+    // Native leaves MirAction.Die for MirAction.Dead once the animation is over
+    // (MonsterObject.SetAction), which is what stops the death overlay. Reporting the
+    // action, not only the frame, is what keeps a Scarecrow's fire from burning forever.
+    if (elapsed >= actionLength(f)) {
+      entity.frameStep = 0;
+      entity.dyingAction = "Dead";
+      return this.frameAt(library, "Dead", entity.Direction || 0, 0, offset);
+    }
+    entity.frameStep = deathFrame(elapsed, f.count, f.interval);
+    entity.dyingAction = "Die";
+    return this.frameAt(library, "Die", entity.Direction || 0, entity.frameStep, offset);
   }
   draw() {
     if (!this.map || !this.user || !this.app) return;
@@ -669,12 +677,14 @@ export class World {
         if (!this.entities.has(e.ObjectID) || index < 0) continue;
       } else if ((e.Harvested || e.Skeleton) && e.kind === "monster") {
         action = this.manifest(library)?.animations.Skeleton ? "Skeleton" : "Dead";
+        e.frameStep = 0;
         index = this.frameAt(library, action, direction, 0);
       } else if (e.Dead && e.diedAt != null) {
-        action = "Die";
         index = this.dyingFrame(e, library, offset, now);
+        action = e.dyingAction;
       } else if (e.Dead) {
         action = "Dead";
+        e.frameStep = 0;
         index = this.frameAt(library, "Dead", direction, 0, offset);
       } else {
         // One frame cursor for every actor: the action decides the frame table, and the

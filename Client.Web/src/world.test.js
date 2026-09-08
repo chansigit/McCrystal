@@ -159,3 +159,23 @@ test("a monster with no Show or Hide frames drops the action and stays put", () 
   assert.equal(monster.visibilityAction, null);
   assert.equal(w.entities.has(6), true);
 });
+
+test("a death overlay stops when the death animation does", () => {
+  // The Scarecrow's fire is drawn on MirAction.Die. Native leaves Die for Dead once the
+  // animation ends, so the fire goes out; reporting only the frame and not the action
+  // left it burning on the corpse forever.
+  const w = world();
+  const scarecrow = { kind: "monster", Image: 65, ObjectID: 1, Direction: 0, Dead: true };
+  // Monster/065's Die is ten frames at 100 ms.
+  w.dyingFrame(scarecrow, "Monster/065", 0, 1000);
+  assert.equal(scarecrow.dyingAction, "Die");
+  assert.equal(scarecrow.frameStep, 0);
+  w.dyingFrame(scarecrow, "Monster/065", 0, 1400);
+  assert.equal(scarecrow.dyingAction, "Die");
+  assert.equal(scarecrow.frameStep, 4); // and the step advances, rather than sticking
+  w.dyingFrame(scarecrow, "Monster/065", 0, 2500);
+  assert.equal(scarecrow.dyingAction, "Dead");
+  assert.equal(scarecrow.frameStep, 0);
+  w.dyingFrame(scarecrow, "Monster/065", 0, 60000);
+  assert.equal(scarecrow.dyingAction, "Dead"); // and stays there
+});
