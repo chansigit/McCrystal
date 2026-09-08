@@ -1,0 +1,7 @@
+{
+  "name": "sprite-hd",
+  "private": true,
+  "type": "module",
+  "description": "xBRZ 2x upscaler for Mir .Lib sprite frames",
+  "dependencies": { "@kayahr/xbrz": "^1.0.0" }
+}
