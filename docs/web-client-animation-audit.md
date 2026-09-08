@@ -25,6 +25,13 @@ at the same instant, six ants swing in perfect unison, and an attack can begin
 mid-swing or wrap. It also blocks the overlay work below, since those tables are
 indexed by a `FrameIndex` the web does not currently have.
 
+**Done** on `feature/web-client-animation`. Every actor now carries a current
+action and the timestamp that action began, and the frame is measured from that
+start; the shared clock is gone. `src/entity-action.js` holds the rules and
+`World.resolveAction` picks the action. The row above therefore reads, today:
+frame cursor recomputed each draw from the action's own elapsed time, anchored on
+the action's start, for monsters and NPCs as well as players.
+
 ## The overlay table
 
 275 draw calls over 71 monsters, all reading libraries the gateway already
@@ -46,6 +53,9 @@ The one implemented entry, the Hydra, was verified frame by frame against
 shortcut does not generalise: other monsters use per-monster and sometimes
 per-action deltas.
 
+Still outstanding: the table itself is untouched. The `FrameIndex` it needs now
+exists, so it is no longer blocked.
+
 What a player loses: 70 of 71 monsters render as a plain body. The five bead
 monsters lose the only thing that makes them visible. Every boss loses its
 visual identity.
@@ -56,20 +66,21 @@ The fallback chain ends at Standing, so anything outside a short list silently
 renders as an idle pose. Measured across the 468 monster libraries that carry a
 frame table:
 
-| Action | Libraries with it | Web renders |
-| --- | --- | --- |
-| Struck | 394 | never, a pink tint instead |
-| Revive | 345 | never |
-| Attack2 | 136 | as Attack1 |
-| AttackRange1 | 102 | as Attack1 |
-| Attack3 | 50 | as Attack1 |
-| Show / Hide | 27 / 21 | only the Hydra |
-| Running | 1 | as Standing |
+| Action | Libraries with it | Web rendered | Web renders now |
+| --- | --- | --- | --- |
+| Struck | 394 | never, a pink tint instead | the real animation; the tint is kept only where a library declares no Struck |
+| Revive | 345 | never | the real animation, on `S.ObjectRevived` |
+| Attack2 | 136 | as Attack1 | Attack2, chosen by `Type` |
+| AttackRange1 | 102 | as Attack1 | AttackRange1, falling back to Attack1 |
+| Attack3 | 50 | as Attack1 | Attack3, chosen by `Type` |
+| Show / Hide | 27 / 21 | only the Hydra | all of them |
+| Running | 1 | as Standing | Walking |
 
 `S.ObjectAttack` carries a `Type` field selecting Attack1 through Attack5, and
-`S.ObjectRangeAttack` carries its own. The web ignores `Type` and never handles
-the ranged packet, so the second and third attacks of 136 and 50 monsters are
-invisible.
+`S.ObjectRangeAttack` carries its own. **Done**: both are handled, and the
+fallback chain is native's own (`AttackRange1`→`Attack1`, `Pushed`→`Walking`,
+`Special`→`Attack1`, `Skeleton`→`Dead`) plus `Attack2..5`→`Attack1`, which native
+does not do only because there it leaves the monster undrawn.
 
 ## What the effect model cannot express
 
@@ -107,10 +118,12 @@ all, so ground spells such as fire walls and poison clouds do not exist.
 Player-side timing is correct: attack, cast and harvest all resolve to the
 native 600 ms. Walk and run are about 8 percent slow, uniformly.
 
-Monster-side has two real defects. Attack duration is hardcoded to 600 ms while
+Monster-side had two real defects. Attack duration was hardcoded to 600 ms while
 the manifest already carries the true count and interval, so 124 of 376
-monsters are cut off mid-swing. And the frame phase comes from the wall clock,
-as above.
+monsters were cut off mid-swing. And the frame phase came from the wall clock,
+as above. **Both are done**: a monster's swing now runs for `count * interval`
+from its own library, and a replay over all 510 monster libraries confirms the
+124 figure and that every attack now sweeps its frames once, in order.
 
 The web's continuous position interpolation is smoother than native's six
 discrete steps. Keep it. Only the frame phase needs anchoring.
@@ -120,24 +133,27 @@ discrete steps. Keep it. Only the frame phase needs anchoring.
 **Group 1, table work only.** No new mechanism, no assets, no gateway change,
 except where noted.
 
-1. Anchor monster frames to action start. Prerequisite for 2 and 3.
-2. The 275-call overlay table.
-3. Attack variant from `Type`, plus handling `ObjectRangeAttack`.
-4. Struck animation.
-5. Per-monster attack duration from the manifest.
-6. The `Blend` flag, which `GameAssets.cs:96` reads off the stream and discards.
-   One line, four monsters.
-7. Native's own action fallbacks: ranged to melee, pushed to walking.
-8. Running falling back to Walking rather than Standing.
-9. Revive animation.
-10. Generalise Show and Hide beyond the Hydra.
-11. Player Attack2/3/4 variety, chosen by weighted random natively.
-12. Player Struck, Stance and Stance2.
-13. Poison body tints and status dots.
-14. Per-monster manual draw offsets, which put EvilMir and the siege gates 10 to
-    45 pixels off.
+1. ~~Anchor monster frames to action start.~~ **Done.** Prerequisite for 2 and 3.
+2. The 275-call overlay table. **Still open**, and the largest remaining item.
+3. ~~Attack variant from `Type`, plus handling `ObjectRangeAttack`.~~ **Done.**
+4. ~~Struck animation.~~ **Done.**
+5. ~~Per-monster attack duration from the manifest.~~ **Done.**
+6. ~~The `Blend` flag, which `GameAssets.cs:96` reads off the stream and
+   discards.~~ **Done**, 22 animation entries over `BoneFamiliar`, `HolyDeva`,
+   `Tornado` and `BlueSoul`.
+7. ~~Native's own action fallbacks: ranged to melee, pushed to walking.~~ **Done.**
+8. ~~Running falling back to Walking rather than Standing.~~ **Done.**
+9. ~~Revive animation.~~ **Done.**
+10. ~~Generalise Show and Hide beyond the Hydra.~~ **Done**, including native's
+    two end-of-Hide lists: the seven burrowers that leave the map and the
+    sixteen statues that freeze into their `Stoned` pose.
+11. Player Attack2/3/4 variety, chosen by weighted random natively. **Open.**
+12. Player Struck, Stance and Stance2. **Open.**
+13. Poison body tints and status dots. **Open.**
+14. ~~Per-monster manual draw offsets, which put EvilMir and the siege gates 10
+    to 45 pixels off.~~ **Done.**
 15. The 8 percent walk and run cadence, after checking it against the server's
-    move delay.
+    move delay. **Open.**
 
 **Group 2, needs a new mechanism.** An effect object with a lifetime, and then
 cast and impact separation, projectiles, server-pushed one-shot effects, ground
@@ -175,10 +191,32 @@ appears once, in the initial migration, and was never generalised.
 So everything above was never implemented, with three exceptions that are
 genuine bugs rather than missing features:
 
-1. Monster frame phase is anchored to the wrong clock.
-2. Monster attack duration ignores data that is already loaded.
-3. The gateway reads the `Blend` byte and throws it away.
+1. Monster frame phase is anchored to the wrong clock. **Fixed.**
+2. Monster attack duration ignores data that is already loaded. **Fixed.**
+3. The gateway reads the `Blend` byte and throws it away. **Fixed.**
 
 A fourth is borderline: the 2600 ms attack lockout for two monster images is a
 workaround for the phase bug and should be deleted once frames are anchored,
-not tuned.
+not tuned. **Deleted.**
+
+## What landed, and what it cost
+
+Group 1 items 1, 3, 4, 5, 6, 7, 8, 9, 10 and 14 are done on
+`feature/web-client-animation`. The one gateway change is the `Blend` byte in
+`GameAssets.cs`. On the browser side the frame cursor moved into
+`Client.Web/src/entity-action.js`, a pure module with its own tests, and
+`World.draw` now runs one code path for every actor instead of four.
+
+Two deliberate departures from native, both recorded in the code:
+
+* `Attack2`..`Attack5` fall back to `Attack1`. Native leaves `Frame` null there
+  and stops drawing the monster; without the fallback, choosing a variant by
+  packet `Type` would have made monsters that lack the variant disappear.
+* The pink struck tint is kept, but only where the library declares no `Struck`
+  frames, which is players, NPCs and 27 monster libraries. Where the real
+  animation plays, it is the hit feedback on its own.
+
+One deliberate restriction: the generic default frame table (native's
+`FrameSet.DefaultMonster`) is now reachable only for a library that carries no
+animation table at all, which is what native does. A tabled library that omits
+`Struck` or `Revive` gets no animation rather than an invented one.
