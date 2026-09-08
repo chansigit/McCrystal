@@ -75,7 +75,7 @@ public static class Program
         // Spawns attach respawns to the MapInfo records the map stage already built, so this
         // has to run after both maps and monsters.
         var spawns = SpawnStage.Convert(geeM2.Spawns(), maps.Maps, monsters.Monsters);
-        var conquests = ConquestStage.Convert(geeM2.CastleDirectory, maps.Maps, monsters.Monsters);
+        var conquests = ConquestStage.Convert(geeM2.CastleDirectory, maps.Maps, monsters.Monsters, npcs.Npcs);
         int errors = magics.Errors + items.Errors + maps.Errors + npcs.Errors
             + monsters.Errors + drops.Errors + spawns.Errors + recipes.Errors + conquests.Errors;
 

@@ -207,7 +207,26 @@ SET [753] 1
 #IF
 LEVEL >= 1
 #ACT
-; [未支持] reset [750] 20
+SET [750] 0
+SET [751] 0
+SET [752] 0
+SET [753] 0
+SET [754] 0
+SET [755] 0
+SET [756] 0
+SET [757] 0
+SET [758] 0
+SET [759] 0
+SET [760] 0
+SET [761] 0
+SET [762] 0
+SET [763] 0
+SET [764] 0
+SET [765] 0
+SET [766] 0
+SET [767] 0
+SET [768] 0
+SET [769] 0
 GOTO @QUEST1_1
 #ELSESAY
 <$USERNAME>因为你的等级太高,所以没必要完成我的任务

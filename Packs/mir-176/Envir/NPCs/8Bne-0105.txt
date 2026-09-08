@@ -35,7 +35,7 @@ MOVE H001 73 67
 您要修理项链吗?
  <返回/@main>
 
-[~@repair]
+[@repair]
 看上去修好了.
  <返回/@main>
 

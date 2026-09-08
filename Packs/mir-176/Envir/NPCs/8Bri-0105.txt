@@ -35,7 +35,7 @@ MOVE H001 73 67
 要修理戒指吗？
  <返回/@main>
 
-[~@repair]
+[@repair]
 修理得还算不错。
  <返回/@main>
 

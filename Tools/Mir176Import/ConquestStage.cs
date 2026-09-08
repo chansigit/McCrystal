@@ -25,12 +25,14 @@ public static class ConquestStage
 {
     public sealed record Result(List<ConquestInfo> Conquests, string Report, int Errors);
 
-    public static Result Convert(string castleDirectory, List<MapInfo> maps, List<MonsterInfo> monsters)
+    public static Result Convert(string castleDirectory, List<MapInfo> maps, List<MonsterInfo> monsters,
+        List<NPCInfo> npcs)
     {
         var report = new StringBuilder();
         var notes = new List<string>();
         var conquests = new List<ConquestInfo>();
         int errors = 0, skippedGuards = 0;
+        var bound = new List<string>();
 
         if (!Directory.Exists(castleDirectory))
         {
@@ -90,6 +92,23 @@ public static class ConquestStage
             if (Value(keys, "CastleSecretMap") is { } secret && mapIndex.TryGetValue(secret, out int secretIndex))
                 info.ExtraMaps.Add(secretIndex);
 
+            // 1.76 names only the palace and the secret passage, but the castle is more
+            // than that: the smithy, the drug store and the rest are separate maps whose
+            // doors stand inside the walls, and their scripts talk about the owning guild
+            // and its discount. The rule that finds them uses nothing but pack data -- a
+            // map entered from a doorway inside the castle square is inside the castle --
+            // and it is checkable: on the recovered files it picks up exactly the seven
+            // maps 1.76 titles 城堡内, 铁匠铺, 服装店, 药店, 杂货店, 布料店 and 监狱, and
+            // three of the doors it walks through are the wall coordinates themselves.
+            var owner = maps.FirstOrDefault(m => m.Index == map);
+            if (owner != null)
+                foreach (var movement in owner.Movements)
+                {
+                    if (!Inside(info, movement.Source)) continue;
+                    if (movement.MapIndex == map || info.ExtraMaps.Contains(movement.MapIndex)) continue;
+                    info.ExtraMaps.Add(movement.MapIndex);
+                }
+
             AddStructure(keys, "MainDoor", byName, info, notes, ref errors,
                 (mob, at, index) => info.ConquestGates.Add(new ConquestGateInfo
                 {
@@ -132,6 +151,22 @@ public static class ConquestStage
             // appear. Counted and reported rather than bent into an archer.
             for (int i = 1; Post(keys, $"卫士_{i}_") != null; i++) skippedGuards++;
 
+            // An NPC bound to a conquest charges the owning guild's members its plain rate
+            // and everyone else a surcharge that goes to the castle's treasury
+            // (NPCScript.PriceRate, PlayerObject.cs:8163). That is precisely what the
+            // castle shops' own dialogue promises -- 对于<$OWNERGUILD>的成员打20%的折扣 --
+            // so binding them is reading the scripts, not inventing a rule.
+            foreach (var npc in npcs)
+            {
+                if (npc.Conquest != 0) continue;
+                bool inside = info.ExtraMaps.Contains(npc.MapIndex)
+                    || npc.MapIndex == info.PalaceIndex
+                    || (npc.MapIndex == map && Inside(info, npc.Location));
+                if (!inside) continue;
+                npc.Conquest = info.Index;
+                bound.Add($"{npc.Name}（地图 {npc.MapIndex}）");
+            }
+
             conquests.Add(info);
         }
 
@@ -142,7 +177,8 @@ public static class ConquestStage
         foreach (var info in conquests)
         {
             report.AppendLine($"**{info.Name}**：地图 {info.MapIndex}，中心 {info.Location.X},{info.Location.Y}，" +
-                $"半径 {info.Size}，宫殿地图 {info.PalaceIndex}");
+                $"半径 {info.Size}，宫殿地图 {info.PalaceIndex}，" +
+                $"城内地图 {info.ExtraMaps.Count} 张（{string.Join('、', info.ExtraMaps)}）");
             report.AppendLine();
             report.AppendLine("| 部件 | 怪物 | 位置 |");
             report.AppendLine("|---|---|---|");
@@ -155,6 +191,14 @@ public static class ConquestStage
                 string.Join(' ', info.ConquestGuards.Select(g => $"{g.Location.X},{g.Location.Y}")) + " |");
             report.AppendLine();
         }
+        if (bound.Count > 0)
+        {
+            report.AppendLine($"{bound.Count} 个 NPC 归到城池名下（`NPCInfo.Conquest`），"
+                + "非占领行会成员向它们买卖要付加价，加价进城池金库：");
+            report.AppendLine();
+            report.AppendLine("> " + string.Join("、", bound));
+            report.AppendLine();
+        }
         if (skippedGuards > 0)
             report.AppendLine($"{skippedGuards} 个近战守卫岗位没有导入：Crystal 只有一份守城名单，"
                 + "而它的 Spawn 要求 AI 80 ConquestArcher，放个 AI 6 的卫士进去会静默不刷。");
@@ -165,6 +209,9 @@ public static class ConquestStage
         MonsterStage.AppendNotes(report, notes);
         return new Result(conquests, report.ToString(), errors);
     }
+
+    private static bool Inside(ConquestInfo info, System.Drawing.Point at)
+        => Math.Abs(at.X - info.Location.X) <= info.Size && Math.Abs(at.Y - info.Location.Y) <= info.Size;
 
     private static void AddStructure(Dictionary<string, string> keys, string prefix,
         Dictionary<string, MonsterInfo> byName, ConquestInfo info, List<string> notes, ref int errors,

@@ -1263,6 +1263,21 @@ namespace Server.MirObjects
             }
         }
 
+        /// <summary>The conquest whose castle the player is standing in, or null.</summary>
+        /// <remarks>
+        /// Map.tempConquest only holds a value while a war is running, and a castle shop's
+        /// dialogue has to name the owner at any hour, so this searches by map instead: the
+        /// castle's own map, its palace, and the interior maps the import lists as
+        /// ExtraMaps -- which is where the shops are.
+        /// </remarks>
+        private static ConquestObject ConquestOf(PlayerObject player)
+        {
+            if (player?.CurrentMap == null) return null;
+            int map = player.CurrentMap.Info.Index;
+            return Envir.Conquests.FirstOrDefault(c => c.Info.MapIndex == map
+                || c.Info.PalaceIndex == map || c.Info.ExtraMaps.Contains(map));
+        }
+
         public string ReplaceValue(PlayerObject player, string param)
         {
             var regex = new Regex(@"\<\$(.*)\>");
@@ -1565,6 +1580,22 @@ namespace Server.MirObjects
                     break;
                 case "GUILDWARFEE":
                     newValue = Settings.Guild_WarCost.ToString();
+                    break;
+                // The castle shops' dialogue is written around who owns the castle -- "the
+                // lord's orders", "twenty percent off for members of <guild>" -- and the
+                // discount itself is already implemented in NPCScript.PriceRate. Without
+                // these two the promise reaches the player as the literal <$OWNERGUILD>.
+                case "OWNERGUILD":
+                    newValue = ConquestOf(player)?.Guild?.Name
+                        ?? GameLanguage.ServerTextMap.GetLocalization(ServerTextKeys.NoGuild);
+                    break;
+                case "LORD":
+                    // A guild's first rank holds its leader.
+                    newValue = ConquestOf(player)?.Guild?.Ranks.FirstOrDefault()?.Members.FirstOrDefault()?.Name
+                        ?? GameLanguage.ServerTextMap.GetLocalization(ServerTextKeys.NoGuild);
+                    break;
+                case "UPGRADEWEAPONFEE":
+                    newValue = Settings.RefineCost.ToString();
                     break;
                 case "PARCELAMOUNT":
                     newValue = player.GetMailAwaitingCollectionAmount().ToString();

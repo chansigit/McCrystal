@@ -43,7 +43,7 @@ dotnet Server.Console.dll --pack /path/to/Packs/mir-176/pack.yaml --state state-
 | Skills | `GEEM2.db` `Magic` | done, 33 of 33 |
 | Items | `GEEM2.db` `StdItems` | done, 352 of 352 |
 | Maps and connections | `Envir/mapinfo.txt` | done, 386 maps |
-| NPCs | `Envir/merchant.txt`, `market_def/` | done, 172 of 426 scripts |
+| NPCs | `Envir/merchant.txt`, `market_def/` | done, all 172 that 1.76 places |
 | Monsters | `GEEM2.db` `Monster` | done, 388 of 389 |
 | Drops | `Envir/MonItems/` | done, 336 tables |
 | Spawns | `Envir/mongen.txt` | done, 3,438 of 3,442 lines |
@@ -187,12 +187,64 @@ M2 把沙巴克的门和墙做成有血的怪，Crystal 也是——`ConquestGat
 
 服务端起来后在线怪物从 53,926 变成 53,942，正好是 1 门 + 3 墙 + 12 弓箭手。
 
+**城内地图和城池税。** 1.76 只点名了宫殿（`CastlePlaceMap=0150`）和密道
+（`CastleSecretMap=D701`），但城不止这些：铁匠铺、药店、布店各是一张单独的地图，
+而它们的脚本张口就说「对于 <$OWNERGUILD> 的成员打 20% 折扣」。找出它们的规则只用包里的数据
+——**从城池范围内的门走进去的地图就在城里**——而且可验证：在这份数据上它正好挑出七张
+1.76 自己命名为城堡内、铁匠铺、服装店、药店、杂货店、布料店、监狱的图，
+其中三个门的坐标就是三段城墙本身（`624,278` / `627,278` / `634,271`）。
+
+于是 17 个 NPC 挂到了城池名下（`NPCInfo.Conquest`）——14 个在城内地图上，
+另外 3 个在盟重省本图但站在墙内：屠夫 (659,301)、小贩 (663,304)、老人 (669,338)，
+都紧贴 (672,330) 那道城门。这一步接通的是 Crystal **已经实现好**的机制：
+`NPCScript.PriceRate` 让占领行会的成员按原价、其他人按加价买卖，
+差额进城池金库（`PlayerObject.cs:8163`）。也就是脚本里那句话说的事。
+
+配套给引擎补了三个脚本变量，因为不补就会把 `<$OWNERGUILD>` 原样显示给玩家：
+`OWNERGUILD`（占领行会名）、`LORD`（行会首领）、`UPGRADEWEAPONFEE`（→ `Settings.RefineCost`）。
+前两个按玩家所在地图反查城池，不用 `Map.tempConquest`——那个只在开战期间有值，
+而店里的对白任何时候都得说得出城主是谁。
+
+**武器升级 = Crystal 的修炼。** `9Aup-0151`（沙巴克升级师）在 M2 里走
+`@upgradenow`（交武器）和 `@getbackupgnow`（取武器）两步，Crystal 的
+`[@REFINE]` / `[@REFINECOLLECT]` 是同样的两步，直接改名对上。M2 还有一批
+`[~@upgradenow_ok/_ing/_fail]` 页——`~` 是 M2 标记「引擎自己跳进来」的结果页，
+Crystal 用聊天消息回答，所以这些页去掉 `~` 后留着但没人走到（全包 57 个）。
+断链从 21 条降到 13 条。
+
+`RESET [750] 20` 这种成批清标志位的指令，展开成 20 行 `SET [n] 0`。
+
 **任务：没有可导的。** `Envir/MapQuest_def/` 里那 9 个文件不是 Crystal 意义上的任务
 （`QuestInfo` 是有描述、步骤、奖励的结构），而是 M2 的怪物死亡触发脚本，用 `#IF/#ACT/#SAY`
 和 `[401]`、`[402]` 这样的标志位工作，文字还是英文原版的。更要紧的是**整个 1.76 快照里没有
 任何文件引用它们**——搜过了，一处都没有，连 `mapinfo.txt` 和 `Npc_def/` 都不提。
 它们是孤立的。真正的 1.76 任务内容在 NPC 脚本里，也就是 `market_def/` 里那 254 个还没导入的
 脚本（问答、行会、迷宫引路人那类），那是 NPC 阶段的后续，不是一个独立的任务阶段。
+
+## `market_def` 里那 257 个未引用的脚本：没有可导的
+
+我上一轮说过"1.76 的任务、行会、迷宫引路人、幻境入口都在剩下那 254 个脚本里，要不要接着做"。
+查了一遍，**这句是错的**，写在这里以免下一个人再花一次时间。
+
+`merchant.txt` 是 1.76 唯一的商人摆放表：169 行，每行 `脚本ID 地图 x y 名字 脸 身体 税`。
+`Npcs.txt` 另外摆 3 个。425 个脚本里被这两处引用的是 172 个，剩下 257 个**在 1.76 里没有坐标**，
+导进来就得自己编位置。而它们的来历一查就清楚：
+
+- **约 134 个是同一批 NPC 的英文命名版**。`1Bme-0102`（屠夫，已导入）和
+  `1Bichon_meat_store-0102`、`2Swe-0120`（朴铁匠）和 `2Blacksmith-0120`、`5Bbo-0104`
+  和 `5Bichon_bookstore-0104`——同一张地图、同一个类别、同一家店，一个中文 ID 一个英文描述名。
+  把它们导进来等于全世界的商店翻一倍。
+- **10 个叫 `复件 xxx`**，字面意思的"副本"。
+- **9 个是 `A/B 全年制会员`** 之类，GeeM2 的会员系统，不是 1.76。
+- **约 70 个 `9Ega-*`**。名字看着像幻境守门人，打开一看是
+  「赌场现在正在装修，暂时不开放」——占位 NPC。而且它们指的地图一半根本不存在
+  （`B010`、`T105`…… `mapinfo.txt` 里没有）。
+- 剩下几十个是零散的没摆放的东西。
+
+顺手也确认了一件事：仓库里 GeeM2 当前版本的 `merchant.txt` 只能多摆 1 个（`9ntea-1002`），
+所以快照的摆放表本身是完整的，不是被截断的。
+
+1.76 真正的"任务"内容在已导入的那 172 个 NPC 脚本里，靠 `#IF CHECK [标志位]` 工作。
 
 ## 网关必须用 `--maps` 指向包里的地图
 

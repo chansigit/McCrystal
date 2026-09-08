@@ -48,7 +48,6 @@ public static class NpcStage
         ["BATCHMOVE"] = "批量随机传送：从候选池里随机送一张",
         ["BATCHDELAY"] = "批量随机传送的间隔",
         ["CHECKLUCKYPOINT"] = "幸运值判定，Crystal 没有幸运值",
-        ["RESET"] = "成批清空标志位，Crystal 只能逐个 SET",
         // Crystal's CHECKCALC parses both sides as integers without expanding %D0 first,
         // so it cannot stand in for a variable comparison. Verified in NPCSegment.Check.
         ["EQUAL"] = "变量比较，Crystal 的 CHECKCALC 不展开变量",
@@ -63,6 +62,12 @@ public static class NpcStage
         // Crystal's storage window deposits and withdraws in one dialog, so the separate
         // withdrawal page has nowhere to go. Its links are redirected and the page dropped.
         ["@GETBACK"] = "@storage",
+        // M2's weapon upgrade is Crystal's refine, with the same two steps: hand the
+        // weapon over, come back later for it. The [~@upgradenow_ok/_ing/_fail] pages M2
+        // has the engine call back into have no counterpart -- Crystal answers in chat --
+        // so they survive as pages nothing reaches.
+        ["@UPGRADENOW"] = "@refine",
+        ["@GETBACKUPGNOW"] = "@refinecollect",
     };
 
     private static readonly Dictionary<string, string> Classes = new(StringComparer.OrdinalIgnoreCase)
@@ -76,6 +81,12 @@ public static class NpcStage
     {
         ["USERNAME"] = "USERNAME",
         ["USERWEAPON"] = "WEAPON",
+        // Added to the engine alongside this stage: the castle shops' dialogue is written
+        // around who owns the castle, and the discount it promises was already implemented
+        // in NPCScript.PriceRate.
+        ["OWNERGUILD"] = "OWNERGUILD",
+        ["LORD"] = "LORD",
+        ["UPGRADEWEAPONFEE"] = "UPGRADEWEAPONFEE",
     };
 
     // Emitted with a translation whose numbers this tool could not confirm, so the report
@@ -105,7 +116,7 @@ public static class NpcStage
         var missingItems = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var missingScripts = new List<string>();
         var missingMaps = new List<string>();
-        int goods = 0, types = 0, getbackPages = 0, errors = 0;
+        int goods = 0, types = 0, getbackPages = 0, errors = 0, callbackPages = 0;
         var crafters = new List<string>();
 
         var mapIndex = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
@@ -160,6 +171,7 @@ public static class NpcStage
             goods += translated.Goods;
             types += translated.Types;
             getbackPages += translated.GetBackPages;
+            callbackPages += translated.EngineCallbackPages;
 
             foreach (var target in DanglingLinks(translated.Text))
                 dangling[$"{name} → {target}"] = 1;
@@ -224,6 +236,9 @@ public static class NpcStage
         if (crafters.Count > 0)
             report.AppendLine($"- {crafters.Count} 个合成 NPC 的 `[goods]` 段按 `[RECIPE]` 而不是 `[TRADE]` 写出"
                 + $"，`@makedrug` 页改名 `@CRAFT`：{string.Join("、", crafters)}");
+        if (callbackPages > 0)
+            report.AppendLine($"- {callbackPages} 个 `[~@页名]` 去掉了 `~`：M2 用它标记引擎自己跳进来的"
+                + "结果页（升级成功/进行中/失败），Crystal 用聊天消息回答，所以这些页留着但没人走到");
         if (getbackPages > 0)
             report.AppendLine($"- {getbackPages} 个 `[@getback]` 取物页并入 `[@STORAGE]`："
                 + "Crystal 的仓库窗口存取合一，指向它的链接已改写，原页文字丢弃");
@@ -293,7 +308,7 @@ public static class NpcStage
     {
         public string Text;
         public ushort Rate = 100;
-        public int Goods, Types, GetBackPages;
+        public int Goods, Types, GetBackPages, EngineCallbackPages;
         public bool Crafting;
         // Renames that apply to one script only, unlike the engine-wide PageRenames.
         public readonly Dictionary<string, string> ScriptRenames = new(StringComparer.OrdinalIgnoreCase);
@@ -372,6 +387,17 @@ public static class NpcStage
                     continue;
                 }
                 string inner = key.Trim('[', ']');
+                // M2 marks a page the engine jumps to on its own with a leading ~, as in
+                // [~@upgradenow_ok]. Crystal indexes pages as [@name] and has no such
+                // callbacks -- it answers a refine in chat -- so the marker comes off and
+                // the page survives as one nothing reaches. Left in place the key is junk
+                // to Crystal's parser and its own name reads as a broken link.
+                if (inner.StartsWith('~'))
+                {
+                    inner = inner[1..];
+                    key = "[" + inner + "]";
+                    result.EngineCallbackPages++;
+                }
                 if (result.ScriptRenames.TryGetValue(inner, out string scriptRenamed)) key = "[" + scriptRenamed + "]";
                 else if (PageRenames.TryGetValue(inner, out string renamed))
                 {
@@ -498,6 +524,9 @@ public static class NpcStage
     /// @makedrug page without listing anything. A crafting NPC has the page and every line
     /// of its [goods] block is something MakeItem.txt knows how to make.
     /// </remarks>
+    private static bool Flag(string token, out int index)
+        => int.TryParse(token.Trim('[', ']'), out index);
+
     private static bool Crafts(List<string> lines, HashSet<string> recipes)
     {
         bool page = false, goods = false, all = true;
@@ -559,6 +588,14 @@ public static class NpcStage
             case "CHECKHUM" when f.Length == 3:
                 return $"CHECKHUM {f[1]} >= {f[2]}";
             // Bare CHECKBAGGAGE asks whether there is any room at all.
+            // RESET clears a run of flags. Crystal's SET touches one at a time, so the run
+            // is written out; the count is inclusive of the first flag.
+            case "RESET" when f.Length >= 2 && Flag(f[1], out int first):
+            {
+                int span = f.Length >= 3 && int.TryParse(f[2], out int n) && n > 0 ? n : 1;
+                return string.Join(Environment.NewLine,
+                    Enumerable.Range(first, span).Select(i => $"SET [{i}] 0"));
+            }
             case "CHECKBAGGAGE" when f.Length == 1:
                 return "HASBAGSPACE > 0";
             case "CHECKBAGGAGE" when f.Length == 2:
@@ -609,7 +646,8 @@ public static class NpcStage
     private static readonly HashSet<string> EnginePages = new(StringComparer.OrdinalIgnoreCase)
     {
         "@exit", "@main", "@buy", "@sell", "@repair", "@srepair", "@storage", "@buyback",
-        "@buysell", "@back", "@close", "@craft", "@refine", "@market", "@consign",
+        "@buysell", "@back", "@close", "@craft", "@refine", "@refinecollect",
+        "@refinecheck", "@market", "@consign",
     };
 
     /// <summary>Link targets no page in the same script declares. Every one found is either
