@@ -28,7 +28,7 @@ public sealed class GameAssets : IDisposable
     private readonly ConcurrentDictionary<string, LibraryData> manifests = new(StringComparer.OrdinalIgnoreCase);
     private readonly MemoryCache cache = new(new MemoryCacheOptions { SizeLimit = 128 * 1024 * 1024 });
 
-    public GameAssets(string root)
+    public GameAssets(string root, string? mapRoot = null)
     {
         this.root = root;
         var soundRoot = Path.Combine(root, "Sound");
@@ -49,9 +49,15 @@ public sealed class GameAssets : IDisposable
         overrides = libraries.Keys.ToDictionary(name => name,
             name => Path.Combine(hdRoot, name.Replace('/', Path.DirectorySeparatorChar)),
             StringComparer.OrdinalIgnoreCase);
-        maps = Directory.EnumerateFiles(Path.Combine(root, "Map"), "*", SearchOption.AllDirectories)
+        // A content pack ships its own maps, and the server is already running them: if the
+        // client draws the ones that happen to sit beside its art instead, every coordinate
+        // the server sends lands on different terrain. That failure is silent -- both are
+        // valid 比奇省 files of the same size -- so it shows up only as scenery that is
+        // subtly, then obviously, wrong.
+        var mapSource = mapRoot is not null && Directory.Exists(mapRoot) ? mapRoot : Path.Combine(root, "Map");
+        maps = Directory.EnumerateFiles(mapSource, "*", SearchOption.AllDirectories)
             .Where(path => Path.GetExtension(path).Equals(".map", StringComparison.OrdinalIgnoreCase))
-            .ToDictionary(path => Path.GetRelativePath(Path.Combine(root, "Map"), path)[..^4].Replace('\\', '/'), path => path, StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(path => Path.GetRelativePath(mapSource, path)[..^4].Replace('\\', '/'), path => path, StringComparer.OrdinalIgnoreCase);
     }
 
     public sealed record FrameData(int Width, int Height, int X, int Y, int Position, int Length);
@@ -186,23 +192,7 @@ public sealed class GameAssets : IDisposable
         return new { map.Width, map.Height, Cells = cells, Libraries = MapLibraries() };
     }
 
-    /// <summary>
-    /// Overrides for the library a map cell's file index names, as slot -> library.
-    ///
-    /// Mir2's base libraries -- Tiles, Smtiles, Objects -- are common to every version, but
-    /// the numbered object libraries added later diverged between the Wemade and Shanda
-    /// branches. A map authored against one and drawn with the other still resolves every
-    /// index, so nothing errors and nothing is logged; the buildings simply come out as
-    /// whatever that slot holds in the other branch. On the 1.76 maps, slot 22 is a town of
-    /// tiled roofs in Shanda's Objects21 and a palisade of stakes and totems in Wemade's.
-    ///
-    /// This is per slot rather than a branch-wide switch because the branches are not
-    /// wholesale alternatives: swapping every slot to Shanda fixes the buildings but blanks
-    /// 306 cells whose indices Shanda's Objects23 does not reach.
-    /// </summary>
-    public static readonly Dictionary<int, string> MapLibraryOverrides = new();
-
-    private Dictionary<int, string> MapLibraries()
+    private static Dictionary<int, string> MapLibraries()
     {
         var result = new Dictionary<int, string>
         {
@@ -225,10 +215,6 @@ public sealed class GameAssets : IDisposable
             result[200 + r * 15 + n] = "Map/WemadeMir3/" + (r == 0 ? "" : regions[r] + "/") + names[n];
             result[300 + r * 15 + n] = "Map/ShandaMir3/" + names[n] + regions[r];
         }
-        // An override naming a library this client does not ship would replace working art
-        // with a silent blank, so it is ignored and the built-in name stands.
-        foreach (var (slot, library) in MapLibraryOverrides)
-            if (libraries.ContainsKey(library)) result[slot] = library;
         return result;
     }
 
