@@ -62,3 +62,29 @@ export function wingLayer(actor, frames, direction, step) {
     index: e.start + direction * (e.count + e.skip) + cursor + wingOffset(actor.Gender),
   };
 }
+
+// A transformed player draws a whole different body: Data/Transform, or Data/TransformRide2
+// when riding a mount above type 6, with the hair and both weapons cleared and every attack
+// collapsed onto Attack1 (Client/MirObjects/PlayerObject.cs:310-358). TransformType 19 wears
+// TransformEffect wings.
+const TRANSFORM_ATTACKS = new Set([
+  "Attack2", "Attack3", "Attack4", "AttackRange1", "AttackRange2", "AttackRange3",
+]);
+
+export function transformAction(action) {
+  return TRANSFORM_ATTACKS.has(action) ? "Attack1" : action;
+}
+
+export function transformLayer(actor) {
+  if (!actor || actor.kind !== "player") return null;
+  const type = actor.TransformType;
+  if (!Number.isInteger(type) || type < 0) return null;
+  const ride = actor.RidingMount && actor.MountType > 6;
+  return {
+    library: `${ride ? "TransformRide2" : "Transform"}/${String(type).padStart(2, "0")}`,
+    // ArmourOffSet is -416 on a transform mount and 0 otherwise, and there is no gender
+    // offset either way.
+    offset: ride ? -416 : 0,
+    wing: type === 19 ? "TransformEffect/01" : null,
+  };
+}

@@ -2,7 +2,7 @@ import { Application, Container, Sprite, Text, Assets, Graphics } from "pixi.js"
 import PF from "pathfinding";
 import { motionPosition, worldScale, canPath, walkingPath, singleDetourStep } from "./movement.js";
 import { hitSprite, tileDistance, deathFrame } from "./combat.js";
-import { hairLayer, weaponLayer, wingLayer } from "./appearance.js";
+import { hairLayer, weaponLayer, wingLayer, transformLayer, transformAction } from "./appearance.js";
 import { SceneIndex, groundFrame } from "./scene-index.js";
 import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
@@ -665,10 +665,14 @@ export class World {
       const x = px + manual.x, y = py + manual.y;
       const depth = entityDepth(py, e);
       const direction = e.Direction || 0;
-      const offset = e.kind === "player" && e.Gender === 1 ? 808 : 0;
+      // A transformed player is a different body entirely, with no gender offset of its
+      // own (PlayerObject.cs:310-358).
+      const transform = transformLayer(e);
+      const offset = transform ? transform.offset : e.kind === "player" && e.Gender === 1 ? 808 : 0;
       const library = e.kind === "item" ? "DNItems"
         : e.kind === "npc" ? `NPC/${String(e.Image).padStart(2, "0")}`
         : e.kind === "monster" ? `Monster/${String(e.Image).padStart(3, "0")}`
+        : transform ? transform.library
         : `CArmour/${String(Math.max(0, e.Armour || 0)).padStart(2, "0")}`;
       let action = null, index = -1;
       if (e.kind === "item") index = e.Image;
@@ -692,6 +696,7 @@ export class World {
         // phase is measured from that action's own start rather than from a wall clock.
         const resolved = this.resolveAction(e, library, position, now);
         action = e.RidingMount ? (MOUNT_ACTIONS[resolved.action] || resolved.action) : resolved.action;
+        if (transform) action = transformAction(action);
         const elapsed = advanceAction(e, resolved, now);
         const f = this.animationDefinition(library, action);
         if (f) {
@@ -712,7 +717,7 @@ export class World {
       // PlayerObject.Draw calls DrawMount before the body and the weapon
       // (PlayerObject.cs:4884, 5084-5090); the mount's own frames start where the player
       // table's MountStanding does, so the body frame carries straight across.
-      if (e.kind === "player" && e.RidingMount && e.MountType >= 0 && index >= 0) {
+      if (e.kind === "player" && !transform && e.RidingMount && e.MountType >= 0 && index >= 0) {
         const mount = this.sprite(`entity:mount:${e.ObjectID}`,
           `Mount/${String(e.MountType).padStart(2, "0")}`, index - offset - 416,
           x, y, depth - 0.3, this.objects, true);

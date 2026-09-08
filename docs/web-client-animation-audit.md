@@ -198,8 +198,18 @@ library is 216 frames, which is 632 - 416 to the frame. Wings ride the parallel
 effect strip, which lives in FrameSet.Player for a player and so was never the
 gateway's to discard; the earlier note was wrong about that.
 
-Still open: the Assassin and Archer body sets, which need the per-action
-alternate rule and per-branch female offsets, and transforms.
+Transforms are **done** as well: a transformed player draws Data/Transform, or
+Data/TransformRide2 at -416 when riding a mount above type 6, with the hair and
+both weapons cleared and every attack collapsed onto Attack1.
+
+**The Assassin and Archer body sets are deliberately not done.** This server's
+`Configs/Setup.ini` carries `AllowCreateAssassin=False` and
+`AllowCreateArcher=False`, which is right for a 1.76 pack -- neither class
+existed then. Their body sets, the `altAnim` rule that swaps a bow-carrying
+Archer onto ARArmour for Walking, Running, AttackRange1/2 and Jump, and the
+Assassin's dual AWeapon L and R would be code no character on this server can
+reach. If the pack ever enables them, the rule is at
+`Client/MirObjects/PlayerObject.cs:365-600`.
 
 ## Do not "fix" these
 

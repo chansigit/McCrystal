@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { equippedWeapon, weaponLayer, hairLayer, HAIR_LIBRARIES, wingLayer, wingOffset, WING_LIBRARIES } from "./appearance.js";
+import { equippedWeapon, weaponLayer, hairLayer, HAIR_LIBRARIES, wingLayer, wingOffset, WING_LIBRARIES, transformLayer, transformAction } from "./appearance.js";
 
 test("equipped weapon shape zero is valid while missing and broken weapons are hidden", () => {
   assert.deepEqual(equippedWeapon({ CurrentDura: 1000 }, { Shape: 0, Effect: 3, Durability: 10 }), { Weapon: 0, WeaponEffect: 3 });
@@ -75,4 +75,26 @@ test("wings are declined where native declines them", () => {
   assert.equal(wingLayer({ ...player, Class: 4 }, walking, 0, 0), null); // Archer reads ARHumEffect
   assert.equal(wingLayer({ ...player, TransformType: 2 }, walking, 0, 0), null);
   assert.equal(wingLayer(null, walking, 0, 0), null);
+});
+
+test("a transformed player is a different body with no gender offset", () => {
+  const player = { kind: "player", TransformType: 3, Gender: 1, RidingMount: false, MountType: -1 };
+  assert.deepEqual(transformLayer(player),
+    { library: "Transform/03", offset: 0, wing: null });
+  // On a mount above type 6 the body comes from TransformRide2 at -416 (PlayerObject.cs:330).
+  assert.deepEqual(transformLayer({ ...player, RidingMount: true, MountType: 7 }),
+    { library: "TransformRide2/03", offset: -416, wing: null });
+  // A lesser mount is not a transform mount.
+  assert.equal(transformLayer({ ...player, RidingMount: true, MountType: 6 }).library, "Transform/03");
+  // Type 19 wears its own wings (PlayerObject.cs:345-348).
+  assert.equal(transformLayer({ ...player, TransformType: 19 }).wing, "TransformEffect/01");
+  assert.equal(transformLayer({ ...player, TransformType: -1 }), null);
+  assert.equal(transformLayer({ ...player, kind: "monster" }), null);
+});
+
+test("a transform collapses every attack onto Attack1", () => {
+  for (const action of ["Attack2", "Attack3", "Attack4", "AttackRange1", "AttackRange2", "AttackRange3"])
+    assert.equal(transformAction(action), "Attack1");
+  for (const action of ["Attack1", "Walking", "Standing", "Die", "Struck"])
+    assert.equal(transformAction(action), action);
 });
