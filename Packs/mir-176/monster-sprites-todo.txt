@@ -1,245 +1,31 @@
-# mir-176 怪物贴图：还没定的 39 个
-# 前两组有候选，第三组要人工指定。第二列填 Crystal 的 Image 编号即可，留空表示不收进本包。
+# mir-176 还没定的怪：17 行，其实是 5 个决定
+# 在第二列填 Crystal 的 Image 编号；留空表示这只怪不收进本包。
+# 候选见 monster-sprites-decide.png。
 
-## 有候选、需要二选一（8）
+# Appr 3  等级1 HP9999 攻0   候选：149 Football（流星1/2 用的）/ 231 IcePillar / 130 TrapRock / 133 CloudElement / 132 ThunderElement
+飞火流星	
 
-人质		# 等级10 HP60 攻0 经验1；同 Appr(72) 的已知怪 ['护卫', '练功师'] 用了 123=OmaGuard / 140=KatanaGuard
-虎卫		# 等级10 HP400 攻40 经验250；同 Appr(72) 的已知怪 ['护卫', '练功师'] 用了 123=OmaGuard / 140=KatanaGuard
-鹰卫		# 等级10 HP1500 攻50 经验500；同 Appr(71) 的已知怪 ['弓箭守卫', '弓箭手'] 用了 139=ArcherGuard / 378=ArcherGuard3
-飞火流星1		# 等级55 HP3000 攻50 经验100；同 Appr(74) 的已知怪 ['足球', '黑色恶蛆', '黑色恶蛆0'] 用了 38=BlackMaggot / 149=Football
-飞火流星2		# 等级55 HP3000 攻50 经验100；同 Appr(74) 的已知怪 ['足球', '黑色恶蛆', '黑色恶蛆0'] 用了 38=BlackMaggot / 149=Football
-圣域冥狼		# 等级60 HP900 攻45 经验500；同 Appr(70) 的已知怪 ['地狱犬', '狼'] 用了 104=Wolf / 148=?
-圣域勇士		# 等级60 HP750 攻50 经验500；同 Appr(102) 的已知怪 ['半兽勇士', '半兽勇士1', '半兽勇士2'] 用了 18=OmaWarrior / 66=ZumaGuardian / 126=OmaKing
-圣域炎兽		# 等级60 HP3000 攻50 经验2000；同 Appr(171) 的已知怪 ['神兽0', '神兽1', '神兽2'] 用了 79=Shinsu / 80=Shinsu1
+# Appr 48  等级16 HP50 攻9   候选：42 BugBat / 160 PoisonHugger / 161 Hugger / 152 GhastlyLeeche / 261 DeathCrawler
+威思而小虫	
 
-## 完全没有线索（31）
+# Appr 122  等级60 HP4000 攻60   候选：41 EvilCentipede / 194 BoneWhoo / 247 HellLord / 900 EvilMir / 229 ManectricKing
+圣域魔魂	
+暗之虹魔教主	
+虹魔教主	
+虹魔教主0	
+虹魔教主8	
 
-雪球		# 等级1 HP9999 攻0 经验1；Appr=11，1.76 里没有别的怪跟它同外观
-雪球1		# 等级1 HP10 攻0 经验500；Appr=11，1.76 里没有别的怪跟它同外观
-飞火流星		# 等级1 HP9999 攻0 经验1；Appr=3，1.76 里没有别的怪跟它同外观
-威思而小虫		# 等级16 HP50 攻9 经验42；Appr=48，1.76 里没有别的怪跟它同外观
-雪球2		# 等级24 HP385 攻23 经验1500；Appr=11，1.76 里没有别的怪跟它同外观
-牛魔法师		# 等级40 HP360 攻28 经验440；Appr=178，1.76 里没有别的怪跟它同外观
-牛魔法师0		# 等级40 HP360 攻35 经验440；Appr=178，1.76 里没有别的怪跟它同外观
-牛魔法师8		# 等级40 HP360 攻28 经验440；Appr=178，1.76 里没有别的怪跟它同外观
-牛魔祭司		# 等级45 HP750 攻42 经验750；Appr=179，1.76 里没有别的怪跟它同外观
-牛魔祭司0		# 等级45 HP750 攻45 经验750；Appr=179，1.76 里没有别的怪跟它同外观
-牛魔祭司8		# 等级45 HP750 攻42 经验750；Appr=179，1.76 里没有别的怪跟它同外观
-雪球3		# 等级50 HP1000 攻55 经验2000；Appr=11，1.76 里没有别的怪跟它同外观
-黄泉教主		# 等级50 HP3000 攻70 经验2500；Appr=148，1.76 里没有别的怪跟它同外观
-黄泉教主8		# 等级50 HP3000 攻70 经验5000；Appr=148，1.76 里没有别的怪跟它同外观
-暗之触龙神		# 等级55 HP2200 攻140 经验3300；Appr=140，1.76 里没有别的怪跟它同外观
-暗之触龙神8		# 等级55 HP2200 攻140 经验3300；Appr=140，1.76 里没有别的怪跟它同外观
-血金刚		# 等级56 HP900 攻49 经验1500；Appr=116，1.76 里没有别的怪跟它同外观
-千年树妖		# 等级60 HP1800 攻60 经验2000；Appr=141，1.76 里没有别的怪跟它同外观
-圣域修罗		# 等级60 HP3500 攻60 经验2000；Appr=148，1.76 里没有别的怪跟它同外观
-圣域神龙		# 等级60 HP2500 攻40 经验1000；Appr=140，1.76 里没有别的怪跟它同外观
-圣域祭司		# 等级60 HP1500 攻50 经验1000；Appr=179，1.76 里没有别的怪跟它同外观
-圣域魔魂		# 等级60 HP4000 攻60 经验2000；Appr=122，1.76 里没有别的怪跟它同外观
-暗之虹魔教主		# 等级60 HP3000 攻90 经验3000；Appr=122，1.76 里没有别的怪跟它同外观
-暗之黄泉教主		# 等级60 HP3000 攻100 经验3000；Appr=148，1.76 里没有别的怪跟它同外观
-虹魔教主		# 等级60 HP5000 攻120 经验5000；Appr=122，1.76 里没有别的怪跟它同外观
-虹魔教主0		# 等级60 HP5000 攻80 经验5000；Appr=122，1.76 里没有别的怪跟它同外观
-虹魔教主8		# 等级60 HP5000 攻120 经验5000；Appr=122，1.76 里没有别的怪跟它同外观
-触龙神		# 等级60 HP1000 攻30 经验2200；Appr=140，1.76 里没有别的怪跟它同外观
-触龙神8		# 等级60 HP1000 攻30 经验4400；Appr=140，1.76 里没有别的怪跟它同外观
-雪球4		# 等级60 HP5000 攻85 经验2500；Appr=11，1.76 里没有别的怪跟它同外观
-黄泉教主0		# 等级60 HP3000 攻120 经验4000；Appr=148，1.76 里没有别的怪跟它同外观
+# Appr 140  等级55 HP2200 攻140   候选：84 KekTal / 85 VioletKekTal / 41 EvilCentipede / 371 WaterDragon / 387 CrystalBeast
+暗之触龙神	
+暗之触龙神8	
+圣域神龙	
+触龙神	
+触龙神8	
 
-## 参考：Crystal 还有 195 种精灵图没被本包认领
+# Appr 148  等级50 HP3000 攻70   候选：194 BoneWhoo / 247 HellLord / 900 EvilMir / 296 TucsonGeneral / 386 DarkSpirit
+黄泉教主	
+黄泉教主8	
+圣域修罗	
+暗之黄泉教主	
+黄泉教主0	
 
-#   2	Guard2
-#   13	ChestnutTree
-#   14	EbonyTree
-#   15	LargeMushroom
-#   16	CherryTree
-#   28	Dark
-#   41	EvilCentipede
-#   42	BugBat
-#   50	BombSpider
-#   58	EvilApe
-#   61	CrystalSpider
-#   67	RedThunderZuma
-#   77	DarkDevil
-#   81	SpiderFrog
-#   82	HoroBlaster
-#   83	BlueHoroBlaster
-#   84	KekTal
-#   85	VioletKekTal
-#   86	Khazard
-#   99	RightGuard
-#   100	LeftGuard
-#   102	FrostTiger
-#   110	VisceralWorm
-#   113	Yimoogi
-#   114	GiantWhiteSnake
-#   115	BlueSnake
-#   116	YellowSnake
-#   117	HolyDeva
-#   118	AxeOma
-#   119	SwordOma
-#   120	CrossbowOma
-#   121	WingedOma
-#   122	FlailOma
-#   124	YinDevilNode
-#   125	YangDevilNode
-#   127	BlackFoxman
-#   128	RedFoxman
-#   129	WhiteFoxman
-#   130	TrapRock
-#   131	GuardianRock
-#   132	ThunderElement
-#   133	CloudElement
-#   134	GreatFoxSpirit
-#   135	HedgeKekTal
-#   136	BigHedgeKekTal
-#   137	RedFrogSpider
-#   138	BrownFrogSpider
-#   142	Pig
-#   143	Bull
-#   152	GhastlyLeecher
-#   153	CyanoGhast
-#   154	MutatedManworm
-#   155	CrazyManworm
-#   159	DarkDevourer
-#   160	PoisonHugger
-#   161	Hugger
-#   162	MutatedHugger
-#   163	DreamDevourer
-#   169	RedTurtle
-#   170	GreenTurtle
-#   171	BlueTurtle
-#   185	TowerTurtle
-#   186	FinialTurtle
-#   194	BoneWhoo
-#   201	StoningStatue
-#   202	FlyingStatue
-#   204	Weaver
-#   205	VenomWeaver
-#   207	ArmingWeaver
-#   208	CrystalWeaver
-#   209	FrozenZumaStatue
-#   210	FrozenZumaGuardian
-#   211	FrozenRedZuma
-#   212	GreaterWeaver
-#   213	SpiderWarrior
-#   214	SpiderBarbarian
-#   215	HellSlasher
-#   216	HellPirate
-#   217	HellCannibal
-#   218	HellKeeper
-#   219	HellBolt
-#   220	WitchDoctor
-#   221	ManectricHammer
-#   222	ManectricClub
-#   223	ManectricClaw
-#   224	ManectricStaff
-#   226	DarkGhost
-#   227	ChaosGhost
-#   228	ManectricBlest
-#   229	ManectricKing
-#   230	Blank2
-#   231	IcePillar
-#   233	ManectricSlave
-#   243	HellKnight1
-#   244	HellKnight2
-#   245	HellKnight3
-#   246	HellKnight4
-#   247	HellLord
-#   261	DeathCrawler
-#   262	BurningZombie
-#   263	MudZombie
-#   264	FrozenZombie
-#   265	UndeadWolf
-#   266	DemonWolf
-#   267	WhiteMammoth
-#   268	DarkBeast
-#   269	LightBeast
-#   270	BloodBaboon
-#   271	HardenRhino
-#   272	AncientBringer
-#   273	FightingCat
-#   274	FireCat
-#   275	CatWidow
-#   276	StainHammerCat
-#   277	BlackHammerCat
-#   278	StrayCat
-#   279	CatShaman
-#   280	Jar1
-#   281	Jar2
-#   282	SeedingsGeneral
-#   283	RestlessJar
-#   284	GeneralMeowMeow
-#   286	Tucson
-#   287	TucsonFighter
-#   288	TucsonMage
-#   289	TucsonWarrior
-#   290	Armadillo
-#   291	ArmadilloElder
-#   292	TucsonEgg
-#   293	PlaguedTucson
-#   294	SandSnail
-#   295	CannibalTentacles
-#   296	TucsonGeneral
-#   307	TreeQueen
-#   338	Hydrax
-#   339	HornedMage
-#   341	HornedArcher
-#   343	HornedWarrior
-#   346	HornedSorceror
-#   347	BoulderSpirit
-#   348	HornedCommander
-#   352	Turtlegrass
-#   353	ManTree
-#   354	Bear
-#   355	Leopard
-#   358	StoningSpider
-#   359	VampireSpider
-#   360	SpittingToad
-#   361	SnakeTotem
-#   363	FrozenSoldier
-#   364	FrozenFighter
-#   365	FrozenArcher
-#   366	FrozenKnight
-#   367	FrozenGolem
-#   368	IcePhantom
-#   369	SnowWolf
-#   370	SnowWolfKing
-#   371	WaterDragon
-#   372	BlackTortoise
-#   373	Manticore
-#   374	DragonWarrior
-#   375	DragonArcher
-#   376	Kirin
-#   377	Guard3
-#   380	FrozenMiner
-#   381	FrozenAxeman
-#   382	FrozenMagician
-#   383	SnowYeti
-#   384	IceCrystalSoldier
-#   386	DarkSpirit
-#   387	CrystalBeast
-#   414	WarriorScroll
-#   415	TaoistScroll
-#   416	WizardScroll
-#   417	AssassinScroll
-#   900	EvilMir
-#   901	EvilMirBody
-#   902	DragonStatue
-#   903	HellBomb1
-#   904	HellBomb2
-#   905	HellBomb3
-#   951	PalaceWallLeft
-#   952	PalaceWall1
-#   953	PalaceWall2
-#   10000	BabyPig
-#   10001	Chick
-#   10002	Kitten
-#   10003	BabySkeleton
-#   10004	Baekdon
-#   10005	Wimaen
-#   10006	BlackKitten
-#   10007	BabyDragon
-#   10008	OlympicFlame
-#   10009	BabySnowMan
-#   10010	Frog
