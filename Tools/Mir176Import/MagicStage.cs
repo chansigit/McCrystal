@@ -15,7 +15,7 @@ public static class MagicStage
     // Independently corroborated: crystalm2-176, an unrelated Crystal server carrying
     // these same Chinese names, maps 基本剑术/攻杀剑术/刺杀剑术 to 1/2/3 exactly as here,
     // and agrees on all 31 names it shares.
-    private static readonly Dictionary<string, Spell> Names = new()
+    public static readonly Dictionary<string, Spell> Names = new()
     {
         ["基本剑术"] = Spell.Fencing,        ["攻杀剑术"] = Spell.Slaying,
         ["刺杀剑术"] = Spell.Thrusting,      ["半月弯刀"] = Spell.HalfMoon,

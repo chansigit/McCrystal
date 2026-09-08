@@ -36,9 +36,13 @@ public static class Program
         // pack has to be selected before anything touches Envir.
         ContentPack.Configure(new[] { "--pack", Path.GetFullPath(pack) });
 
-        var magics = MagicStage.Convert(new GeeM2Source(source).Magics());
+        var geeM2 = new GeeM2Source(source);
+        var rawMagics = geeM2.Magics();
+        var magics = MagicStage.Convert(rawMagics);
+        var items = ItemStage.Convert(geeM2.Items(), rawMagics);
+        int errors = magics.Errors + items.Errors;
 
-        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{magics.Report}";
+        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{magics.Report}\n{items.Report}";
         if (report != null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
@@ -47,9 +51,9 @@ public static class Program
         }
         else Console.WriteLine(text);
 
-        if (magics.Errors > 0)
+        if (errors > 0)
         {
-            Console.Error.WriteLine($"{magics.Errors} 条错误，未写入数据库");
+            Console.Error.WriteLine($"{errors} 条错误，未写入数据库");
             return 1;
         }
         if (!write)
@@ -60,8 +64,11 @@ public static class Program
 
         var envir = new Envir();
         envir.MagicInfoList.AddRange(magics.Magics);
+        envir.ItemInfoList.AddRange(items.Items);
+        envir.ItemIndex = items.Items.Count == 0 ? 0 : items.Items.Max(i => i.Index);
         envir.SaveDB();
-        Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：{magics.Magics.Count} 个技能");
+        Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：" +
+            $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品");
         return 0;
     }
 
