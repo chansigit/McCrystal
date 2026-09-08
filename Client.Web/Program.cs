@@ -37,7 +37,15 @@ app.Use(async (context, next) =>
     await next();
 });
 app.UseDefaultFiles();
-app.UseStaticFiles();
+// The bundle and the page that loads it are rebuilt constantly and share one filename, so
+// without this the browser keeps running whichever build it happened to cache and the fix
+// you just made appears not to have worked. no-cache still revalidates rather than
+// refetching, so a cold reload costs one 304.
+app.UseStaticFiles(new StaticFileOptions
+{
+    OnPrepareResponse = context =>
+        context.Context.Response.Headers.CacheControl = "no-cache, must-revalidate"
+});
 app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(15) });
 app.MapGet("/health", () => Results.Ok(new { status = "ready",
     server = $"{Crystal.Web.GameSession.GameServer.Host}:{Crystal.Web.GameSession.GameServer.Port}" }));

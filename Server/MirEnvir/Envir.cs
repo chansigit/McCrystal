@@ -3668,7 +3668,7 @@ namespace Server.MirEnvir
 
             if (ConnectionLogs.TryGetValue(c.IPAddress, out MirConnectionLog currentlog))
             {
-                if (currentlog.AccountsMade.Count > 2)
+                if (currentlog.AccountsMade.Count >= Settings.MaxNewAccountsPerIP)
                 {
                     IPBlocks[c.IPAddress] = Now.AddHours(24);
                     c.Enqueue(new ServerPackets.NewAccount { Result = 0 });
@@ -3995,7 +3995,7 @@ namespace Server.MirEnvir
 
             if (ConnectionLogs.TryGetValue(c.IPAddress, out MirConnectionLog currentlog))
             {
-                if (currentlog.CharactersMade.Count > 4)
+                if (currentlog.CharactersMade.Count >= Settings.MaxNewCharactersPerIP)
                 {
                     IPBlocks[c.IPAddress] = Now.AddHours(24);
                     c.Enqueue(new ServerPackets.NewCharacter { Result = 0 });

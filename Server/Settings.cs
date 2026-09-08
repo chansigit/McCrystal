@@ -94,6 +94,12 @@ namespace Server
                            AllowCreateArcher = true,
                            RequireStoragePassword = true;
 
+        // Exceeding either cap bans the IP from connecting at all for 24 hours. Every client
+        // of a pack served over the local gateway shares 127.0.0.1, so on a development pack
+        // one person registering a few test accounts takes the server offline for everyone.
+        public static int MaxNewAccountsPerIP = 3,
+                          MaxNewCharactersPerIP = 5;
+
         public static int AllowedResolution = 1024;
 
         //Optional
@@ -417,6 +423,8 @@ namespace Server
 
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
+            MaxNewAccountsPerIP = Reader.ReadInt32("Permission", "MaxNewAccountsPerIP", MaxNewAccountsPerIP);
+            MaxNewCharactersPerIP = Reader.ReadInt32("Permission", "MaxNewCharactersPerIP", MaxNewCharactersPerIP);
             AllowChangePassword = Reader.ReadBoolean("Permission", "AllowChangePassword", AllowChangePassword);
             AllowLogin = Reader.ReadBoolean("Permission", "AllowLogin", AllowLogin);
             AllowNewCharacter = Reader.ReadBoolean("Permission", "AllowNewCharacter", AllowNewCharacter);
@@ -709,6 +717,8 @@ namespace Server
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);
+            Reader.Write("Permission", "MaxNewAccountsPerIP", MaxNewAccountsPerIP);
+            Reader.Write("Permission", "MaxNewCharactersPerIP", MaxNewCharactersPerIP);
             Reader.Write("Permission", "AllowChangePassword", AllowChangePassword);
             Reader.Write("Permission", "AllowLogin", AllowLogin);
             Reader.Write("Permission", "AllowNewCharacter", AllowNewCharacter);

@@ -189,6 +189,7 @@ function connect() {
   const socket = new WebSocket(`ws://${location.host}/game`);
   state.socket = socket;
   socket.onmessage = (e) => {
+    state.retryDelay = 0;
     try {
       const p = JSON.parse(e.data);
       receive(p.type, p.data);
@@ -206,13 +207,24 @@ function connect() {
     setBusy(false);
     $("connection").textContent = "连接已断开";
     status("连接已断开，正在重连…");
+    // The registration form disables its button and waits for a reply that a dropped
+    // connection will never bring, so the close has to release it here. status() writes to
+    // the login form, which is hidden while the registration form is up.
+    if ($("register").disabled) {
+      $("register").disabled = false;
+      $("register-status").textContent = "连接已断开，正在重连，请稍后重试";
+    }
     if (state.inWorld) {
       leaveWorld();
     }
     gameAudio.setMusic(INTRO_MUSIC);
+    // A fixed retry is what makes a server-side connection cap self-sustaining: the server
+    // bans an address for opening too many connections at once, and a client that keeps
+    // reopening one every 2.5s never lets the ban lapse. Backing off gives it room to.
+    state.retryDelay = Math.min((state.retryDelay ?? 0) * 2 || 2500, 30000);
     setTimeout(() => {
       if (state.socket === socket) connect();
-    }, 2500);
+    }, state.retryDelay);
   };
 }
 function leaveWorld() {

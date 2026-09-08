@@ -149,7 +149,12 @@ public static class GameSession
         }
         catch (Exception e) when (e is SocketException or IOException or InvalidDataException or JsonException or InvalidOperationException or WebSocketException or OperationCanceledException)
         {
-            // Credentials and gameplay command bodies must never reach application logs.
+            // Credentials and gameplay command bodies must never reach application logs, but
+            // which rule rejected a command must: without it a refused command is
+            // indistinguishable from a network drop, and the only symptom is a browser that
+            // waits forever. Every InvalidDataException message here is a fixed literal.
+            Console.Error.WriteLine(e is InvalidDataException
+                ? $"Session ended: {e.Message}" : $"Session ended: {e.GetType().Name}");
         }
         finally
         {
