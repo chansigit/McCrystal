@@ -197,7 +197,18 @@ namespace Server.ContentPacks
                 => at.X >= 0 && at.X < map.Width && at.Y >= 0 && at.Y < map.Height
                     && map.Cells[at.Y * map.Width + at.X];
 
-            int blockedNpcs = 0, blockedMovements = 0, offMapZones = 0;
+            static bool AnyWalkable((int Width, int Height, System.Collections.BitArray Cells) map,
+                System.Drawing.Point centre, int spread)
+            {
+                int left = Math.Max(0, centre.X - spread), right = Math.Min(map.Width - 1, centre.X + spread);
+                int top = Math.Max(0, centre.Y - spread), bottom = Math.Min(map.Height - 1, centre.Y + spread);
+                for (int y = top; y <= bottom; y++)
+                    for (int x = left; x <= right; x++)
+                        if (map.Cells[y * map.Width + x]) return true;
+                return false;
+            }
+
+            int blockedNpcs = 0, blockedMovements = 0, offMapZones = 0, blockedRespawns = 0;
             foreach (var map in environment.MapInfoList)
             {
                 if (Open(map.Index) is not { } loadedMap) continue;
@@ -239,11 +250,31 @@ namespace Server.ContentPacks
                             $"Map '{map.FileName}' has a safe zone centred on {zone.Location.X},{zone.Location.Y}, "
                             + "which is off the map or a wall.", entity: map.FileName);
                     }
+
+                // The engine picks a spawn cell from the walkable cells inside the spread
+                // box (Map.cs:479), so what matters is whether that box holds any -- not
+                // whether the centre itself does. A centre outside the map is normal in the
+                // 1.76 tables and still works when the spread reaches back in. An empty box
+                // never spawns anything, and Map.cs only logs that after five failures.
+                foreach (var respawn in map.Respawns)
+                {
+                    if (AnyWalkable(loadedMap, respawn.Location, respawn.Spread)) continue;
+                    blockedRespawns++;
+                    // A warning, not an error: these are faults in 1.76's own tables and
+                    // they fail the same way on the original engine, so the pack is a
+                    // faithful copy with them in it.
+                    Add(report, ContentIssueSeverity.Warning, "RESPAWN_NOWHERE_TO_STAND",
+                        $"Map '{map.FileName}' spawns monster {respawn.MonsterIndex} at "
+                        + $"{respawn.Location.X},{respawn.Location.Y} with spread {respawn.Spread}, "
+                        + "and no cell in that area can be stood on, so nothing ever spawns there.",
+                        entity: map.FileName);
+                }
             }
 
             report.Inventory["geometry.npcs.blocked"] = blockedNpcs;
             report.Inventory["geometry.movements.blocked"] = blockedMovements;
             report.Inventory["geometry.safezones.blocked"] = offMapZones;
+            report.Inventory["geometry.respawns.blocked"] = blockedRespawns;
         }
 
         private static void CheckNpcs(ContentPack pack, Envir environment, Dictionary<int, Server.MirDatabase.MapInfo> maps,

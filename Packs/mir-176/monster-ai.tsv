@@ -1,0 +1,58 @@
+# 1.76 的 Monster.Race -> Crystal 的 MonsterInfo.AI。
+#
+# M2 引擎按 Race 分发怪物的行为类，Crystal 按 AI 分发（MonsterObject.GetMonster），所以
+# 这张表是两套行为编号的对照。依据主要来自 crystalm2-176 里同名记录的 AI 值：Race 分组内
+# 多数一致就取多数，冲突或没有锚点的写清判断理由。
+#
+# race <Race> <AI> <Crystal 类名> <依据>
+# name <怪名> <AI> <Crystal 类名> <依据>   —— 同一个 Race 里行为确实不同的个别怪
+#
+# 第一列是 race 的按 Race 生效；name 的覆盖它。
+race	11	6	Guard	crystalm2:卫士；11 是守卫族，不游走、挡路、不回血
+race	51	1	Deer	crystalm2:鸡
+race	52	2	Deer	crystalm2:鹿,羊
+race	53	0	(近战)	crystalm2:猎鹰,猎鹰0；狼在 crystalm2 是 9 HarvestMonster（可剥皮的尸体、不主动打人），1.76 的狼会追人
+race	55	56	Trainer	crystalm2:练功师；不动、不攻击、统计伤害
+race	81	0	(近战)	crystalm2 66 只同名记录；81 是 M2 的普通怪族
+race	82	4	SpittingSpider	crystalm2:毒蜘蛛；直线吐毒
+race	83	0	(近战)	crystalm2 9 只
+race	84	0	(近战)	蝎子在 crystalm2 是 9 HarvestMonster（剥皮尸体），1.76 的蝎子会打人
+race	85	5	CannibalPlant	crystalm2:食人花
+race	86	0	(近战)	crystalm2:骷髅,骷髅0
+race	87	8	AxeSkeleton	crystalm2:掷斧骷髅 ×3；远程投掷
+race	88	0	(近战)	crystalm2:骷髅战士 ×2
+race	89	0	(近战)	crystalm2 6 只
+race	90	7	CaveMaggot	crystalm2:洞蛆,粪虫 ×3
+race	91	10	FlamingWooma	crystalm2:火焰沃玛 ×3；单体法术
+race	92	11	WoomaTaurus	crystalm2:沃玛教主,暗之沃玛教主；同族的 0 出现在沃玛教主9/1 上，是 crystalm2 自己的偏差
+race	93	0	(近战)	无依据：crystalm2 的暗黑战士是后期同名怪（AI 180 SnowWolfKing），不可用。先按普通近战导入
+race	94	26	ShamanZombie	crystalm2:僵尸1,僵尸10
+race	95	24	DigOutZombie	crystalm2:僵尸2,僵尸20
+race	96	25	RevivingZombie	crystalm2 6 只
+race	97	0	(近战)	crystalm2 9 只
+race	100	23	BoneFamiliar	crystalm2:变异骷髅
+race	101	15	ZumaMonster	crystalm2 7 只；祖玛族的石化/苏醒
+race	102	17	ZumaTaurus	crystalm2:祖玛教主
+race	103	12	BugBagMaggot	crystalm2:角蝇
+race	104	8	AxeSkeleton	crystalm2:骷髅弓箭手 ×2；104 是弓箭手族，crystalm2 给祖玛弓箭手的 0 是偏差
+race	105	7	CaveMaggot	crystalm2:楔蛾,月魔蜘蛛
+race	107	14	EvilCentipede	不移动 + 隐身后现形，正是触龙神；宝箱用 name 覆盖
+race	110	81	Gate	沙巴克大门
+race	111	82	Wall	沙巴克城墙
+race	112	57	TownArcher	mongen.txt 里 67 处把弓箭守卫摆在城门口，远程、不被怪攻击
+race	113	18	Shinsu	crystalm2:神兽
+race	114	18	Shinsu	crystalm2:神兽1
+race	115	13	RedMoonEvil	crystalm2:赤月恶魔 ×2
+race	116	39	RootSpider	crystalm2:幻影蜘蛛
+race	117	40	BombSpider	名字与类名对上：爆裂蜘蛛 52 级 10 血，是自爆怪
+race	120	3	Tree	场景物族（飞火流星/雪球/圣诞驯鹿），0 攻击，mongen 不刷
+name	沙虫	35	SandWorm	crystalm2:沙虫；Crystal 的类名就是它，行为是不带毒的直线攻击
+name	宝箱	3	Tree	宝箱不动也不攻击，与同 Race 的触龙神不同
+name	宝箱1	3	Tree	同 宝箱
+name	宝箱2	3	Tree	同 宝箱
+name	宝箱3	3	Tree	同 宝箱
+name	宝箱4	3	Tree	同 宝箱
+name	宝箱5	3	Tree	同 宝箱
+name	宝箱6	3	Tree	同 宝箱
+name	宝箱7	3	Tree	同 宝箱
+name	宝箱8	3	Tree	同 宝箱

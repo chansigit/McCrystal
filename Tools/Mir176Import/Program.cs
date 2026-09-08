@@ -63,9 +63,18 @@ public static class Program
         var maps = MapStage.Convert(geeM2.Maps(), geeM2.StartPoints(), geeM2.MapDirectory);
         var npcs = NpcStage.Convert(geeM2.Merchants(), geeM2.SpecialNpcs(), geeM2.ScriptDirectory,
             maps.Maps, items.Items);
-        int errors = magics.Errors + items.Errors + maps.Errors + npcs.Errors;
+        // The sprite and AI tables sit beside the manifest, not inside Envir: they are the
+        // import's own working notes rather than content the server reads.
+        var packDirectory = Path.GetDirectoryName(Path.GetFullPath(pack));
+        var monsters = MonsterStage.Convert(geeM2.Monsters(), packDirectory);
+        var drops = DropStage.Convert(geeM2.DropDirectory, monsters.Monsters, items.Items);
+        // Spawns attach respawns to the MapInfo records the map stage already built, so this
+        // has to run after both maps and monsters.
+        var spawns = SpawnStage.Convert(geeM2.Spawns(), maps.Maps, monsters.Monsters);
+        int errors = magics.Errors + items.Errors + maps.Errors + npcs.Errors
+            + monsters.Errors + drops.Errors + spawns.Errors;
 
-        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}\n{npcs.Report}";
+        var text = $"# mir-176 导入报告\n\n源：`{source}`\n包：`{pack}`\n\n{maps.Report}\n{magics.Report}\n{items.Report}\n{npcs.Report}\n{monsters.Report}\n{drops.Report}\n{spawns.Report}";
         if (report != null)
         {
             Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(report))!);
@@ -101,6 +110,9 @@ public static class Program
         envir.MapIndex = maps.Maps.Count;
         envir.NPCInfoList.AddRange(npcs.Npcs);
         envir.NPCIndex = npcs.Npcs.Count;
+        envir.MonsterInfoList.AddRange(monsters.Monsters);
+        envir.MonsterIndex = monsters.Monsters.Count;
+        envir.RespawnIndex = spawns.Count;
         envir.SaveDB();
 
         // Scripts live beside the database in the pack, and the whole set is rewritten so a
@@ -112,6 +124,21 @@ public static class Program
         foreach (var script in npcs.Scripts)
             File.WriteAllText(Path.Combine(npcTarget, script.Path), script.Text);
 
+        // Drops are looked up by monster name at load time, so a table left behind for a
+        // monster the pack no longer has would quietly keep working. Rewrite the whole set,
+        // sparing the 00/01 prefix the way the NPC scripts do: those are Crystal's own
+        // system tables -- fishing, awakening, strongbox, blackstone -- which 1.76 has no
+        // counterpart for and the engine recreates empty if they go missing.
+        var dropTarget = Path.Combine(ContentPack.Current.EnvirPath, "Drops");
+        Directory.CreateDirectory(dropTarget);
+        foreach (var stale in Directory.GetFiles(dropTarget, "*.txt"))
+        {
+            var name = Path.GetFileName(stale);
+            if (!name.StartsWith("00") && !name.StartsWith("01")) File.Delete(stale);
+        }
+        foreach (var file in drops.Files)
+            File.WriteAllText(Path.Combine(dropTarget, file.Path), file.Text);
+
         // The pack keeps its own copy of every map it declares, so it stays self-contained
         // and nothing reaches back into ThirdParty at run time.
         var mapTarget = ContentPack.Current.MapPath;
@@ -120,8 +147,9 @@ public static class Program
             File.Copy(file, Path.Combine(mapTarget, Path.GetFileName(file)), true);
         Console.WriteLine($"写入 {ContentPack.Current.DatabasePath}：" +
             $"{magics.Magics.Count} 个技能，{items.Items.Count} 件物品，{maps.Maps.Count} 张地图" +
-            $"，{npcs.Npcs.Count} 个 NPC" +
-            $"（复制了 {maps.MapFiles.Count} 个地图文件，{npcs.Scripts.Count} 个脚本）");
+            $"，{npcs.Npcs.Count} 个 NPC，{monsters.Monsters.Count} 只怪，{spawns.Count} 个刷怪点" +
+            $"（复制了 {maps.MapFiles.Count} 个地图文件，{npcs.Scripts.Count} 个脚本，" +
+            $"{drops.Files.Count} 张爆率表）");
         return 0;
     }
 

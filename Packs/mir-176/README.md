@@ -41,16 +41,16 @@ dotnet Server.Console.dll --pack /path/to/Packs/mir-176/pack.yaml --state state-
 | Stage | Source | Status |
 | --- | --- | --- |
 | Skills | `GEEM2.db` `Magic` | done, 33 of 33 |
-| Items | `GEEM2.db` `StdItems` | not started, 352 rows |
-| Maps and connections | `Envir/mapinfo.txt` | not started, 542 maps |
-| Monsters | `GEEM2.db` `Monster` | **blocked on sprite identity**, see below |
-| Spawns | `Envir/mongen.txt` | not started, 3,443 lines |
-| Drops | `Envir/MonItems/` | not started, 363 files |
-| NPCs | `Envir/merchant.txt`, `market_def/` | not started, 426 scripts |
+| Items | `GEEM2.db` `StdItems` | done, 352 of 352 |
+| Maps and connections | `Envir/mapinfo.txt` | done, 386 maps |
+| NPCs | `Envir/merchant.txt`, `market_def/` | done, 172 of 426 scripts |
+| Monsters | `GEEM2.db` `Monster` | done, 388 of 389 |
+| Drops | `Envir/MonItems/` | done, 336 tables |
+| Spawns | `Envir/mongen.txt` | done, 3,438 of 3,442 lines |
 | Quests, recipes, castles | `MapQuest_def/`, `MakeItem.txt`, `Castle/` | not started |
 
-The pack does not boot yet: the engine needs maps and start points, and neither
-stage has run.
+The pack boots and runs: 386 maps, 172 NPCs, 388 monsters and 53,926 of them
+alive at once on a 14ms loop. `--validate-pack` reports 0 errors.
 
 ## Client assets
 
@@ -61,51 +61,21 @@ Items are verified: all 352 `Looks` values land on real frames of `Items.Lib`,
 and a contact sheet of a sample confirmed the icons are the right icons -- rings
 render as rings, potions as potions.
 
-Monsters are not, and the reason is worth stating plainly. An earlier note here
-claimed all 389 `RaceImg` values were verified because each had a matching
-`Monster/NN.Lib`. That checked only that a file existed at that number. Rendering
-them showed the numbering is unrelated: 鹿 asks for image 11, which in these
-assets is a ForestYeti, and 稻草人 asks for 18, an OmaWarrior. Both `RaceImg` and
-`Appr` index the M2 client's own library order, and Crystal's `Monster` enum is
-Crystal's numbering of its own files. There is no arithmetic between them.
+Monsters took longer, because the sprite numbering does not carry across. An
+earlier note here claimed all 389 `RaceImg` values were verified because each had
+a matching `Monster/NN.Lib`. That checked only that a file existed at that number.
+Rendering them showed the numbering is unrelated: 鹿 asks for image 11, which in
+these assets is a ForestYeti, and 稻草人 asks for 18, an OmaWarrior. Both
+`RaceImg` and `Appr` index the M2 client's own library order, and Crystal's
+`Monster` enum is Crystal's numbering of its own files. There is no arithmetic
+between them.
 
-## Monsters: the sprite identity problem
+`monster-sprites.tsv` now settles all 389 rows -- 388 sprites and one deliberate
+blank -- and every one of the 111 sprites it names has a real `.Lib` behind it.
+How each was decided, and the `(Race, Appr)` rule that both filled the gaps and
+found eleven of my own mistakes, is further down.
 
-`monster-sprites.tsv` holds the mapping as it stands. 247 of 389 rows are
-settled; the rest need a person.
-
-Three bridges were tried, and only one survived.
-
-**Spawn coordinates.** The English original server's `MongenOriginal.txt` and the
-Chinese `mongen.txt` are the same spawn table, so the same map and cell names the
-same creature in two languages. That yields 39 pairs -- 鹿 to Deer, 稻草人 to
-Scarecrow, 食人花 to CannibalPlant -- exactly Crystal's enum names. Too few to
-build on, but exactly what a reference set is for.
-
-**Drop-rate fingerprints.** Matching `MonItems` files by their sequence of drop
-odds gives 13 pairs and false ones among them: 猎鹰 paired to skystinger, a
-falcon to a wasp. Abandoned.
-
-**crystalm2-176's `Image` column.** An unrelated Crystal server carrying these
-Chinese names. It was dismissed at first because its `Image` disagreed with
-`RaceImg` on 170 of 171 shared monsters -- which, once `RaceImg` turned out not
-to be a sprite index, is what a correct column would look like. Checked against
-the 39 coordinate anchors it agrees on 31 of 33 comparable ones, the two
-exceptions being near-misses (CaveBat against ValeBat, VisceralWorm against
-SandWorm). That gives 171 rows directly and 76 more through the M2 convention
-that a numbered variant shares its base's sprite.
-
-For the remaining 142, `monster-pairing.py` derives 64 suggestions by taking
-names apart -- 圣域稻草人 resolves through 稻草人, 暗之牛魔王 through 牛魔王,
-蝎子王 through 蝎子 -- iterated to a fixed point. They are suggestions, marked
-`derived:` in the file, and none is confirmed.
-
-That leaves about 40 base creatures with no evidence at all: 触龙神, 虹魔教主,
-黄泉教主, 牛魔法师, 牛魔祭司, 血僵尸, 电僵王, 雪人王, 剧毒蜘蛛, 千年树妖,
-龙卫, 鹰卫, 虎卫, and most of the 圣域 set. Their numbered variants follow
-whatever the base gets.
-
-Two things that are settled and should not be re-litigated:
+Two things that were expensive to learn and should not be re-litigated:
 
 - **Which monsters belong in 1.76 is not this tool's call.** Four guesses at it
   were wrong -- the 暗之 set, 黄泉教主, 重装使者 and the whole 圣域 set are all
@@ -120,6 +90,57 @@ Two things that are settled and should not be re-litigated:
 Still open for the siege stage: M2Server models the gate and walls as monsters
 with hit points, while Crystal has a conquest system where they are
 `ConquestGuildGateInfo` and `ConquestWalls` rather than spawns.
+
+## 怪物行为：`Race` 是 M2 的行为类
+
+M2Server 按 `Monster.Race` 决定一只怪用哪个行为类，Crystal 按 `MonsterInfo.AI`
+决定（`MonsterObject.GetMonster`）。两套编号的对照写在 `monster-ai.tsv` 里：38 个
+Race，每个一行，依据大多来自 crystalm2-176 同名记录的 AI 值，Race 分组内多数一致
+就取多数，冲突的写清判断理由。
+
+对得最干净的是那些 M2 专门开了一个 Race 的怪——95 挖洞僵尸、96 复活僵尸、101 祖玛、
+87 掷斧骷髅、91 火焰沃玛、85 食人花——Crystal 的类名就是同一只怪的英文名，一眼对上。
+最大的一个是 Race 81，180 只，M2 的普通近战族，66 个锚点全指向 AI 0。
+
+两处判断跟 crystalm2 不一致，都记在表里：狼和蝎子在 crystalm2 是 AI 9
+HarvestMonster（可剥皮的尸体、不主动打人），1.76 的狼和蝎子会追人，所以取 0。
+
+一个 Race 里行为确实分两种的，用 `name` 行覆盖：Race 107 是"不动怪"，触龙神取 14
+EvilCentipede（不动、隐身后现形），宝箱取 3 Tree（不动也不攻击）。
+
+`Race 93`（暗黑战士、暴牙蜘蛛、圣域杀手）没有可用依据——crystalm2 里那个"暗黑战士"
+是后期的同名怪——先按普通近战导入，表里标了 `无依据`。
+
+## 爆率和刷怪
+
+两边的格式几乎一样，转换主要是在拒绝：
+
+**爆率**（`Envir/MonItems/` → `Envir/Drops/`）。`1/60 攻击神水` 两边同义，只有金币要
+把 `金币` 换成 Crystal 解析器认的 `Gold`。15,887 行里 14,181 行落进包里，17 行因为
+物品名对不上被丢掉——11 种物品 1.76 的 `StdItems` 里根本没有（铂金项链、护神项链、
+MOTO手机…），报告里逐个列了次数。唯一做的归一化是全角括号换半角（`布衣（女）` →
+`布衣(女)`），那是排版差异不是另一件物品；除此之外没有任何近似匹配，因为爆错东西要
+杀上一万次才看得出来。
+
+27 张源表没有对应的怪（`奥玛` 系列是 `沃玛` 的另一种音译，还有一份韩文更新日志被当成
+了怪名），跳过。52 只怪 1.76 就没给爆率表（守卫、城门、活动怪居多），写成空表占位——
+不写的话 Crystal 自己会生成模板，包就永远和提交的内容对不上。
+
+**刷怪**（`Envir/mongen.txt`）。列几乎一一对应：地图、x、y、怪名、半径、数量、分钟。
+`Count` 是这张图要维持的数量而不是每波刷几只，`Delay` 两边都是分钟
+（`Map.cs:761` 乘 `Settings.Minute`），直接抄。第一列是地图**文件名**不是序号——`3`
+是 `3.map`——所以刷怪点和 `mapinfo.txt` 用同一套名字对上。
+
+3,442 行进来 3,438 行，落在 227 张地图上。没落上的 4 行点名了 `楔蛾0`、`剧毒蜘蛛0`、
+`牛头侍卫8` 三只 `Monster` 表里没有的怪。
+
+`--validate-pack` 另外报了 9 个死刷怪点（`RESPAWN_NOWHERE_TO_STAND`）：D501 的三个角
+落在 400 宽的地图外、半径 100 也够不回来，D713/D714 的一个点整块都是墙。这是 1.76
+自己的数据错，在原引擎上也一样刷不出来，所以按警告记着、原样保留。
+
+这个检查是照着引擎自己的判断写的：`Map.cs:479` 把可站立格子按半径框过滤，所以关键不是
+中心点能不能站，而是**框里有没有一格能站**。第一版只查中心点，报了 22 个错，其中 13 个
+是好的——1.76 的表里经常把中心写在图外，靠半径伸回来，M2 和 Crystal 都照样刷得出来。
 
 ## 网关必须用 `--maps` 指向包里的地图
 
@@ -166,8 +187,9 @@ Crystal 认识的全部法术。多出来的 76 个没有对应的技能书（�
 **`Map/WemadeMir3/snow/Object1c` 客户端没有这个贴图工程**，比奇省有 16 格引用它，那 16 格
 永远是空的。1.76 归档里不含地图美术（只有 Items / Mon1 / mmap / StateItem 四个 wil），补不上。
 
-**没有怪物。** 397 行贴图已全部配好（见 `monster-sprites.tsv`），剩 `飞火流星` 一行故意留空；
-怪物、爆率、刷怪三个阶段尚未导入。
+**9 个刷怪点永远不出怪。** 见上面"爆率和刷怪"一节，是 1.76 自己的坐标错。
+
+**17 行爆率被丢掉。** 点名的 11 种物品 1.76 的 `StdItems` 里没有。
 
 
 ## 怪物贴图：`(Race, Appr)` 是那把钥匙

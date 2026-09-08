@@ -53,6 +53,31 @@ public sealed record MapSection(string File, string Title, List<string> Attribut
 /// map routinely lists movements belonging to several others.</summary>
 public sealed record Movement(string FromFile, string ToFile, int FromX, int FromY, int ToX, int ToY);
 
+/// <summary>A row of the 1.76 Monster table.</summary>
+/// <remarks>
+/// Two columns carry more than their names suggest.
+///
+/// Appr is the appearance index -- what the monster looks like -- and Race is its behaviour
+/// class, the field M2Server dispatches on. Together they identify a sprite: 247 same-name
+/// anchors group into 95 (Race, Appr) buckets with one disagreement. Appr alone disagrees
+/// four times, RaceImg thirteen. See Packs/mir-176/README.md.
+///
+/// AC/MAC are single values rather than ranges, while DC comes as DC/DCMax. Crystal wants a
+/// range for all five, so the single ones become a range of zero width, which is what
+/// crystalm2-176 does for the same monsters.
+/// </remarks>
+public sealed record MonsterRow(
+    string Name, int Race, int RaceImg, int Appr, int Level, int Undead, int CoolEye,
+    int Experience, int HP, int MP, int AC, int MAC, int DC, int DCMax, int MC, int SC,
+    int Speed, int Hit, int WalkSpeed, int WalkStep, int WalkWait, int AttackSpeed);
+
+/// <summary>A line of Envir/mongen.txt: one respawn point.</summary>
+/// <remarks>
+/// The first field is the map's file name, not an index -- `3` is 3.map and `D101` is
+/// D101.map -- so a spawn resolves against the same names mapinfo.txt uses.
+/// </remarks>
+public sealed record Spawn(string MapFile, int X, int Y, string Monster, int Spread, int Count, int Minutes);
+
 public sealed record StartPoint(string File, int X, int Y);
 
 /// <summary>A row of Envir/merchant.txt: a shop NPC and the script that drives it.</summary>
@@ -203,7 +228,48 @@ public sealed class GeeM2Source
         return npcs;
     }
 
+    public List<MonsterRow> Monsters()
+    {
+        using var connection = new SqliteConnection($"Data Source={DatabasePath};Mode=ReadOnly");
+        connection.Open();
+        using var command = connection.CreateCommand();
+        command.CommandText =
+            "select Name, Race, RaceImg, Appr, Lvl, Undead, CoolEye, Exp, HP, MP, AC, MAC, " +
+            "DC, DCMAX, MC, SC, SPEED, HIT, WALK_SPD, WalkStep, WalkWait, ATTACK_SPD " +
+            "from Monster order by rowid";
+        using var reader = command.ExecuteReader();
+        var monsters = new List<MonsterRow>();
+        while (reader.Read())
+            monsters.Add(new MonsterRow(
+                reader.GetString(0), reader.GetInt32(1), reader.GetInt32(2), reader.GetInt32(3),
+                reader.GetInt32(4), reader.GetInt32(5), reader.GetInt32(6), reader.GetInt32(7),
+                reader.GetInt32(8), reader.GetInt32(9), reader.GetInt32(10), reader.GetInt32(11),
+                reader.GetInt32(12), reader.GetInt32(13), reader.GetInt32(14), reader.GetInt32(15),
+                reader.GetInt32(16), reader.GetInt32(17), reader.GetInt32(18), reader.GetInt32(19),
+                reader.GetInt32(20), reader.GetInt32(21)));
+        return monsters;
+    }
+
+    public List<Spawn> Spawns()
+    {
+        var spawns = new List<Spawn>();
+        foreach (var raw in ReadGbk(Path.Combine(root, "Envir", "mongen.txt")))
+        {
+            var f = raw.Split(';')[0].Split((char[])null, StringSplitOptions.RemoveEmptyEntries);
+            // map x y name spread count minutes, then a rate column M2 uses for its own
+            // event scaling that has no Crystal counterpart.
+            if (f.Length < 7) continue;
+            if (!int.TryParse(f[1], out int x) || !int.TryParse(f[2], out int y)) continue;
+            if (!int.TryParse(f[4], out int spread) || !int.TryParse(f[5], out int count)) continue;
+            if (!int.TryParse(f[6], out int minutes)) continue;
+            spawns.Add(new Spawn(f[0], x, y, f[3], spread, count, minutes));
+        }
+        return spawns;
+    }
+
     public string ScriptDirectory => Path.Combine(root, "Envir", "market_def");
+
+    public string DropDirectory => Path.Combine(root, "Envir", "MonItems");
 
     public string MapDirectory => Path.Combine(root, "Map");
 
