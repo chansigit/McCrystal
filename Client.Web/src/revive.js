@@ -9,6 +9,13 @@ export class ReviveOverlay {
     this.button.onclick = () => {
       if (!this.send("TownRevive", {})) { this.status.textContent = "连接已断开"; return; }
       this.status.textContent = "正在回城复活…";
+      // The server answers a refused revive with nothing at all, so a failure used to
+      // look exactly like a dead button. Say so rather than leaving the player
+      // clicking (Server/MirObjects/PlayerObject.cs, TownRevive).
+      clearTimeout(this.pending);
+      this.pending = setTimeout(() => {
+        if (this.dead) this.status.textContent = "服务器没有响应，回城点可能无效";
+      }, 3000);
     };
   }
   update(user) {
@@ -17,5 +24,6 @@ export class ReviveOverlay {
     this.dead = dead;
     this.panel.hidden = !dead;
     this.status.textContent = "";
+    clearTimeout(this.pending);
   }
 }

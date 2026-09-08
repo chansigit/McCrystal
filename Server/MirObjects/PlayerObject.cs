@@ -1396,6 +1396,19 @@ namespace Server.MirObjects
             Map temp = Envir.GetMap(BindMapIndex);
             Point bindLocation = BindLocation;
 
+            // A character is only ever given a bind point by a bind NPC, and StartGame
+            // repairs a missing one only when the current location is invalid too. A
+            // player standing somewhere perfectly valid who has never bound therefore
+            // keeps BindMapIndex 0 for ever, and this method used to return in silence,
+            // leaving them dead with a button that does nothing. Repair it here the same
+            // way StartGame does, before the PK town override gets its say.
+            if ((temp == null || !temp.ValidPoint(bindLocation)) && Envir.StartPoints.Count > 0)
+            {
+                SetBind();
+                temp = Envir.GetMap(BindMapIndex);
+                bindLocation = BindLocation;
+            }
+
             if (Info.PKPoints >= 200)
             {
                 temp = Envir.GetMapByNameAndInstance(Settings.PKTownMapName, 1);
