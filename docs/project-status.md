@@ -335,23 +335,46 @@ map set was audited rather than spot-checked: build the graph from `MapInfo.Move
 plus every script `MOVE` (the NPC's map is in its file name), then walk it from the
 towns 1.76 actually starts players in.
 
-**332 of 386 maps are reachable.** The 54 that are not all have an explanation, and
-none of them is a content region that failed to import:
+**332 of 386 maps are reachable.** The 54 that are not break down as:
 
-- 19 are event and system maps the engine teleports into rather than the world
-  connecting to -- guild-war (`F001`-`F013`), the football pitch (`G003`-`G013`),
-  the two quiz rooms, the three jail maps (which `StartPoint.txt` does list as
-  revival points).
-- 15 are unnumbered duplicate floors with no spawns and no NPCs: three extra
+- **28 event and system maps** the engine teleports into rather than the world
+  connecting to: the football pitch (11), guild-war (9, though `F003` *is*
+  reachable from a placed NPC), 神秘战场 (3), the three jail maps -- which
+  `StartPoint.txt` does list as revival points -- and the two quiz rooms.
+- **13 unnumbered duplicate floors** with no spawns and no NPCs: three extra
   沃玛寺庙 pairs, `D2054`-`D2056`, `D2065`, `D2066`, `D2074`, `D2077`.
-- 7 are the quest maps (`Q011`-`Q016`), and they stay shut because 1.76's
-  `MapQuest_def/` had nothing to import.
-- The rest are strays: a jail, one of the three advanced-class houses, `D10071`,
-  and three literally titled 待定 ("to be decided").
+- **6 quest maps.** The chain hangs off `Q011`, which nothing reaches, so
+  `Q012`-`Q016` behind it are shut too. 1.76's `MapQuest_def/` had nothing to
+  import, which is why.
+- **6 strays**: an advanced-class house, a jail, `D10071`, and three literally
+  titled 待定 ("to be decided").
+- **新手训练营 (`D12`)**, which is its own case, below.
 
-**新手训练营 (`D12`) is the one to know about.** It is the second-largest spawn
-table in the pack -- 16 lines, 1,830 monsters -- and nothing in the world reaches
-it: no movement cell, no script `MOVE`, and it is not a start point either.
+Two of the earlier passes of this audit under-reported reachability, because a
+placed NPC's `MOVE` opens 勇斗寺殿, 未知暗殿 and one guild-war map. Trust the
+script, not a summary written from an intermediate run of it.
+
+### 新手训练营 has no entrance in any 1.76 source
+
+It is the second-largest spawn table in the pack -- 16 lines, 1,830 monsters -- it
+has two guards in `GuardList.txt` and minimap 104, and **nothing anywhere reaches
+it.** Checked, because the expectation is that an NPC takes you in:
+
+- No movement cell in `mapinfo.txt` names it, in either direction.
+- No script teleports to it. Every `MOVE`/`MAPMOVE`/`MAP` target across all 425
+  `market_def` scripts and the three `Npc_def` ones comes to 47 distinct maps, and
+  `D12` is not one of them -- placed or unplaced.
+- It is not a start point, and not in `Npcs.txt`.
+- The same holds in all ten archived 1.76 sources, including the current GeeM2
+  tree, so this is not a truncated snapshot.
+
+What the data does show is the shape of the intended route. `D12` is declared
+`NORECONNECT(0131)`, and `0131` is 密室 ("secret room"), reachable from Bichon
+Province at 272,621 -- so a player disconnecting in the camp comes back to that
+room. The room has **no monsters and nobody standing in it**: `merchant.txt` places
+no NPC on `0131` at all. So the last hop, 密室 → 训练营, is the piece 1.76's own
+placement table is missing. Putting an NPC there would be inventing content, not
+importing it, so the camp stays orphaned and this is recorded instead.
 
 Two scares in that audit were my own script rather than the pack, and both are
 worth recording because they are the same mistake twice. 石墓阵, the 28-map maze
