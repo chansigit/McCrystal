@@ -62,3 +62,13 @@ export function npcIdleAction(entity, animations, now, random = Math.random) {
   }
   return entity.npcIdleAction;
 }
+
+// An HD override frame (Data/HD, built by Tools/SpriteHD) is exactly twice the
+// size the manifest declares, and is the only thing that ever is -- so the texture's
+// own dimensions say whether to halve the sprite's scale. Drawn at 0.5 the art keeps
+// its cell and its anchor and gains one texture pixel per physical pixel on a Retina
+// canvas, instead of one source pixel stretched over a 2x2 block.
+export function assetScale(texture, frame) {
+  if (!texture || !frame) return 1;
+  return texture.width === frame.width * 2 && texture.height === frame.height * 2 ? 0.5 : 1;
+}

@@ -33,7 +33,7 @@ app.MapGet("/assets/frame", (string library, int index, GameAssets assets) =>
     try
     {
         var frame = assets.Frame(library, index);
-        return frame is null ? Results.NotFound() : Results.File(frame.Png, "image/png");
+        return frame is null ? Results.NotFound() : Results.File(frame.Png, frame.ContentType);
     }
     catch (Exception e) when (e is ArgumentException or IOException) { return Results.NotFound(); }
 });

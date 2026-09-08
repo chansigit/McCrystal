@@ -17,6 +17,11 @@ public sealed class GameAssets : IDisposable
 {
     private readonly string root;
     private readonly Dictionary<string, string> libraries;
+    // Data/HD/<library>/<index>.png replaces a decoded frame with a 2x version built
+    // by Tools/SpriteHD. The directory is keyed off the canonical library name rather
+    // than the caller's spelling, so a query string can never steer the path, and the
+    // index is an int. Deleting Data/HD reverts the client to the original art.
+    private readonly Dictionary<string, string> overrides;
     private readonly Dictionary<string, string> maps;
     private readonly Dictionary<string, string> sounds;
     private readonly Dictionary<int, string> soundNames = new();
@@ -40,6 +45,10 @@ public sealed class GameAssets : IDisposable
         libraries = Directory.EnumerateFiles(Path.Combine(root, "Data"), "*", SearchOption.AllDirectories)
             .Where(path => Path.GetExtension(path).Equals(".lib", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(path => Path.GetRelativePath(Path.Combine(root, "Data"), path)[..^4].Replace('\\', '/'), path => path, StringComparer.OrdinalIgnoreCase);
+        var hdRoot = Path.Combine(root, "Data", "HD");
+        overrides = libraries.Keys.ToDictionary(name => name,
+            name => Path.Combine(hdRoot, name.Replace('/', Path.DirectorySeparatorChar)),
+            StringComparer.OrdinalIgnoreCase);
         maps = Directory.EnumerateFiles(Path.Combine(root, "Map"), "*", SearchOption.AllDirectories)
             .Where(path => Path.GetExtension(path).Equals(".map", StringComparison.OrdinalIgnoreCase))
             .ToDictionary(path => Path.GetRelativePath(Path.Combine(root, "Map"), path)[..^4].Replace('\\', '/'), path => path, StringComparer.OrdinalIgnoreCase);
@@ -58,7 +67,7 @@ public sealed class GameAssets : IDisposable
     // to be read and thrown away here.
     public sealed record Animation(int Start, int Count, int Skip, int Interval, bool Reverse, bool Blend);
     public sealed record LibraryData(FrameData?[] Frames, Dictionary<string, Animation> Animations);
-    public sealed record ImageData(byte[] Png);
+    public sealed record ImageData(byte[] Png, string ContentType = "image/png");
 
     public LibraryData Manifest(string library)
     {
@@ -103,12 +112,31 @@ public sealed class GameAssets : IDisposable
         });
     }
 
+    // An HD frame is exactly twice the manifest's size, which is how the renderer
+    // recognises it: it halves the sprite scale and the art keeps its place and its
+    // anchor. Nothing else in the protocol changes.
+    private string? OverridePath(string library, int index)
+    {
+        if (index < 0 || !overrides.TryGetValue(library, out var directory)) return null;
+        var png = Path.Combine(directory, $"{index}.png");
+        if (File.Exists(png)) return png;
+        var webp = Path.Combine(directory, $"{index}.webp");
+        return File.Exists(webp) ? webp : null;
+    }
+
     public ImageData? Frame(string library, int index)
     {
         string key = $"frame:{library}:{index}";
         if (cache.TryGetValue(key, out ImageData? cached)) return cached;
         var manifest = Manifest(library);
         if (index < 0 || index >= manifest.Frames.Length || manifest.Frames[index] is not { } frame) return null;
+        if (OverridePath(library, index) is { } hd)
+        {
+            var loaded = new ImageData(File.ReadAllBytes(hd),
+                hd.EndsWith(".webp", StringComparison.OrdinalIgnoreCase) ? "image/webp" : "image/png");
+            cache.Set(key, loaded, new MemoryCacheEntryOptions { Size = loaded.Png.Length, SlidingExpiration = TimeSpan.FromMinutes(10) });
+            return loaded;
+        }
         using var input = File.OpenRead(libraries[library]);
         input.Position = frame.Position;
         byte[] compressed = new byte[frame.Length];

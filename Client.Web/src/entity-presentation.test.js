@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation, entityDepth } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation, entityDepth, assetScale } from "./entity-presentation.js";
 
 test("names clear tall sprites and keep a screen-space gap", () => {
   assert.ok(PLAYER_NAME_SIZE > TEXT_SIZE);
@@ -65,4 +65,15 @@ test("NPCs alternate complete standing and harvest idle cycles", () => {
   assert.equal(npcIdleAction(npc, animations, 2999, () => 0), "Harvest");
   assert.equal(npcIdleAction(npc, animations, 3000, () => 0), "Standing");
   assert.equal(npcIdleAction({}, { Standing: animations.Standing }, 0, () => 0.9), "Standing");
+});
+
+test("an HD override frame is recognised by its size alone", () => {
+  // Data/HD holds frames at exactly twice the manifest's size, so the renderer needs
+  // no protocol change to know one: halve the scale and the sprite keeps its cell.
+  const frame = { width: 92, height: 64 };
+  assert.equal(assetScale({ width: 184, height: 128 }, frame), 0.5);
+  assert.equal(assetScale({ width: 92, height: 64 }, frame), 1); // the original art
+  assert.equal(assetScale({ width: 184, height: 64 }, frame), 1); // only one axis
+  assert.equal(assetScale(null, frame), 1);
+  assert.equal(assetScale({ width: 184, height: 128 }, null), 1);
 });

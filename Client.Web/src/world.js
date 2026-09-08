@@ -8,7 +8,7 @@ import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps } from "./footsteps.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth, assetScale } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 import { objectEffects } from "./object-effect.js";
 import { monsterOverlays } from "./monster-overlay.js";
@@ -454,6 +454,8 @@ export class World {
       sprite.texture = texture;
       sprite.assetFrame = frame;
       sprite.assetIndex = index;
+      sprite.assetScale = assetScale(texture, frame);
+      sprite.scale.set(sprite.assetScale);
     } else frame = sprite.assetFrame;
     sprite.x = Math.round(x + (offset ? frame.x : 0));
     sprite.y = Math.round(y + (offset ? frame.y : 0) - (up ? frame.height : 0));
@@ -748,7 +750,7 @@ export class World {
       );
       const body = this.nodes.get(`entity:${e.ObjectID}`);
       if (body && e.kind === "item") {
-        body.scale.set(0.6);
+        body.scale.set(0.6 * (body.assetScale ?? 1));
         body.position.set(Math.round(x + 24 - body.width / 2), Math.round(y + 16 - body.height / 2));
         const key = `item-glint:${e.ObjectID}`;
         let glint = this.nodes.get(key);
