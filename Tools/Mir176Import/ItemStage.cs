@@ -77,6 +77,32 @@ public static class ItemStage
 
     public sealed record Result(List<ItemInfo> Items, string Report, int Errors);
 
+    /// <summary>
+    /// How far a light source reaches, which 1.76 does not record anywhere.
+    ///
+    /// `StdItems` has 24 columns and none of them is light: M2's client decides a torch's
+    /// glow from the item category, so the number lives in the client, not the data. Crystal
+    /// puts it on the item (`ItemInfo.Light`, and both servers do
+    /// `if (real.Light > light) light = real.Light`), so without this every one of the pack's
+    /// 352 items emits nothing and a worn torch is indistinguishable from no torch.
+    ///
+    /// The values are Crystal's own, read out of the classic pack's database, which is an
+    /// independent witness the way it was for the minimap numbers: its Candle and Torch match
+    /// 蜡烛 and 火把 on weight, image and durability all three (1/130/8000 and 3/131/20000).
+    /// The encoding is packed -- `light % 15` is the reach into DXManager.LightSizes and
+    /// `light / 15` the brightness -- so 38 is 8 wide at brightness 2, 41 is 11 at 2, and 74
+    /// is 14 at 4: candle, torch, lantern.
+    ///
+    /// The 23 荣誉勋章 and 参赛证 share the same Stdmode 30 slot and are left dark, because
+    /// nothing in either source says what they should give and a medal is not a lamp.
+    /// </summary>
+    private static readonly Dictionary<string, byte> Lights = new()
+    {
+        ["蜡烛"] = 38,   // Candle
+        ["火把"] = 41,   // Torch
+        ["火炬"] = 74,   // the 50,000-durability tier; classic's Lantern
+    };
+
     public static Result Convert(List<Item> source, List<Magic> magics)
     {
         var report = new StringBuilder();
@@ -105,6 +131,7 @@ public static class ItemStage
                 Type = rule.Type,
                 Shape = (short)item.Shape,
                 Weight = (byte)Math.Clamp(item.Weight, 0, 255),
+                Light = Lights.GetValueOrDefault(item.Name),
                 Image = (ushort)Math.Clamp(item.Looks, 0, ushort.MaxValue),
                 Durability = (ushort)Math.Clamp(item.DuraMax, 0, ushort.MaxValue),
                 Price = (uint)Math.Max(0, item.Price),

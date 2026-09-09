@@ -125,6 +125,24 @@ copy with them in it. `--validate-pack` reproduces the geometry ones on demand.
 | Script links pointing at pages that do not exist | 13 | broken in the source, or M2 subsystems Crystal lacks |
 | Item names that resolve to two different items | 2 | `魔法头盔`, `小手镯` -- one of each is unreachable |
 | Skills in the table with no book to learn them | 76 | `Envir.FillMagicInfoList()` tops the list up to 109 |
+| Columns for how far a light source reaches | 0 | `StdItems` has none; M2 decides it in the client |
+
+### Light had to come from somewhere else
+
+1.76's `StdItems` has 24 columns and not one of them is light: M2's client decides a
+torch's glow from the item category, so the number never existed in the data. Crystal
+puts it on the item (`ItemInfo.Light`; both engines then do
+`if (real.Light > light) light = real.Light`), so the first import gave all 352 items a
+light of 0 and a worn torch was indistinguishable from no torch -- the player stayed at
+the client-side floor of 3 that native gives the local player and nobody else.
+
+The values now come from Crystal's own classic database, an independent witness the same
+way it was for the minimaps: its Candle and Torch match 蜡烛 and 火把 on weight, image
+and durability, all three. The byte is packed -- `light % 15` indexes
+`DXManager.LightSizes` and `light / 15` is the brightness -- so the ladder reads 蜡烛 38
+(8 wide at 2), 火把 41 (11 at 2), 火炬 74 (14 at 4). The 23 荣誉勋章 and 参赛证 share
+the same `Stdmode 30` slot and are left dark: nothing in either source says what they
+should give, and a medal is not a lamp.
 
 ### Maps nothing can reach
 
