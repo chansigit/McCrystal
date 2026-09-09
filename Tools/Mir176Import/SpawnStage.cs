@@ -18,11 +18,31 @@ public static class SpawnStage
 {
     public sealed record Result(int Count, string Report, int Errors);
 
+    /// <summary>
+    /// Names mongen.txt misspells, corrected on the user's instruction.
+    ///
+    /// This is the one place the pack knowingly departs from the source, so it is small and
+    /// it is listed. 屠龙殿 asks for 牛头侍卫8 eighty times over; no such monster exists in
+    /// 1.76's Monster table -- nor does 牛头侍卫 -- while the same spawn block names
+    /// 牛魔侍卫8 twice more, and that one is real (Race 81 / Appr 176). Without the
+    /// correction those eighty slots simply stay empty, which is what the original server
+    /// does too.
+    ///
+    /// 楔蛾0 and 剧毒蜘蛛0 are left alone. The `0` suffix is a real variant family
+    /// elsewhere, so the intended monster there is a guess rather than a typo with one
+    /// obvious reading.
+    /// </summary>
+    private static readonly Dictionary<string, string> MisspelledMonsters = new(StringComparer.Ordinal)
+    {
+        ["牛头侍卫8"] = "牛魔侍卫8",
+    };
+
     public static Result Convert(List<Spawn> spawns, List<MapInfo> maps, List<MonsterInfo> monsters)
     {
         var report = new StringBuilder();
         var notes = new List<string>();
         var missingMonster = new SortedDictionary<string, int>(StringComparer.Ordinal);
+        var corrected = new SortedDictionary<string, int>(StringComparer.Ordinal);
         var missingMap = new SortedDictionary<string, int>(StringComparer.Ordinal);
         int placed = 0, index = 0;
 
@@ -38,11 +58,14 @@ public static class SpawnStage
                 missingMap[spawn.MapFile] = missingMap.GetValueOrDefault(spawn.MapFile) + 1;
                 continue;
             }
-            if (!byName.TryGetValue(spawn.Monster, out var monster))
+            var wanted = MisspelledMonsters.GetValueOrDefault(spawn.Monster, spawn.Monster);
+            if (!byName.TryGetValue(wanted, out var monster))
             {
                 missingMonster[spawn.Monster] = missingMonster.GetValueOrDefault(spawn.Monster) + 1;
                 continue;
             }
+            if (wanted != spawn.Monster)
+                corrected[spawn.Monster] = corrected.GetValueOrDefault(spawn.Monster) + 1;
             map.Respawns.Add(new RespawnInfo
             {
                 MonsterIndex = monster.Index,
@@ -72,6 +95,17 @@ public static class SpawnStage
             report.AppendLine($"| {map.Title}（{map.FileName}） | {map.Respawns.Count} | " +
                 $"{map.Respawns.Sum(r => r.Count)} |");
         report.AppendLine();
+
+        if (corrected.Count > 0)
+        {
+            report.AppendLine("### mongen 里写错的怪名（按用户要求改掉，这是本包唯一一处主动偏离源数据）");
+            report.AppendLine();
+            report.AppendLine("| 源里写的 | 改成 | 行数 |");
+            report.AppendLine("|---|---|---|");
+            foreach (var (wrong, count) in corrected)
+                report.AppendLine($"| {wrong} | {MisspelledMonsters[wrong]} | {count} |");
+            report.AppendLine();
+        }
 
         if (missingMonster.Count > 0)
         {

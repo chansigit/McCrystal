@@ -121,7 +121,7 @@ copy with them in it. `--validate-pack` reproduces the geometry ones on demand.
 | Spawn boxes with no walkable cell | 9 | `D501`, `D713`, `D714` |
 | Movement discarded for an undeclared source map | 1 | `20122` should be `0122`; guessing was refused |
 | Drop lines naming items that never existed | 17 | 11 distinct names absent from `StdItems` |
-| Spawn lines naming monsters that never existed | 4 | `牛头侍卫8` is 1.76's own typo for `牛魔侍卫8` |
+| Spawn lines naming monsters that never existed | 3 | `楔蛾0`, `剧毒蜘蛛0`; the fourth was corrected, below |
 | Script links pointing at pages that do not exist | 13 | broken in the source, or M2 subsystems Crystal lacks |
 | Item names that resolve to two different items | 2 | `魔法头盔`, `小手镯` -- one of each is unreachable |
 | Skills in the table with no book to learn them | 76 | `Envir.FillMagicInfoList()` tops the list up to 109 |
@@ -143,6 +143,19 @@ and durability, all three. The byte is packed -- `light % 15` indexes
 (8 wide at 2), 火把 41 (11 at 2), 火炬 74 (14 at 4). The 23 荣誉勋章 and 参赛证 share
 the same `Stdmode 30` slot and are left dark: nothing in either source says what they
 should give, and a medal is not a lamp.
+
+### The one place the pack departs from the source
+
+`mongen.txt` asks 屠龙殿 for **牛头侍卫8**, eighty of them, and no such monster exists in
+1.76's `Monster` table -- nor does 牛头侍卫 -- while the same spawn block names 牛魔侍卫8
+twice more and that one is real (Race 81 / Appr 176). It is a typo with one obvious
+reading, so on the user's instruction `SpawnStage.MisspelledMonsters` corrects it and the
+import report lists what it changed. 屠龙殿 now holds 180 牛魔侍卫8 rather than 100 plus
+eighty empty slots.
+
+`楔蛾0` (2 lines) and `剧毒蜘蛛0` (1) are left alone. The `0` suffix is a real variant
+family elsewhere in the table, so which monster was meant there is a guess rather than a
+typo that reads only one way.
 
 ### Maps nothing can reach
 

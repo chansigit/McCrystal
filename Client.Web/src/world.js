@@ -9,6 +9,7 @@ import { Minimap } from "./native-map.js";
 import { AttackInput } from "./attack-input.js";
 import { Footsteps } from "./footsteps.js";
 import { Doors } from "./doors.js";
+import { glintStyle, glintPhase } from "./item-glint.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
 import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth, assetScale } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
@@ -797,12 +798,17 @@ export class World {
           this.objects.addChild(glint);
           this.nodes.set(key, glint);
         }
-        const phase = ((now + Math.abs(Number(e.ObjectID) || 0) * 137) % 1800) / 1800;
-        const alpha = phase < 0.28 ? Math.sin(phase / 0.28 * Math.PI) * 0.9 : 0;
-        glint.clear().rect(-5, 0, 11, 1).fill(0xffedaa).rect(0, -5, 1, 11).fill(0xffedaa)
-          .rect(-2, -2, 5, 5).fill({color: 0xffffff, alpha: 0.55});
+        const star = glintStyle(e.grade, glintPhase(now, e.ObjectID));
+        glint.clear();
+        if (star.halo)
+          glint.circle(0, 0, star.halo).fill({ color: star.colour, alpha: 0.22 });
+        glint.rect(-star.arm, -0.5, star.arm * 2, 1).fill(star.colour)
+          .rect(-0.5, -star.arm, 1, star.arm * 2).fill(star.colour)
+          .rect(-star.arm * 0.5, -1.5, star.arm, 3).fill({ color: star.colour, alpha: 0.5 })
+          .rect(-1.5, -star.arm * 0.5, 3, star.arm).fill({ color: star.colour, alpha: 0.5 })
+          .circle(0, 0, star.core).fill({ color: 0xffffff, alpha: 0.85 });
         glint.position.set(x + 24, y + 8);
-        glint.alpha = alpha;
+        glint.alpha = star.alpha;
         glint.blendMode = "add";
         glint.zIndex = depth + 0.01;
         glint.seen = this.tick;
