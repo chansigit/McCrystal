@@ -24,7 +24,7 @@ public static class GameSession
     // Mirrors Envir.CharacterReg. char.IsControl misses format characters such as
     // U+200B and U+202E, which allow visually identical character names.
     // CharacterInfo.Trade and CharacterInfo.Refine, whose lengths the server checks directly.
-    private const int TradeSlots = 10, RefineSlots = 16;
+    private const int TradeSlots = 10, RefineSlots = 16, InventorySlots = 46;
 
     private static readonly Regex CharacterName = new(
         $"^[\\u4e00-\\u9fa5_A-Za-z0-9]{{{Globals.MinCharacterNameLength},{Globals.MaxCharacterNameLength}}}$",
@@ -216,6 +216,8 @@ public static class GameSession
             "RetrieveRefineItem" => typeof(C.RetrieveRefineItem),
             // Doors. Map.AddDoor masks the map byte with 0x7F, so 1..127 is the whole range.
             "Opendoor" => typeof(C.Opendoor),
+            // Crafting. One packet names the recipe and the bag slots its materials sit in.
+            "CraftItem" => typeof(C.CraftItem),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -232,6 +234,15 @@ public static class GameSession
         // the server runs it through the same PlayerObject.RepairItem with special = true.
         if (packet is C.SRepairItem specialRepair && specialRepair.UniqueID == 0)
             throw new InvalidDataException("Invalid special repair");
+        // NPCScript.Craft reads player.Info.Inventory[slot] for every slot in the packet and
+        // dereferences the recipe it matched, so a null array or an out-of-range slot is the
+        // server's problem to survive, not the browser's to send. One slot per material is
+        // the most the server can use: it counts them against the recipe's own requirement
+        // count and refuses a mismatch.
+        if (packet is C.CraftItem craft && (craft.UniqueID == 0 || craft.Count == 0 || craft.Slots is null ||
+            craft.Slots.Length > InventorySlots || craft.Slots.Any(slot => slot is < 0 or >= InventorySlots) ||
+            craft.Slots.Distinct().Count() != craft.Slots.Length))
+            throw new InvalidDataException("Invalid craft");
         if (packet is C.ChangeAMode mode && !Enum.IsDefined(mode.Mode)) throw new InvalidDataException("Invalid attack mode");
         // Map.OpenDoor walks its door list looking for the index and returns false when it is
         // not there, silently. Index 0 is "no door" in the map data and can never match.

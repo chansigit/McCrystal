@@ -5,40 +5,48 @@ data and should stay broken. Companion to `Packs/mir-176/README.md`, which cover
 each content class was imported, and `docs/project-status.md`, which covers the whole
 project. Update this file rather than starting a new list.
 
-As of 2026-09-08, `main` at `7cfa9715`.
+As of 2026-09-15, `main` at `46e54a0e` plus the craft window.
 
 ## Blocked on a human
 
-**Nothing in this pack has been verified in game by a person.** Monster sprites, drop
-tables, the darkness on dark maps, the four new panels (trade, party, refine, special
-repair), the doors, and the minimap numbers are all checked only by tests, validators
-and rendered harnesses. The gap is not knowledge, it is that logging in needs the
-account owner.
+The account owner has now played the pack, and that one session found three things no
+test had: a worn torch that gave no light (1.76 records none, fixed in `7b2eb9cc`), 牛魔法师
+casting with no visible effect, and 屠龙殿 spawning eighty monsters that do not exist
+(`46e54a0e`). Two of those were in the data; none were reachable from this side.
 
-Two things need a restart before they can be seen at all: doors need the gateway
-rebuilt (the map payload gained a `doors` field), and the minimaps need the *server*
-restarted, because it reads `Server.MirDB` once at boot.
+Still checked only by tests and validators, because they need someone playing: the four
+newer panels (trade, party, refine, special repair) and now the craft window, the doors,
+whether the minimap art lines up on the maps whose geometry differs from classic's, and
+牛魔法师's missing spell effect -- which is a *client* gap and ours to fill if we choose,
+since Crystal's AI 26 broadcasts nothing but `S.ObjectRangeAttack`.
+
+## Built since this list was written
+
+**合成 (crafting) is reachable.** `src/craft.js` opens on `PanelType.Craft` -- the same
+S.NPCGoods a shop arrives as -- lists what the NPC makes, picks one bag slot per material
+and sends `C.CraftItem`. The seven NPCs are 沓水店老板 (`0109` 4,8), 药房小老板 (`0119`
+14,14), 药店老板 (`0153` 7,14), 药剂师 (`1006` 9,10 and 苍月岛 161,316), 恶魔炼药师
+(`B343` 14,10) and 合成师 (`R001` 桃源之门 53,115), between them the 13 recipes.
+
+Three things the window has to do because the server does them:
+
+- **One slot per material, no more.** `NPCScript.Craft` counts the slots it consumed
+  against `Tools.Count + Ingredients.Count` and refuses a mismatch, so a second slot
+  holding the same herb is not a bigger pile -- it is a refusal.
+- **A material must be met from one slot.** Two stacks of three leaves are six leaves the
+  player can see and cannot spend; the window says so rather than letting the server
+  answer with a bare `false`.
+- **Success is not success.** `S.CraftItem { Success }` means the attempt was processed.
+  Where the recipe's chance is under 100 the materials are taken either way and the
+  failure arrives as a chat line, which is what the window's hint warns about.
+
+`NPCScript.Craft` also dereferenced a recipe it had not found -- a page left open while
+the player walked to another craftsman is enough to reach it -- so it now answers the way
+every other refusal in that method does.
 
 ## Still to build, and 1.76 needs it
 
 Ordered by what blocks play.
-
-### 合成 (crafting) -- the last import with no way to reach it
-
-The pack has 13 recipes and 7 crafting NPCs: 沓水店老板 (`4Bdm`), 药房小老板 (`4Gdm`),
-药店老板 (`4Adm`), 药剂师 (`4ndm`, `4Idm`), 合成师 (`9maker`), 恶魔炼药师 (`4Ddm`).
-
-The server sends a craft page as `S.NPCGoods` with `PanelType.Craft` and takes
-`C.CraftItem { UniqueID, Count, Slots }` back. `src/shop.js` **refuses it outright**:
-
-```js
-if (![0, 1].includes(goods.Type)) { this.close(); $("npc-status").textContent = "此合成窗口尚未接入"; return; }
-```
-
-So the content imported and the window does not open. The importer was taught to tell a
-crafting NPC from a shop specifically so these would not be sold as goods -- that half
-landed, this half did not. Work: extend the existing shop panel with an ingredient grid
-and wire `CraftItem`.
 
 ### Buff and debuff icons
 

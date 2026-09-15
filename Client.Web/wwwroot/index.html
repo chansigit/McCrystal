@@ -129,6 +129,13 @@
         <div class="shop-actions"><label for="shop-count">数量</label><input id="shop-count" type="number" min="1" max="1" step="1" value="1" /><button id="shop-buy" type="button">购买</button></div>
         <p id="shop-total"></p><p id="shop-status" role="status"></p>
       </div>
+      <div id="npc-craft" hidden>
+        <h3>合成</h3>
+        <div id="craft-list" aria-label="可合成的物品"></div>
+        <div id="craft-needs" aria-label="所需材料"></div>
+        <div class="shop-actions"><label for="craft-count">数量</label><input id="craft-count" type="number" min="1" max="1" step="1" value="1" /><button id="craft-make" type="button">合成</button></div>
+        <p id="craft-total"></p><p id="craft-hint"></p><p id="craft-status" role="status"></p>
+      </div>
       <div id="npc-trade" hidden>
         <h3 id="trade-title">出售</h3>
         <div id="trade-list" aria-label="可交易物品"></div>

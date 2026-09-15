@@ -27,6 +27,7 @@ import { GameAudio } from "./audio.js";
 import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
+import { CraftPanel, CRAFT_PANEL } from "./craft.js";
 import { NPCTrade } from "./npc-trade.js";
 import { PlayerTrade } from "./player-trade.js";
 import { GroupPanel } from "./group.js";
@@ -80,6 +81,11 @@ const state = {
   pending: false,
   nextMove: 0,
   items: new Map(),
+  // Every recipe in the world arrives once, at login: PlayerObject.GetRecipeInfo sends the
+  // whole Envir.RecipeInfoList before the player has met a single crafting NPC. The craft
+  // window is the only thing that reads them, keyed by the recipe id the server also puts
+  // on the product it offers.
+  recipes: new Map(),
   inWorld: false,
   characters: [],
   mapReady: false,
@@ -93,6 +99,8 @@ window.__unhandledPackets = unhandledPackets;
 const inventory = new InventoryUI(() => state.user, (index) => state.items.get(index), send);
 const npc = new NPCDialog(send);
 const shop = new Shop(() => state.user, (index) => state.items.get(index), send);
+const craft = new CraftPanel(() => state.user, (index) => state.items.get(index),
+  (id) => state.recipes.get(String(id)), send);
 const trade = new NPCTrade(() => state.user, (index) => state.items.get(index), send);
 // The server sends no player stats at all, so this panel derives them the way the native
 // client does; see src/stats.js.
@@ -107,7 +115,7 @@ const refine = new RefinePanel(() => state.user, (index) => state.items.get(inde
 const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
-npc.onChange = () => { shop.close(); trade.close(); storage.close(); refine.close(); };
+npc.onChange = () => { shop.close(); craft.close(); trade.close(); storage.close(); refine.close(); };
 const world = new World($("game"), (point, entity, running, forced, harvesting) => {
   if (!state.mapReady) return;
   const pointer = world.attackInput.pointer;
@@ -318,7 +326,17 @@ function receive(type, p) {
     case "NPCGoods":
       if (!npc.objectID) break;
       clearTimeout(npc.timer); $("npc-status").textContent = "";
-      shop.open(p); break;
+      // One packet, three windows. PanelType.Craft is the 合成 page; Buy and BuySub are
+      // the shop and its second-hand shelf.
+      if (p.Type === CRAFT_PANEL) { shop.close(); craft.open(p); }
+      else { craft.close(); shop.open(p); }
+      break;
+    case "NewRecipeInfo":
+      if (p.Info?.Item) { state.recipes.set(String(p.Info.Item.UniqueID), p.Info); craft.refresh(); }
+      break;
+    case "CraftItem":
+      craft.receive(type, p);
+      break;
     case "ChangeAMode":
       if (Number.isInteger(p.Mode) && p.Mode >= 0 && p.Mode <= 5) {
         state.attackMode = p.Mode;
@@ -960,6 +978,7 @@ function updateInventory() {
   characterStats.render();
   updateWeight();
   if (shop.goods) shop.details();
+  craft.refresh();
   trade.refresh();
   playerTrade.render();
   refine.refresh();

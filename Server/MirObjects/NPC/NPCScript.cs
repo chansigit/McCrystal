@@ -1252,6 +1252,16 @@ namespace Server.MirObjects
                 break;
             }
 
+            // A client is free to name a recipe this NPC does not make -- a page left open
+            // while the player walked to another craftsman is enough -- and the loop above
+            // simply finds nothing. Reading recipe.Item at that point threw where every
+            // other refusal in this method answers with a bare failure.
+            if (recipe == null)
+            {
+                player.Enqueue(p);
+                return;
+            }
+
             UserItem goods = recipe.Item;
 
             if (goods == null || count == 0 || count > goods.Info.StackSize)

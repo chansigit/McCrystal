@@ -466,6 +466,21 @@ Check(door.DoorIndex == 127, "The highest door index reaches the server");
 Reject("""{"type":"Opendoor","data":{"DoorIndex":0}}""", "Door index zero rejected");
 Reject("""{"type":"Opendoor","data":{"DoorIndex":128}}""", "Door index past the 0x7F mask rejected");
 
+// Crafting. NPCScript.Craft indexes player.Info.Inventory with every slot in the packet and
+// counts the slots it consumed against the recipe's own requirement count, so a repeated slot
+// is not a bigger pile -- it is a mismatch the server answers with a bare failure.
+var makeItem = (ClientPackets.CraftItem)Parse("""{"type":"CraftItem","data":{"UniqueID":"9","Count":2,"Slots":[0,45]}}""");
+Check(makeItem.UniqueID == 9 && makeItem.Count == 2 && makeItem.Slots.Length == 2 && makeItem.Slots[1] == 45,
+    "A craft carries the recipe, the count and one bag slot per material");
+Check(Parse("""{"type":"CraftItem","data":{"UniqueID":"9","Count":1,"Slots":[]}}""") is ClientPackets.CraftItem,
+    "A recipe with no materials at all is still the server's to refuse");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"0","Count":1,"Slots":[0]}}""", "Craft without a recipe rejected");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"9","Count":0,"Slots":[0]}}""", "Craft of nothing rejected");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"9","Count":1,"Slots":[46]}}""", "Craft slot past the bag rejected");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"9","Count":1,"Slots":[-1]}}""", "Negative craft slot rejected");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"9","Count":1,"Slots":[3,3]}}""", "Repeated craft slot rejected");
+Reject("""{"type":"CraftItem","data":{"UniqueID":"9","Count":1}}""", "Craft with no slot array rejected");
+
 var invite = (ClientPackets.AddMember)Parse("""{"type":"AddMember","data":{"Name":"Someone"}}""");
 Check(invite.Name == "Someone", "A party invite carries the character name");
 Reject("""{"type":"AddMember","data":{"Name":""}}""", "Empty party invite rejected");
@@ -479,6 +494,33 @@ using (var offer = JsonDocument.Parse(JsonSerializer.Serialize(
     new ServerPackets.TradeItem { TradeItems = new UserItem[10] }, GameSession.Json)))
     Check(offer.RootElement.GetProperty("TradeItems").GetArrayLength() == 10,
         "The partner's ten trade slots reach the browser, empty ones included");
+// Every recipe in the world reaches the browser once, at login, as S.NewRecipeInfo. The
+// craft window cannot ask for one later, so a recipe this serialiser drops is a product the
+// player can select and never make. The ingredients arrive as bare ItemIndex references,
+// their names and images having come ahead of them as S.NewItemInfo.
+var leaf = new ItemInfo { Index = 101, Name = "食人树叶", StackSize = 50 };
+var powder = new ItemInfo { Index = 900, Name = "灰色药粉(少量)", StackSize = 20 };
+using (var written = JsonDocument.Parse(JsonSerializer.Serialize(new ServerPackets.NewRecipeInfo
+{
+    Info = new ClientRecipeInfo
+    {
+        Gold = 100, Chance = 80,
+        Item = new UserItem(powder) { UniqueID = 7, ItemIndex = 900, Count = 1 },
+        Ingredients = new List<UserItem> { new UserItem(leaf) { ItemIndex = 101, Count = 4 } },
+    }
+}, GameSession.Json)))
+{
+    var recipe = written.RootElement.GetProperty("Info");
+    Check(recipe.GetProperty("Gold").GetUInt32() == 100 && recipe.GetProperty("Chance").GetByte() == 80,
+        "A recipe's fee and its success chance reach the browser");
+    Check(recipe.GetProperty("Item").GetProperty("UniqueID").GetString() == "7",
+        "The recipe id the craft packet names back is the product's own UniqueID");
+    Check(recipe.GetProperty("Ingredients").GetArrayLength() == 1 &&
+        recipe.GetProperty("Ingredients")[0].GetProperty("ItemIndex").GetInt32() == 101 &&
+        recipe.GetProperty("Ingredients")[0].GetProperty("Count").GetUInt16() == 4,
+        "Each ingredient reaches the browser as an item index and an amount");
+}
+
 using (var refineWindow = JsonDocument.Parse(JsonSerializer.Serialize(
     new ServerPackets.NPCRefine { Rate = 2.5F, Refining = true }, GameSession.Json)))
     Check(Math.Abs(refineWindow.RootElement.GetProperty("Rate").GetSingle() - 2.5F) < 0.001F &&

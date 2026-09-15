@@ -1,6 +1,6 @@
 # Project status
 
-As of 2026-09-08, `main` at `ff37fec3`. Living document — update the date and
+As of 2026-09-15, `main` at `46e54a0e` plus the craft window. Living document — update the date and
 the sections that changed rather than starting a new file.
 
 ## What runs where
@@ -112,9 +112,12 @@ What is left to build, what is deliberately not being built, and what is broken
 in 1.76's own data now lives in **`docs/mir-176-open-items.md`**. Two corrections
 that list records: **师徒 and 结婚 are 1.76 content**, not post-1.76 as an earlier
 note here claimed -- `9helper-0` carries the whole mentorship menu on Bichon
-Province and `9marryman` (月老) stands on `M101` 姻缘神殿. And the biggest
-client-side gap is **合成**: 13 recipes and 7 crafting NPCs imported, and
-`shop.js` refuses `PanelType.Craft` outright.
+Province and `9marryman` (月老) stands on `M101` 姻缘神殿.
+
+**合成 is no longer a gap.** `src/craft.js` opens on `PanelType.Craft`, picks one
+bag slot per material the way `NPCScript.Craft` matches them, and sends
+`C.CraftItem`; the 13 recipes and their 7 NPCs are reachable. The same change
+stopped that method dereferencing a recipe it had not found.
 
 `Roll` was on that list as 1.76 content, described as the lottery clerk. That was
 wrong. `S.Roll` only ever comes from the script actions `ROLLDIE` and `ROLLYUT`,
@@ -438,8 +441,8 @@ the fleeing ones are worth more when skinned. They look identical.
 ## Tests
 
 ```sh
-dotnet run --project Tests/Regression/Regression.csproj   # engine, 36 checks
-cd Client.Web && npm test                                 # 238 JS, then 165 gateway
+dotnet run --project Tests/Regression/Regression.csproj   # engine, 37 checks
+cd Client.Web && npm test                                 # 249 JS, then 176 gateway
 python3 Tools/Mir176Import/monster-audit.py               # sprite table consistency
 ```
 
