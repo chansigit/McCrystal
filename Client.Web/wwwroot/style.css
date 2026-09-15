@@ -1046,6 +1046,13 @@ progress::-moz-progress-bar {
    purchase is: one list, one selection, one count. What it adds is the materials line,
    where each requirement has to say whether the bag can meet it in a single slot. */
 #npc-craft h3 { font-size: 15px; margin: 0 0 4px; }
+/* 刺杀剑术 and 半月弯刀 are switches rather than hotkeys, and 烈火剑法 is a one-swing arming,
+   so these three rows carry a button the rest of the skill list does not. */
+.skill-toggle {
+  min-height: 34px; padding: 4px 10px; font: inherit; white-space: nowrap;
+  color: #f1f4f3; background: #263c31; border: 1px solid #829879; border-radius: 4px;
+}
+.skill-toggle[aria-pressed="true"] { color: #10241c; background: #e8b24a; border-color: #e8b24a; }
 #craft-list { max-height: 200px; overflow: auto; margin: 6px 0; }
 #craft-needs { margin: 6px 0; padding: 6px; background: #10191759; border: 1px solid #486553; border-radius: 4px; }
 #craft-needs p { font-size: 13px; color: #cfd8d4; margin: 4px 2px; }
@@ -1142,6 +1149,25 @@ progress::-moz-progress-bar {
 .trade-actions .danger, .group-row button { color: #f0b9b0; background: #241716ee; border-color: #8f6b6b80; }
 #trade-slot-hint, #refine-hint, #group-hint { font-size: 13px; color: #cfd8d4; margin: 8px 0 2px; }
 #trade-window-status, #refine-status, #group-status { font-size: 13px; color: #e2cc92; margin: 2px 0; min-height: 18px; }
+/* 查看装备 shows fourteen slots and nothing that can be moved, so it is a read-only grid
+   rather than the .item-grid the bag and the vault share. */
+#inspect-panel {
+  position: fixed; z-index: 13; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: min(460px, calc(100% - 24px)); max-height: calc(100dvh - 120px); overflow: auto;
+  padding: 12px 14px; background: #17211af5; border: 1px solid #829879; border-radius: 6px;
+}
+#inspect-panel[hidden] { display: none; }
+#inspect-panel header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+#inspect-panel h2 { flex: 1; font-size: 17px; margin: 0; }
+#inspect-detail { font-size: 13px; color: #cfd8d4; margin: 2px 0 10px; }
+#inspect-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 6px; }
+.inspect-slot {
+  display: grid; grid-template-columns: 32px minmax(0, 1fr); gap: 6px; align-items: center;
+  min-height: 38px; padding: 3px 4px; background: #10191759; border: 1px solid #486553; border-radius: 4px;
+}
+.inspect-slot img { width: 32px; height: 32px; object-fit: contain; image-rendering: pixelated; }
+.inspect-slot small { font-size: 12px; overflow-wrap: anywhere; }
+.inspect-empty { color: #7d8b86; }
 #group-panel {
   position: fixed; z-index: 12; right: 12px; top: 120px; width: min(300px, calc(100% - 24px));
   max-height: calc(100dvh - 260px); overflow: auto; padding: 10px 12px;

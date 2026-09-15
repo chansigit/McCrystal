@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation, entityDepth, assetScale } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, goldImage, npcIdleAction, beginAttackAnimation, entityDepth, assetScale, nameColour } from "./entity-presentation.js";
 
 test("names clear tall sprites and keep a screen-space gap", () => {
   assert.ok(PLAYER_NAME_SIZE > TEXT_SIZE);
@@ -76,4 +76,17 @@ test("an HD override frame is recognised by its size alone", () => {
   assert.equal(assetScale({ width: 184, height: 64 }, frame), 1); // only one axis
   assert.equal(assetScale(null, frame), 1);
   assert.equal(assetScale({ width: 184, height: 128 }, null), 1);
+});
+
+test("a name's colour is the server's when it has something to say", () => {
+  // PlayerObject.GetNameColour: Color.Red at 200 PK points, SaddleBrown while BrownTime
+  // runs. MapObject.NameColour starts as White, which says nothing, so the kind's own
+  // colour reads better than painting every name the same.
+  assert.equal(nameColour({ kind: "player", NameColour: "#ff0000" }), "#ff0000");
+  assert.equal(nameColour({ kind: "player", NameColour: "#8b4513" }), "#8b4513");
+  assert.equal(nameColour({ kind: "player", NameColour: "#ffffff" }), "#f1f3e1", "white is the default, not a statement");
+  assert.equal(nameColour({ kind: "monster", NameColour: null }), "#ffcf9c");
+  assert.equal(nameColour({ kind: "npc" }), "#a5e7d0");
+  assert.equal(nameColour({ kind: "player", NameColour: {} }), "#f1f3e1",
+    "an empty object is what a colour used to arrive as; it must not reach the renderer");
 });

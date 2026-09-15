@@ -11,7 +11,7 @@ import { Footsteps } from "./footsteps.js";
 import { Doors } from "./doors.js";
 import { glintStyle, glintPhase } from "./item-glint.js";
 import { mapAnimation, mapEffectFrame, mapPlacement, tileAnimationFrame } from "./map-effects.js";
-import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth, assetScale } from "./entity-presentation.js";
+import { TEXT_SIZE, PLAYER_NAME_SIZE, showName, nameTop, nameColour, frameIndex, transitionFrame, hydraOverlay, npcIdleAction, entityDepth, assetScale } from "./entity-presentation.js";
 import { spellObject, spellObjectFrame, spellObjectEffects, SPELL_OBJECT_SOUNDS } from "./spell-object.js";
 import { objectEffects } from "./object-effect.js";
 import { monsterOverlays } from "./monster-overlay.js";
@@ -347,6 +347,14 @@ export class World {
         if (this.manifests.get(definition.library)?.frames[definition.start + i])
           this.texture(definition.library, definition.start + i, true);
     });
+  }
+  // A label is built once and cached by object id, so a renamed object (S.ObjectName, which
+  // is how a tamed monster and a title change announce themselves) needs the old one gone.
+  forgetLabel(objectID) {
+    const label = this.labels.get(objectID);
+    if (!label) return;
+    label.destroy();
+    this.labels.delete(objectID);
   }
   removeSpellObject(objectID) {
     this.spellObjects.delete(objectID);
@@ -898,10 +906,15 @@ export class World {
         if (!label) {
           label = new Text({text:e.kind === "monster" ? (e.Name || "").replaceAll("_", "\n") : e.Name || "",
             style:{fontFamily:"Arial, sans-serif",fontSize:e.kind === "player" ? PLAYER_NAME_SIZE : TEXT_SIZE,align:"center",
-              fill:e.kind === "monster" ? "#ffcf9c" : e.kind === "npc" ? "#a5e7d0" : "#f1f3e1",
+              fill:nameColour(e),
               stroke:{color:"#000000",width:2}},resolution:2});
           label.anchor.set(0.5,0); this.objects.addChild(label); this.labels.set(e.ObjectID,label);
         }
+        // S.ObjectColourChanged arrives long after the label was made -- a player crosses
+        // 200 PK points and goes red where they stand -- so the fill is re-read every frame
+        // rather than frozen at creation.
+        const colour = nameColour(e);
+        if (label.style.fill !== colour) label.style.fill = colour;
         label.scale.set(1 / scale);
         label.position.set(x + 25, e.kind === "item" ? y + 16 :
           nameTop(y, top, label.height, scale, e.kind === "player" ? -2 : 4));

@@ -442,7 +442,7 @@ the fleeing ones are worth more when skinned. They look identical.
 
 ```sh
 dotnet run --project Tests/Regression/Regression.csproj   # engine, 37 checks
-cd Client.Web && npm test                                 # 249 JS, then 176 gateway
+cd Client.Web && npm test                                 # 262 JS, then 191 gateway
 python3 Tools/Mir176Import/monster-audit.py               # sprite table consistency
 ```
 

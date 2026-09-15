@@ -72,3 +72,15 @@ export function assetScale(texture, frame) {
   if (!texture || !frame) return 1;
   return texture.width === frame.width * 2 && texture.height === frame.height * 2 ? 0.5 : 1;
 }
+
+// PlayerObject.GetNameColour is how 1.76 tells a player apart at a glance: Color.Red once
+// PKPoints reaches 200 (红名), SaddleBrown while BrownTime runs (灰名), and green, blue or
+// orange for the sides of a guild war. MapObject.NameColour starts as White, so white is
+// "nothing to say" and the kind's own colour is the better answer.
+const KIND_COLOURS = { monster: "#ffcf9c", npc: "#a5e7d0", player: "#f1f3e1", item: "#f1f3e1" };
+export function nameColour(entity) {
+  const given = entity?.NameColour;
+  if (typeof given === "string" && /^#[0-9a-f]{6}$/i.test(given) && given.toLowerCase() !== "#ffffff")
+    return given;
+  return KIND_COLOURS[entity?.kind] || KIND_COLOURS.player;
+}

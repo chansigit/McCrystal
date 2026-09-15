@@ -16,6 +16,7 @@ import {
   Blend,
   Users,
   Handshake,
+  Search,
 } from "lucide";
 import { World, directions, directionTo } from "./world.js";
 import { movementLength, beginMotion, resetMotion, MOVE_INTERVAL, blockedTurn } from "./movement.js";
@@ -28,6 +29,8 @@ import { chatCommand } from "./chat.js";
 import { NPCDialog } from "./npc.js";
 import { Shop } from "./shop.js";
 import { CraftPanel, CRAFT_PANEL } from "./craft.js";
+import { SwordArts } from "./sword-arts.js";
+import { InspectPanel } from "./inspect.js";
 import { NPCTrade } from "./npc-trade.js";
 import { PlayerTrade } from "./player-trade.js";
 import { GroupPanel } from "./group.js";
@@ -65,6 +68,7 @@ const icons = {
   Blend,
   Users,
   Handshake,
+  Search,
 };
 createIcons({ icons });
 const gameAudio = new GameAudio();
@@ -113,6 +117,9 @@ const playerTrade = new PlayerTrade(() => state.user, (index) => state.items.get
 const group = new GroupPanel(() => state.user, send);
 const refine = new RefinePanel(() => state.user, (index) => state.items.get(index), send);
 const storage = new StorageUI(() => state.user, (index) => state.items.get(index), send);
+// 查看装备. The server answers C.Inspect with the whole of someone's equipment, which is
+// the one thing about another player 1.76 lets you look at.
+const inspect = new InspectPanel((index) => state.items.get(index), send);
 const revive = new ReviveOverlay(send);
 const characterScreen = new CharacterScreen(send);
 npc.onChange = () => { shop.close(); craft.close(); trade.close(); storage.close(); refine.close(); };
@@ -164,6 +171,11 @@ const world = new World($("game"), (point, entity, running, forced, harvesting) 
 const skills = new Skills(() => state.user, send, world, () => {
   cancelAttack(); state.path = []; world.runPointer = null;
 }, (delay) => { state.nextMove = performance.now() + delay; state.nextAttack = state.nextMove; });
+// 攻杀剑术, 刺杀剑术, 半月弯刀 and 烈火剑法. None of the four is a cast: they ride on the next
+// swing, which is why they were the only 1.76 skills with no way into this client at all.
+const swordArts = new SwordArts(() => state.user, send, world);
+skills.swordArts = swordArts;
+swordArts.onChange = () => skills.render();
 world.onStep = (sound) => gameAudio.play(sound, 80);
 // A missile's impact sound plays when the flight ends, not when it was fired.
 world.onEffectSound = (sound) => gameAudio.play(sound);
@@ -702,6 +714,79 @@ function receive(type, p) {
       }
       break;
     }
+    case "PlayerInspect":
+      inspect.receive(p);
+      break;
+    // 1.76 says 红名 (PKPoints >= 200), 灰名 (BrownTime) and the sides of a guild war in the
+    // colour of a name, and the colour can change while the player is standing there.
+    case "ColourChanged":
+      if (state.user) state.user.NameColour = p.NameColour;
+      break;
+    case "ObjectColourChanged": {
+      const recoloured = world.entities.get(p.ObjectID);
+      if (recoloured) recoloured.NameColour = p.NameColour;
+      break;
+    }
+    case "ObjectName": {
+      const renamed = world.entities.get(p.ObjectID);
+      // The label is built once and cached by object id, so a new name needs the old label
+      // thrown away rather than edited.
+      if (renamed && typeof p.Name === "string") { renamed.Name = p.Name; world.forgetLabel(p.ObjectID); }
+      break;
+    }
+    // Native plays Effect(Magic2, 1890, 10, ...) on the object that levelled
+    // (GameScene.cs:5186); ours reuses the existing spell-effect layer.
+    case "ObjectLeveled": {
+      const levelled = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
+      if (levelled?.Location) {
+        world.addSpellEffect(["Magic2", 1180, 16, 2500], levelled.ObjectID, levelled.Location);
+        gameAudio.play(10156); // SoundList.LevelUp
+      }
+      break;
+    }
+    // 困魔咒 (TrapHexagon). The server refuses to move a trapped player and says so only
+    // through this packet, so without it the client looks broken rather than trapped.
+    case "InTrapRock":
+      state.trapped = !!p.Trapped;
+      if (state.trapped) { state.path = []; state.destination = null; world.runPointer = null; }
+      $("skill-status").textContent = state.trapped ? "被困魔咒困住了，先打破它" : "";
+      break;
+    // 公告. Settings.Notice is only sent when it changed since the last logout.
+    case "UpdateNotice":
+      if (p.Notice?.Message) addMessage(p.Notice.Message, 2);
+      break;
+    // The weapon that came back from 修炼 carries its new stats here, and nothing else
+    // reports them: RefreshItem is not sent for it.
+    case "ItemUpgraded":
+      if (p.Item && state.user) {
+        const slot = state.user.Inventory.findIndex((item) => item?.UniqueID === p.Item.UniqueID);
+        if (slot >= 0) state.user.Inventory[slot] = p.Item;
+        updateInventory();
+      }
+      break;
+    // 攻杀剑术 armed by the server's own roll, and 烈火剑法 confirmed after it took the mana.
+    case "SpellToggle":
+      swordArts.receive(p, state.user?.ObjectID);
+      break;
+    // 野蛮冲撞. Without these the server moves the player and this client does not, which
+    // is a desynchronised position rather than a missing animation.
+    case "UserDash":
+    case "UserDashFail":
+      if (state.user && p.Location) {
+        // The same slide every other move uses, so the dash reads as travel rather than a
+        // jump -- the server sends one packet per cell crossed.
+        moveObject(state.user, p);
+        state.path = []; state.destination = null;
+        world.runPointer = null;
+        state.lastMovedAt = performance.now();
+      }
+      break;
+    case "ObjectDash":
+    case "ObjectDashFail": {
+      const dashing = world.entities.get(p.ObjectID);
+      if (dashing && p.Location) moveObject(dashing, p);
+      break;
+    }
     case "ObjectHarvest": {
       const object = p.ObjectID === state.user?.ObjectID ? state.user : world.entities.get(p.ObjectID);
       if (object) {
@@ -1025,7 +1110,11 @@ function attack(direction = state.user?.Direction) {
   state.path = [];
   world.runPointer = null;
   const d = direction >= 0 ? direction : state.user.Direction;
-  send("Attack", { Direction: d, Spell: 0 });
+  // HumanObject.Attack re-checks the skill and quietly degrades the swing when it will not
+  // allow it, so a spell that does not apply costs nothing but the byte.
+  const spell = swordArts.spellFor(d);
+  send("Attack", { Direction: d, Spell: spell });
+  if (spell) swordArts.spent(spell);
   gameAudio.play(state.user.Weapon >= 0 ? 10052 : 10056);
   state.user.Direction = d;
   state.user.attackStartedAt = performance.now();
@@ -1119,6 +1208,18 @@ $("group-decline").onclick = () => group.answer(false);
 // C.TradeRequest names nobody: the server trades with whoever is standing on the cell the
 // player faces, so this is "ask the person in front of me".
 $("start-trade").onclick = () => playerTrade.invite();
+// C.Inspect does name its target, so this picks the player on the cell the character faces --
+// the same "the person in front of me" the trade button means, made explicit.
+$("inspect-player").onclick = () => {
+  const user = state.user;
+  if (!user?.Location) return;
+  const [dx, dy] = directions[user.Direction] || [0, 0];
+  const ahead = { X: user.Location.X + dx, Y: user.Location.Y + dy };
+  const who = [...world.entities.values()].find((e) => e.kind === "player" && !e.Dead &&
+    e.Location?.X === ahead.X && e.Location?.Y === ahead.Y);
+  if (!who) { $("chat-status").textContent = "面前没有人"; return; }
+  inspect.request(who.ObjectID);
+};
 $("trade-accept").onclick = () => playerTrade.answer(true);
 $("trade-decline").onclick = () => playerTrade.answer(false);
 $("trade-add-gold").onclick = () => playerTrade.addGold($("trade-gold").value);
@@ -1363,6 +1464,9 @@ setInterval(() => {
   const direction = directionTo(state.user.Location, target);
   state.turnPoint = null;
   if (direction < 0) return;
+  // 困魔咒: HumanObject refuses every move while the hexagon holds and says so only through
+  // S.InTrapRock, so a client that keeps asking looks broken rather than trapped.
+  if (state.trapped) { state.path = []; state.destination = null; return; }
   const now = performance.now();
   const canRun = running && state.lastMovedAt > 0 && now - state.lastMovedAt < 1000 &&
     now >= (state.runBlockedUntil || 0) && state.user.HP >= 10;

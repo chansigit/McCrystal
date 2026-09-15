@@ -466,6 +466,45 @@ Check(door.DoorIndex == 127, "The highest door index reaches the server");
 Reject("""{"type":"Opendoor","data":{"DoorIndex":0}}""", "Door index zero rejected");
 Reject("""{"type":"Opendoor","data":{"DoorIndex":128}}""", "Door index past the 0x7F mask rejected");
 
+// A name's colour is how 1.76 says 红名, 灰名 and which side of a guild war someone is on
+// (PlayerObject.GetNameColour). System.Drawing.Color exposes R, G and B as get-only
+// properties and this gateway's serialiser drops get-only properties, so before the
+// converter every one of them arrived as an empty object.
+using (var coloured = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectColourChanged { ObjectID = 3, NameColour = System.Drawing.Color.Red }, GameSession.Json)))
+    Check(coloured.RootElement.GetProperty("NameColour").GetString() == "#ff0000",
+        "A name colour reaches the browser as a colour, not an empty object");
+using (var unset = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectColourChanged { ObjectID = 3 }, GameSession.Json)))
+    Check(unset.RootElement.GetProperty("NameColour").ValueKind == JsonValueKind.Null,
+        "An unset colour is null rather than black, so the browser keeps its own default");
+using (var brown = JsonDocument.Parse(JsonSerializer.Serialize(
+    new ServerPackets.ObjectPlayer { NameColour = System.Drawing.Color.SaddleBrown }, GameSession.Json)))
+    Check(brown.RootElement.GetProperty("NameColour").GetString() == "#8b4513",
+        "A player spawns carrying the colour their PK state earned them");
+
+// 1.76's four melee skills ride on the swing rather than travelling as a C.Magic, so the
+// attack packet had to stop being basic-only. HumanObject.Attack re-checks each of them and
+// degrades the swing rather than refusing it, which is why only a spell from outside the set
+// is worth rejecting here.
+foreach (var allowed in new[] { Spell.None, Spell.Slaying, Spell.Thrusting, Spell.HalfMoon, Spell.FlamingSword })
+    Check(((ClientPackets.Attack)Parse(
+        "{\"type\":\"Attack\",\"data\":{\"Direction\":0,\"Spell\":" + (int)allowed + "}}")).Spell == allowed,
+        $"A swing may carry {allowed}");
+Reject("""{"type":"Attack","data":{"Direction":0,"Spell":31}}""", "A swing carrying a cast spell rejected");
+Reject("""{"type":"Attack","data":{"Direction":8,"Spell":0}}""", "A swing in no direction rejected");
+
+// C.SpellToggle is how 刺杀剑术 and 半月弯刀 are switched and 烈火剑法 armed. SpellToggleState.None
+// asks the server to flip whatever it holds; this client keeps its own state and always says
+// which way, so None is refused rather than sent by accident.
+var thrust = (ClientPackets.SpellToggle)Parse("""{"type":"SpellToggle","data":{"Spell":3,"canUse":1}}""");
+Check(thrust.Spell == Spell.Thrusting && thrust.canUse == SpellToggleState.True, "A skill switch carries the spell and the direction of the switch");
+Check(((ClientPackets.SpellToggle)Parse("""{"type":"SpellToggle","data":{"Spell":4,"canUse":0}}""")).canUse == SpellToggleState.False,
+    "Switching a skill off is its own value");
+Reject("""{"type":"SpellToggle","data":{"Spell":3,"canUse":-1}}""", "A skill switch with no direction rejected");
+Reject("""{"type":"SpellToggle","data":{"Spell":0,"canUse":1}}""", "A skill switch naming no spell rejected");
+Reject("""{"type":"SpellToggle","data":{"Spell":250,"canUse":1}}""", "A skill switch naming no known spell rejected");
+
 // Crafting. NPCScript.Craft indexes player.Info.Inventory with every slot in the packet and
 // counts the slots it consumed against the recipe's own requirement count, so a repeated slot
 // is not a bigger pile -- it is a mismatch the server answers with a bare failure.

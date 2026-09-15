@@ -202,6 +202,11 @@
       <p id="refine-hint"></p>
       <p id="refine-status" role="status"></p>
     </section>
+    <section id="inspect-panel" hidden aria-label="查看装备">
+      <header><h2><span id="inspect-name"></span></h2><button id="inspect-close" class="icon" title="关闭" aria-label="关闭查看"><i data-lucide="x"></i></button></header>
+      <p id="inspect-detail"></p>
+      <div id="inspect-grid"></div>
+    </section>
     <section id="revive-panel" hidden role="alertdialog" aria-labelledby="revive-title">
       <h2 id="revive-title">你已经死亡</h2>
       <button id="revive-town" type="button">回城复活</button>
@@ -297,6 +302,7 @@
         <button id="open-skills" class="icon" title="技能" aria-label="技能"><i data-lucide="wand-sparkles"></i></button>
         <button id="open-group" class="icon" title="队伍" aria-label="队伍"><i data-lucide="users"></i></button>
         <button id="start-trade" class="icon" title="与面前的人交易" aria-label="与面前的人交易"><i data-lucide="handshake"></i></button>
+        <button id="inspect-player" class="icon" title="查看面前的人" aria-label="查看面前的人"><i data-lucide="search"></i></button>
         <button
           id="open-inventory"
           class="icon"

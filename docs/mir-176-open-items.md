@@ -44,6 +44,14 @@ Three things the window has to do because the server does them:
 the player walked to another craftsman is enough to reach it -- so it now answers the way
 every other refusal in that method does.
 
+**Five of 1.76's 33 skills had no way into this client**, and a systematic packet-by-packet
+comparison found them: 瞬息移动 and 野蛮冲撞 were missing from the aiming table, and 刺杀剑术,
+半月弯刀 and 烈火剑法 are not casts at all -- they ride on the attack packet, which the
+gateway refused to let carry a spell. The same sweep found that every colour the server
+sends was arriving as an empty object, which is where 红名 and 灰名 live.
+`docs/mir-176-client-gap-audit.md` has the method, the full findings and what is correctly
+absent.
+
 ## Still to build, and 1.76 needs it
 
 Ordered by what blocks play.

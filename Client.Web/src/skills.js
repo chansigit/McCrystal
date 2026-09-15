@@ -1,11 +1,18 @@
 import { tileDistance } from "./combat.js";
+import { TOGGLES, FLAMING_SWORD } from "./sword-arts.js";
 
 // Spell values are the existing Shared/Enums.cs wire IDs.
 export const skillModes = new Map([
   ...[7, 31, 33, 34, 36, 41, 44, 45, 47, 63, 64, 70, 76].map((id) => [id, "target"]),
-  ...[35, 38, 39, 40, 46, 50, 52, 68, 69, 71, 73, 83, 86].map((id) => [id, "ground"]),
+  // 5 is 野蛮冲撞 and 37 瞬息移动: both are ordinary casts the server reads a direction or a
+  // cell off, and both were missing from this table, which is the whole reason a warrior
+  // could not dash and a wizard could not blink.
+  ...[5, 35, 37, 38, 39, 40, 46, 50, 52, 68, 69, 71, 73, 83, 86].map((id) => [id, "ground"]),
   ...[9, 12, 13, 16, 17, 32, 42, 43, 48, 49, 51, 61, 65, 67, 72, 75, 78, 80].map((id) => [id, "self"]),
 ]);
+// 攻杀剑术, 刺杀剑术, 半月弯刀 and 烈火剑法 never travel as a C.Magic -- they ride on the next
+// swing instead -- so they are not a mode here. src/sword-arts.js is where they live.
+export const MELEE_SKILLS = new Set([2, 3, 4, 8]);
 export function manaCost(magic) { return magic.BaseCost + magic.Level * magic.LevelCost; }
 
 // UserMagic.Key: 1..8 are F1..F8 and 9..16 are Ctrl+F1..F8, the two rows AssignKeyPanel
@@ -18,7 +25,7 @@ export function castError(user, magic, target, location, now, readyAt = 0) {
   if (!user || user.Dead) return "当前无法施法";
   if (!magic || !user.Magics.some((entry) => entry.Spell === magic.Spell)) return "尚未学会此技能";
   const mode = skillModes.get(magic.Spell);
-  if (!mode) return "此技能暂未接入";
+  if (!mode) return MELEE_SKILLS.has(magic.Spell) ? "这是随攻击发动的剑术，用技能栏上的开关" : "此技能暂未接入";
   if (now < readyAt) return "技能冷却中";
   if (user.MP < manaCost(magic)) return "魔法不足";
   if (mode === "target" && (!target || target.Dead || target.Hidden || target.kind !== "monster")) return "请选择存活的怪物";
@@ -167,17 +174,36 @@ export class Skills {
       const name = document.createElement("strong"); name.textContent = magic.Name;
       const meta = document.createElement("small");
       const castable = skillModes.has(magic.Spell);
-      meta.textContent = `Lv.${magic.Level} · MP ${manaCost(magic)}${keyName(magic.Key) ? ` · ${keyName(magic.Key)}` : ""}${castable ? "" : " · 暂不可施放"}`;
+      const melee = MELEE_SKILLS.has(magic.Spell);
+      meta.textContent = `Lv.${magic.Level} · MP ${manaCost(magic)}${keyName(magic.Key) ? ` · ${keyName(magic.Key)}` : ""}` +
+        (castable || melee ? "" : " · 暂不可施放");
       const text = document.createElement("span"); text.append(name, meta);
       const cooldown = document.createElement("span"); cooldown.className = "skill-cooldown"; cooldown.dataset.spell = magic.Spell;
       button.append(icon, text, cooldown);
       const row = document.createElement("div"); row.className = "skill-row";
       const select = this.keySelect(magic);
+      // 刺杀剑术 and 半月弯刀 are switches and 烈火剑法 is armed one swing at a time, so the
+      // three of them get a button here instead of a hotkey: there is nothing to aim at.
+      const arts = this.swordArts;
+      let toggle = null;
+      if (arts && TOGGLES.includes(magic.Spell)) {
+        toggle = document.createElement("button");
+        toggle.type = "button"; toggle.className = "skill-toggle";
+        const armed = arts.active(magic.Spell);
+        toggle.setAttribute("aria-pressed", String(armed));
+        toggle.textContent = magic.Spell === FLAMING_SWORD ? (armed ? "已引燃" : "引燃") : armed ? "开" : "关";
+        toggle.title = magic.Spell === FLAMING_SWORD
+          ? "烈火剑法：点一次燃一剑，耗魔由服务端扣"
+          : `${magic.Name}：开着的时候自动附在下一次攻击上`;
+        toggle.onclick = (event) => { event.stopPropagation(); arts.toggle(magic.Spell); this.render(); };
+      }
       // Native's skill list opens AssignKeyPanel on click; it does not cast. Casting is
       // the hotkey (MainDialogs.cs:3292-3313).
       button.onclick = () => { select.focus(); select.showPicker?.(); };
       button.disabled = false;
-      row.append(button, select); grid.append(row);
+      row.append(button, select);
+      if (toggle) row.append(toggle);
+      grid.append(row);
     }
     if (!grid.children.length) { const empty = document.createElement("p"); empty.textContent = "尚未学习技能"; grid.append(empty); }
     this.updateCooldowns();

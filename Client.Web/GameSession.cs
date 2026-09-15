@@ -46,6 +46,7 @@ public static class GameSession
         };
         options.Converters.Add(new StatsConverter());
         options.Converters.Add(new UInt64Converter());
+        options.Converters.Add(new ColourConverter());
         return options;
     }
 
@@ -218,6 +219,11 @@ public static class GameSession
             "Opendoor" => typeof(C.Opendoor),
             // Crafting. One packet names the recipe and the bag slots its materials sit in.
             "CraftItem" => typeof(C.CraftItem),
+            // 刺杀剑术 and 半月弯刀 are switches the player throws, and 烈火剑法 is armed the
+            // same way; none of the three travels as a C.Magic.
+            "SpellToggle" => typeof(C.SpellToggle),
+            // 查看装备: the one thing 1.76 lets a player look at on someone else.
+            "Inspect" => typeof(C.Inspect),
             _ => throw new InvalidDataException("Unsupported command")
         };
         var packet = (Packet?)JsonSerializer.Deserialize(data, type, Json) ?? throw new JsonException();
@@ -307,8 +313,23 @@ public static class GameSession
         if (packet is C.Harvest harvest && (byte)harvest.Direction > 7) throw new InvalidDataException("Invalid harvest direction");
         if (packet is C.Run run && (byte)run.Direction > 7) throw new InvalidDataException("Invalid direction");
         if (packet is C.Turn turn && (byte)turn.Direction > 7) throw new InvalidDataException("Invalid direction");
-        if (packet is C.Attack attack && ((byte)attack.Direction > 7 || attack.Spell != Spell.None))
-            throw new InvalidDataException("Only basic attacks are supported");
+        // A swing may carry one of 1.76's four melee skills. HumanObject.Attack re-checks
+        // each of them -- learned, affordable, and in the case of 烈火剑法 actually armed --
+        // and degrades the swing to a plain one rather than refusing it, so the only thing
+        // worth refusing here is a spell from outside that set.
+        if (packet is C.Attack attack && ((byte)attack.Direction > 7 ||
+            attack.Spell is not (Spell.None or Spell.Slaying or Spell.Thrusting or Spell.HalfMoon or Spell.FlamingSword)))
+            throw new InvalidDataException("Unsupported attack skill");
+        // Envir.Inspect looks the id up among the online players and answers nothing when it
+        // finds none. Ranking reads a saved character by index instead and Hero inspects a
+        // hero; neither exists in this client.
+        if (packet is C.Inspect look && (look.ObjectID == 0 || look.Ranking || look.Hero))
+            throw new InvalidDataException("Invalid inspect");
+        // SpellToggleState.None means "flip whatever it is now", which needs the server to
+        // hold the state; this client keeps its own and always says which way.
+        if (packet is C.SpellToggle toggle && (!Enum.IsDefined(toggle.Spell) || toggle.Spell == Spell.None ||
+            toggle.canUse is not (SpellToggleState.True or SpellToggleState.False)))
+            throw new InvalidDataException("Invalid spell toggle");
         if (packet is C.UseItem use && (use.Grid != MirGridType.Inventory || use.UniqueID == 0))
             throw new InvalidDataException("Invalid inventory use");
         if (packet is C.EquipItem equip && (equip.Grid != MirGridType.Inventory || equip.UniqueID == 0 || equip.To is < 0 or > 13))
@@ -352,6 +373,31 @@ public static class GameSession
             writer.WriteEndObject();
         }
     }
+    // System.Drawing.Color exposes R, G and B as get-only properties, and the resolver above
+    // removes get-only properties -- so without this every colour the server sends reached the
+    // browser as an empty object. That is not a cosmetic loss: a player's name colour is how
+    // 1.76 says 红名 (PKPoints >= 200), 灰名 (BrownTime) and which side of a guild war someone
+    // is on (PlayerObject.GetNameColour). Written as "#rrggbb"; a fully transparent colour,
+    // which is what an unset Color is, becomes null so the browser can fall back to its own
+    // default rather than painting the name black.
+    private sealed class ColourConverter : JsonConverter<System.Drawing.Color>
+    {
+        public override System.Drawing.Color Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options)
+        {
+            if (reader.TokenType == JsonTokenType.Null) return System.Drawing.Color.Empty;
+            var text = reader.GetString();
+            return text is { Length: 7 } && text[0] == '#' && int.TryParse(text[1..], System.Globalization.NumberStyles.HexNumber,
+                System.Globalization.CultureInfo.InvariantCulture, out int rgb)
+                ? System.Drawing.Color.FromArgb(unchecked((int)0xFF000000) | rgb)
+                : throw new JsonException();
+        }
+        public override void Write(Utf8JsonWriter writer, System.Drawing.Color value, JsonSerializerOptions options)
+        {
+            if (value.A == 0) writer.WriteNullValue();
+            else writer.WriteStringValue($"#{value.R:x2}{value.G:x2}{value.B:x2}");
+        }
+    }
+
     private sealed class UInt64Converter : JsonConverter<ulong>
     {
         public override ulong Read(ref Utf8JsonReader reader, Type type, JsonSerializerOptions options) =>
