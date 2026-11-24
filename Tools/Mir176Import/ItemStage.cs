@@ -67,6 +67,12 @@ public static class ItemStage
     // this tool's rather than an observation. Named in the report for review.
     private static readonly HashSet<int> Judged = new() { 1, 2, 41, 45, 46, 47 };
 
+    // What a new character is given. The 1.76 database has no such column -- M2 hard-codes
+    // a new character's kit in the engine -- so this is a hand-written list following what
+    // 1.76 gave: a wooden sword and the cloth armour for the character's gender. Crystal
+    // filters start items by class and gender and puts them in the bag, unequipped.
+    private static readonly HashSet<string> StartItems = new() { "木剑", "布衣(男)", "布衣(女)" };
+
     // 1.76's Need column selects what the requirement is measured in. Read off the same
     // join: 骷髅头盔 Need 1 became MaxDC, 白金项链 Need 2 became MaxMC, 白色虎齿项链
     // Need 3 became MaxSC, and everything at Need 0 became Level.
@@ -137,6 +143,7 @@ public static class ItemStage
                 Price = (uint)Math.Max(0, item.Price),
                 RequiredClass = rule.Class,
                 RequiredGender = rule.Gender,
+                StartItem = StartItems.Contains(item.Name),
                 RequiredType = Requirements[Math.Clamp(item.Need, 0, Requirements.Length - 1)],
                 RequiredAmount = (byte)Math.Clamp(item.NeedLevel, 0, 255),
                 StackSize = rule.Stack,
@@ -218,7 +225,8 @@ public static class ItemStage
         report.AppendLine();
         report.AppendLine($"- 标为**本工具判断**的 {Judged.Count} 个 StdMode，没有同名物品可比对。上表列出了它们的全部内容。");
         report.AppendLine("- 堆叠数不是 1.76 的数据。它的 `Stock` 列是商店补货量而不是堆叠上限（木剑 100、技能书 50），所以上表的堆叠是本工具按类型给的默认值。");
-        report.AppendLine("- `Grade` 一律 None，`StartItem` 一律 false：1.76 没有对应字段，没有编造。");
+        report.AppendLine("- `Grade` 一律 None：1.76 没有对应字段，没有编造。");
+        report.AppendLine($"- `StartItem` 只标了 {string.Join("、", StartItems)}。1.76 的数据里没有这个字段，M2 引擎把新角色的装备写死在程序里；这份名单是按 1.76 新角色的惯例人工给的，引擎会按职业和性别筛选后放进背包。");
         if (notes.Count > 0)
         {
             report.AppendLine();
