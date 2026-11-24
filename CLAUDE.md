@@ -21,3 +21,8 @@ Admin console (GM web UI): set `[Admin] Password` in `Build/Server/Debug/Configs
 - Implicit conversion operators exist but do NOT work during unboxing from `object` - must unbox to the exact boxed type first
 - Server data files: `Build/Server/Debug/`
 - Client data files: `Build/Client/Debug/Data/`
+
+## Headless simulation work
+
+Branch `headless-sim` turns the server into a headless, virtual-clock simulation environment for AI agents.
+Read `docs/headless-sim-plan.md` first: it holds the settled design decisions, the milestone plan (M0-M6) and known pitfalls. Update it when a milestone lands or a decision changes.
