@@ -95,6 +95,14 @@ namespace Server.MirEnvir
         // Local calendar time for values that are stored and compared as local dates
         // (guild territory rent). The wall clock in normal mode; under a virtual clock
         // it follows Time, so it speeds up and repeats with the simulation.
+        // Monster worker threads pace themselves against the real stopwatch and touch
+        // shared lists without locks, so a simulation runs everything on the loop thread.
+        public bool UseMobThreads =>
+            Settings.Multithreaded && !(Clock != null && Clock.IsVirtual);
+
+        // Ticks completed under a virtual clock.
+        public long SimulationTicks { get; private set; }
+
         public DateTime LocalNow =>
             Clock != null && Clock.IsVirtual ? _startLocalTime.AddMilliseconds(Time) : DateTime.Now;
 
@@ -2045,7 +2053,7 @@ namespace Server.MirEnvir
 
                 LinkedListNode<MapObject> current = null;
 
-                if (Settings.Multithreaded)
+                if (UseMobThreads)
                 {
                     for (var j = 0; j < MobThreads.Length; j++)
                     {
@@ -2065,7 +2073,7 @@ namespace Server.MirEnvir
                     return;
                 }
 
-                if (Settings.Multithreaded)
+                if (UseMobThreads)
                 {
                     for (var j = 0; j < MobThreads.Length; j++)
                     {
@@ -2082,14 +2090,24 @@ namespace Server.MirEnvir
                     http = new HttpServer();
                     http.Start();
                 }
+                var simSaveRealTime = Stopwatch.ElapsedMilliseconds + Settings.SimulationSaveMinutes * 60000L;
+                _paceRealStart = Stopwatch.ElapsedMilliseconds;
+                _paceVirtualStart = Clock.ElapsedMilliseconds;
+
                 try
                 {
                     while (Running)
                     {
-                        // Interim: a virtual clock moves one tick per loop iteration. The
-                        // fixed-step loop that makes each tick process the whole world
-                        // is milestone M2 (docs/headless-sim-plan.md).
-                        if (Clock.IsVirtual) Clock.Advance(Settings.SimulationTickMs);
+                        // Under a virtual clock each iteration is one fixed step: the clock
+                        // moves by TickMs, then every connection, object and map is processed
+                        // once. Nothing below waits on real time, so the world runs as fast as
+                        // the machine allows unless [Simulation] Speed holds it back.
+                        if (Clock.IsVirtual)
+                        {
+                            PaceSimulation();
+                            Clock.Advance(Settings.SimulationTickMs);
+                            SimulationTicks++;
+                        }
 
                         Time = Clock.ElapsedMilliseconds;
                         ProcessAdminActions();
@@ -2127,6 +2145,10 @@ namespace Server.MirEnvir
                         }
 
 
+                        // A simulation tick covers the whole list, starting from the top.
+                        if (Clock.IsVirtual)
+                            current = Objects.First;
+
                         if (current == null)
                             current = Objects.First;
 
@@ -2136,7 +2158,7 @@ namespace Server.MirEnvir
                             startTime = Time;
                         }
 
-                        if (Settings.Multithreaded)
+                        if (UseMobThreads)
                         {
                             for (var j = 1; j < MobThreads.Length; j++)
                             {
@@ -2156,7 +2178,7 @@ namespace Server.MirEnvir
 
                         var TheEnd = false;
                         var Start = Stopwatch.ElapsedMilliseconds;
-                        while (!TheEnd && Stopwatch.ElapsedMilliseconds - Start < 20)
+                        while (!TheEnd && (Clock.IsVirtual || Stopwatch.ElapsedMilliseconds - Start < 20))
                         {
                             if (current == null)
                             {
@@ -2165,7 +2187,7 @@ namespace Server.MirEnvir
                             }
 
                             var next = current.Next;
-                            if (!Settings.Multithreaded || current.Value.Race != ObjectType.Monster || current.Value.Master != null)
+                            if (!UseMobThreads || current.Value.Race != ObjectType.Monster || current.Value.Master != null)
                             {
                                 if (Time > current.Value.OperateTime)
                                 {
@@ -2174,6 +2196,17 @@ namespace Server.MirEnvir
                                 }
                                 processCount++;
                             }
+
+                            if (Clock.IsVirtual)
+                            {
+                                // Process() can unlink nodes. Follow the live list so a tick
+                                // neither drops the rest of it nor runs an object that has
+                                // just despawned. If this node and the one after it both went,
+                                // the tick ends here and the rest run on the next one.
+                                if (current.List != null) next = current.Next;
+                                else if (next != null && next.List == null) next = null;
+                            }
+
                             current = next;
                         }
 
@@ -2184,8 +2217,16 @@ namespace Server.MirEnvir
 
                         Process();
 
-                        if (Time >= saveTime)
+                        // A simulation does not save on game time: at 100x that would be a
+                        // full write every few seconds. It saves on shutdown, and on a real
+                        // interval only when [Simulation] SaveMinutes asks for one.
+                        var saveDue = Clock.IsVirtual
+                            ? Settings.SimulationSaveMinutes > 0 && Stopwatch.ElapsedMilliseconds >= simSaveRealTime
+                            : Time >= saveTime;
+
+                        if (saveDue)
                         {
+                            simSaveRealTime = Stopwatch.ElapsedMilliseconds + Settings.SimulationSaveMinutes * 60000L;
                             saveTime = Time + Settings.SaveDelay * Settings.Minute;
                             var saveStart = Stopwatch.ElapsedMilliseconds;
                             BeginSaveAccounts();
@@ -2257,6 +2298,30 @@ namespace Server.MirEnvir
             }
 
             _thread = null;
+        }
+
+        private long _paceRealStart, _paceVirtualStart;
+
+        // Holds a simulation to [Simulation] Speed virtual seconds per real second.
+        // Speed 0 means no limit.
+        private void PaceSimulation()
+        {
+            var speed = Settings.SimulationSpeed;
+            if (speed <= 0) return;
+
+            var due = _paceRealStart + (long)((Clock.ElapsedMilliseconds - _paceVirtualStart) / speed);
+            var now = Stopwatch.ElapsedMilliseconds;
+
+            // Too slow to keep up: start counting from here rather than owe the difference.
+            if (now - due > 1000)
+            {
+                _paceRealStart = now;
+                _paceVirtualStart = Clock.ElapsedMilliseconds;
+                return;
+            }
+
+            while (Stopwatch.ElapsedMilliseconds < due)
+                Thread.Sleep(1);
         }
 
         private void ThreadLoop(MobThread Info)

@@ -89,6 +89,8 @@ namespace Server
         public static int SimulationTickMs = 50;
         // Virtual seconds per real second. 0 runs as fast as the machine allows.
         public static double SimulationSpeed = 0;
+        // Real minutes between saves while simulating. 0 saves on shutdown only.
+        public static int SimulationSaveMinutes = 0;
 
         //Permission
         public static bool AllowNewAccount = true,
@@ -432,6 +434,7 @@ namespace Server
             SimulationEnabled = Reader.ReadBoolean("Simulation", "Enabled", SimulationEnabled);
             SimulationTickMs = Math.Max(1, Reader.ReadInt32("Simulation", "TickMs", SimulationTickMs));
             SimulationSpeed = Math.Max(0, Reader.ReadDouble("Simulation", "Speed", SimulationSpeed));
+            SimulationSaveMinutes = Math.Max(0, Reader.ReadInt32("Simulation", "SaveMinutes", SimulationSaveMinutes));
 
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
@@ -731,6 +734,7 @@ namespace Server
             Reader.Write("Simulation", "Enabled", SimulationEnabled);
             Reader.Write("Simulation", "TickMs", SimulationTickMs);
             Reader.Write("Simulation", "Speed", SimulationSpeed);
+            Reader.Write("Simulation", "SaveMinutes", SimulationSaveMinutes);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

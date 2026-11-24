@@ -342,7 +342,7 @@ namespace Server.MirObjects
                 throw new InvalidOperationException("Node is not null, Object already spawned");
 
             Node = Envir.Objects.AddLast(this);
-            if ((Race == ObjectType.Monster) && Settings.Multithreaded)
+            if ((Race == ObjectType.Monster) && Envir.UseMobThreads)
             {
                 SpawnThread = CurrentMap.Thread;
                 NodeThreaded = Envir.MobThreads[SpawnThread].ObjectsList.AddLast(this);
@@ -362,7 +362,7 @@ namespace Server.MirObjects
             
             Broadcast(new S.ObjectRemove { ObjectID = ObjectID });
             Envir.Objects.Remove(Node);
-            if (Settings.Multithreaded && (Race == ObjectType.Monster))
+            if (Envir.UseMobThreads && (Race == ObjectType.Monster))
             {
                 Envir.MobThreads[SpawnThread].ObjectsList.Remove(NodeThreaded);
             }

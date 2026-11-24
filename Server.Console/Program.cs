@@ -37,14 +37,21 @@ namespace Server.Console
 
                 Settings.Load();
 
-                // --sim turns the virtual clock on for this run only. The value in
-                // Setup.ini is put back before settings are saved on shutdown.
-                var simulationConfigured = Settings.SimulationEnabled;
+                // --sim turns the virtual clock on for this run only; --sim-speed and
+                // --sim-tick override its pace. The values in Setup.ini are put back
+                // before settings are saved on shutdown.
+                var simulationConfigured = (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs);
                 if (args.Contains("--sim", StringComparer.Ordinal))
                     Settings.SimulationEnabled = true;
+                if (double.TryParse(ContentPack.GetOption(args, "--sim-speed"), System.Globalization.NumberStyles.Float,
+                        System.Globalization.CultureInfo.InvariantCulture, out var simSpeed) && simSpeed >= 0)
+                    Settings.SimulationSpeed = simSpeed;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-tick"), out var simTick) && simTick > 0)
+                    Settings.SimulationTickMs = simTick;
                 System.Console.WriteLine($"Settings loaded from {contentPack.Describe()}.");
                 if (Settings.SimulationEnabled)
-                    System.Console.WriteLine($"Simulation mode: virtual clock, {Settings.SimulationTickMs}ms per tick.");
+                    System.Console.WriteLine($"Simulation mode: virtual clock, {Settings.SimulationTickMs}ms per tick, " +
+                        (Settings.SimulationSpeed > 0 ? $"held to {Settings.SimulationSpeed}x." : "no speed limit."));
 
                 System.Console.WriteLine("Starting server...");
                 Envir.Main.Start();
@@ -95,7 +102,7 @@ namespace Server.Console
 
                 // In simulation mode, report how fast virtual time is moving.
                 var simReportClock = System.Diagnostics.Stopwatch.StartNew();
-                long simLastReal = 0, simLastVirtual = 0;
+                long simLastReal = 0, simLastVirtual = 0, simLastTicks = 0;
 
                 while (!cts.Token.IsCancellationRequested)
                 {
@@ -125,11 +132,15 @@ namespace Server.Console
                     {
                         var real = simReportClock.ElapsedMilliseconds;
                         var virt = Envir.Main.Time;
+                        var ticks = Envir.Main.SimulationTicks;
                         var speed = (virt - simLastVirtual) / (double)(real - simLastReal);
+                        var ticksPerSecond = (ticks - simLastTicks) * 1000.0 / (real - simLastReal);
                         System.Console.WriteLine(
-                            $"[sim] virtual {virt / 1000}s, {speed:F1}x real time, monsters {Envir.Main.MonsterCount}, players {Envir.Main.Players.Count}");
+                            $"[sim] virtual {virt / 1000}s, {speed:F1}x real time, {ticksPerSecond:F0} ticks/s, " +
+                            $"monsters {Envir.Main.MonsterCount}, objects {Envir.Main.Objects.Count}, players {Envir.Main.Players.Count}");
                         simLastReal = real;
                         simLastVirtual = virt;
+                        simLastTicks = ticks;
                     }
 
                     if (!hadMessage)
@@ -141,7 +152,7 @@ namespace Server.Console
                 Envir.Main.Stop();
                 System.Console.WriteLine("Server stopped.");
 
-                Settings.SimulationEnabled = simulationConfigured;
+                (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs) = simulationConfigured;
                 Settings.Save();
                 return 0;
             }
