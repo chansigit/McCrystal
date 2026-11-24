@@ -75,6 +75,46 @@ namespace Server.MirNetwork
         private int _dataCounter;
         private FixedSizedQueue<Packet> _lastPackets;
 
+        // A connection with no socket behind it, for a character driven from inside the
+        // process. Client packets are handed to Inject as objects and server packets come
+        // back through PacketSink, so nothing is serialized and nothing waits on the
+        // network. Everything between -- stage checks, validation, dispatch -- is the
+        // same code a real client goes through.
+        public readonly bool IsVirtual;
+
+        // Receives each server packet a virtual connection would have sent. Called on the
+        // engine thread from Process. Left null, the packets are dropped.
+        public Action<Packet> PacketSink;
+
+        public MirConnection(int sessionID)
+        {
+            IsVirtual = true;
+            SessionID = sessionID;
+            // The per-address limits on new accounts and connections are keyed on this.
+            IPAddress = $"virtual-{sessionID}";
+
+            TimeConnected = Envir.Time;
+            TimeOutTime = long.MaxValue;
+
+            _lastPackets = new FixedSizedQueue<Packet>(10);
+
+            _receiveList = new ConcurrentQueue<Packet>();
+            _sendList = new ConcurrentQueue<Packet>();
+            _retryList = new Queue<Packet>();
+
+            // There is no client build to check, so start past the version handshake.
+            Stage = GameStage.Login;
+            Connected = true;
+        }
+
+        // Queue a client packet for the next Process, as if it had just arrived.
+        public void Inject(Packet p)
+        {
+            if (!IsVirtual) throw new InvalidOperationException("Only a virtual connection takes injected packets.");
+            if (p == null || _receiveList == null) return;
+            _receiveList.Enqueue(p);
+        }
+
         public MirConnection(int sessionID, TcpClient client)
         {
             SessionID = sessionID;
@@ -205,7 +245,7 @@ namespace Server.MirNetwork
         }
         private void BeginSend(List<byte> data)
         {
-            if (!Connected || data.Count == 0) return;
+            if (IsVirtual || !Connected || data.Count == 0) return;
 
             //Interlocked.Add(ref Network.Sent, data.Count);
 
@@ -241,7 +281,11 @@ namespace Server.MirNetwork
 
         public void Process()
         {
-            if (_client == null || !_client.Connected)
+            if (IsVirtual)
+            {
+                if (!Connected) return;
+            }
+            else if (_client == null || !_client.Connected)
             {
                 Disconnect(20);
                 return;
@@ -264,13 +308,22 @@ namespace Server.MirNetwork
             while (_retryList.Count > 0)
                 _receiveList.Enqueue(_retryList.Dequeue());
 
-            if (Envir.Time > TimeOutTime)
+            // A virtual connection has no keep-alive to miss.
+            if (!IsVirtual && Envir.Time > TimeOutTime)
             {
                 Disconnect(21);
                 return;
             }
 
             if (_sendList == null || _sendList.Count <= 0) return;
+
+            if (IsVirtual)
+            {
+                // The sink may disconnect us, which clears the list.
+                while (_sendList != null && _sendList.TryDequeue(out var sent))
+                    if (sent != null) PacketSink?.Invoke(sent);
+                return;
+            }
 
             List<byte> data = new List<byte>();
 

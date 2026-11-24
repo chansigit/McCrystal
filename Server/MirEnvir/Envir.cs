@@ -114,6 +114,33 @@ namespace Server.MirEnvir
         public bool UseMobThreads =>
             Settings.Multithreaded && !(Clock != null && Clock.IsVirtual);
 
+        // Opens a socketless connection and registers it with the loop. Call on the
+        // engine thread.
+        public MirConnection OpenVirtualConnection()
+        {
+            var connection = new MirConnection(++_sessionID);
+            lock (Connections)
+                Connections.Add(connection);
+            return connection;
+        }
+
+        // Characters spawned in-process for a simulation, in spawn order.
+        public readonly List<SimAgent> SimAgents = new List<SimAgent>();
+
+        // True once a run has reached --sim-until and stopped itself.
+        public bool SimulationCompleted { get; private set; }
+
+        // Why the loop ended, when it ended on an exception. The message queue holds 100
+        // lines and a failing loop logs every player out first, so the error itself can
+        // be dropped from the console; this keeps it.
+        public string LoopError { get; private set; }
+
+        // Written when a run reaches --sim-until, before the agents are logged out.
+        public string SimSummary { get; private set; }
+
+        // Observation and action interface for those characters. Null without agents.
+        public SimEnv SimEnv { get; private set; }
+
         // False once the loop thread has ended, whether it was asked to stop or it failed.
         public bool LoopAlive => _thread != null;
 
@@ -152,9 +179,13 @@ namespace Server.MirEnvir
                 Mix(ob.CurrentMapIndex);
                 Mix(ob.CurrentLocation.X);
                 Mix(ob.CurrentLocation.Y);
-                Mix((long)ob.Direction);
-                // Only creatures have health; NPCs, items and spells throw on the getter.
-                if (ob is MonsterObject || ob is HumanObject) Mix(ob.Health);
+                // Only creatures face a direction and have health; items and spells throw
+                // on those getters, and NPCs on the second.
+                if (ob is MonsterObject || ob is HumanObject)
+                {
+                    Mix((long)ob.Direction);
+                    Mix(ob.Health);
+                }
                 Mix(ob.Dead ? 1 : 0);
             }
 
@@ -2148,6 +2179,21 @@ namespace Server.MirEnvir
                     http = new HttpServer();
                     http.Start();
                 }
+                if (Clock.IsVirtual && Settings.SimulationAgents > 0)
+                {
+                    // Before the first tick, so the same agents exist from the same moment
+                    // in every run.
+                    for (var i = 1; i <= Settings.SimulationAgents; i++)
+                        SimAgents.Add(SimAgent.Spawn(this, i));
+                    MessageQueue.Enqueue($"{SimAgents.Count} simulation agents spawned.");
+
+                    SimEnv = new SimEnv(this, SimAgents, Settings.SimulationViewRadius);
+                    if (string.Equals(Settings.SimulationPolicy, "random", StringComparison.OrdinalIgnoreCase))
+                        SimEnv.Policy = new RandomSimPolicy(Settings.SimulationSeed + 1);
+                    else if (string.Equals(Settings.SimulationPolicy, "script", StringComparison.OrdinalIgnoreCase))
+                        SimEnv.Policy = new ScriptedSimPolicy(Settings.SimulationSeed + 1, Settings.SimulationScriptOff);
+                }
+
                 var simSaveRealTime = Stopwatch.ElapsedMilliseconds + Settings.SimulationSaveMinutes * 60000L;
                 var simHashTime = Settings.SimulationHashSeconds * 1000L;
                 _paceRealStart = Stopwatch.ElapsedMilliseconds;
@@ -2203,6 +2249,11 @@ namespace Server.MirEnvir
                             }
                         }
 
+
+                        // Agents decide every few ticks, after this tick's packets and before
+                        // the world moves.
+                        if (SimEnv != null && SimulationTicks % Settings.SimulationDecisionTicks == 0)
+                            SimEnv.Step();
 
                         // A simulation tick covers the whole list, starting from the top.
                         if (Clock.IsVirtual)
@@ -2290,6 +2341,9 @@ namespace Server.MirEnvir
                             if (Settings.SimulationStopSeconds > 0 && Time >= Settings.SimulationStopSeconds * 1000L)
                             {
                                 if (!hashed) StateHashes.Enqueue((SimulationTicks, ComputeStateHash()));
+                                // While the agents are still in the world: shutdown logs them out.
+                                SimSummary = SimEnv?.Summary();
+                                SimulationCompleted = true;
                                 Running = false;
                                 break;
                             }
@@ -2354,6 +2408,7 @@ namespace Server.MirEnvir
                     // Get the line number from the stack frame
                     var line = frame.GetFileLineNumber();
 
+                    LoopError = ex.ToString();
                     MessageQueue.Enqueue(GameLanguage.ServerTextMap.GetLocalization((ServerTextKeys.InnerWorkloopErrorLine), line, ex));
                 }
 
@@ -2372,6 +2427,7 @@ namespace Server.MirEnvir
                 // Get the line number from the stack frame
                 var line = frame.GetFileLineNumber();
 
+                LoopError ??= ex.ToString();
                 MessageQueue.Enqueue(GameLanguage.ServerTextMap.GetLocalization((ServerTextKeys.OuterWorkloopErrorLine), line, ex));
             }
 
@@ -3607,6 +3663,14 @@ namespace Server.MirEnvir
             LoadConquests();
             LoadGTInfo();
 
+            // A simulation has no clients to wait for unless it is asked to listen, and
+            // not listening lets any number of worlds run side by side from one pack.
+            if (Clock.IsVirtual && !Settings.SimulationListen)
+            {
+                MessageQueue.Enqueue("Simulation: not listening for clients.");
+                return;
+            }
+
             _listener = new TcpListener(IPAddress.Parse(Settings.IPAddress), Settings.Port);
             _listener.Start();
             _listener.BeginAcceptTcpClient(Connection, null);
@@ -3641,7 +3705,7 @@ namespace Server.MirEnvir
         }
         private void StopNetwork()
         {
-            _listener.Stop();
+            _listener?.Stop();
             lock (Connections)
             {
                 for (var i = Connections.Count - 1; i >= 0; i--)
@@ -3650,7 +3714,7 @@ namespace Server.MirEnvir
 
             if (StatusPortEnabled)
             {
-                _StatusPort.Stop();
+                _StatusPort?.Stop();
                 for (var i = StatusConnections.Count - 1; i >= 0; i--)
                     StatusConnections[i].SendDisconnect();
             }

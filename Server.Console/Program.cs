@@ -53,6 +53,17 @@ namespace Server.Console
                     Settings.SimulationSeed = simSeed;
                 if (int.TryParse(ContentPack.GetOption(args, "--sim-hash"), out var simHash) && simHash >= 0)
                     Settings.SimulationHashSeconds = simHash;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-agents"), out var simAgents) && simAgents > 0)
+                    Settings.SimulationAgents = simAgents;
+                var simPolicy = ContentPack.GetOption(args, "--sim-policy");
+                if (simPolicy != null) Settings.SimulationPolicy = simPolicy;
+                Settings.SimulationScriptOff = ContentPack.GetOption(args, "--sim-script-off") ?? Settings.SimulationScriptOff;
+                if (args.Contains("--sim-listen", StringComparer.Ordinal)) Settings.SimulationListen = true;
+                if (args.Contains("--sim-no-relief", StringComparer.Ordinal)) Settings.SimulationRelief = false;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-view"), out var simView) && simView > 0)
+                    Settings.SimulationViewRadius = simView;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-decision-ticks"), out var simDecision) && simDecision > 0)
+                    Settings.SimulationDecisionTicks = simDecision;
                 // Never written to Setup.ini: a stop time is a property of one run.
                 if (int.TryParse(ContentPack.GetOption(args, "--sim-until"), out var simUntil) && simUntil > 0)
                     Settings.SimulationStopSeconds = simUntil;
@@ -67,7 +78,9 @@ namespace Server.Console
                 System.Console.WriteLine("Server started. Press Ctrl+C to stop.");
 
                 AdminConsole admin = null;
-                if (Settings.AdminEnabled)
+                // The admin console needs a port of its own; a simulation that is not
+                // listening for clients leaves that alone too, so worlds can run in parallel.
+                if (Settings.AdminEnabled && !(Settings.SimulationEnabled && !Settings.SimulationListen))
                 {
                     if (string.IsNullOrWhiteSpace(Settings.AdminPassword))
                     {
@@ -112,7 +125,7 @@ namespace Server.Console
 
                 // In simulation mode, report how fast virtual time is moving.
                 var simReportClock = System.Diagnostics.Stopwatch.StartNew();
-                long simLastReal = 0, simLastVirtual = 0, simLastTicks = 0;
+                long simLastReal = 0, simLastVirtual = 0, simLastTicks = 0, simLastSteps = 0;
 
                 while (!cts.Token.IsCancellationRequested)
                 {
@@ -145,12 +158,11 @@ namespace Server.Console
                     // way there is no world left to serve, so exit instead of idling.
                     if (!Envir.Main.LoopAlive)
                     {
-                        var finished = Settings.SimulationEnabled && Settings.SimulationStopSeconds > 0 &&
-                                       Envir.Main.Time >= Settings.SimulationStopSeconds * 1000L;
-                        if (!finished)
+                        if (!Envir.Main.SimulationCompleted)
                         {
                             exitCode = 1;
-                            System.Console.WriteLine("The engine loop ended unexpectedly; see the log above.");
+                            System.Console.WriteLine("The engine loop ended unexpectedly.");
+                            if (Envir.Main.LoopError != null) System.Console.WriteLine(Envir.Main.LoopError);
                         }
                         cts.Cancel();
                     }
@@ -165,6 +177,27 @@ namespace Server.Console
                         System.Console.WriteLine(
                             $"[sim] virtual {virt / 1000}s, {speed:F1}x real time, {ticksPerSecond:F0} ticks/s, " +
                             $"monsters {Envir.Main.MonsterCount}, objects {Envir.Main.Objects.Count}, players {Envir.Main.Players.Count}");
+                        var env = Envir.Main.SimEnv;
+                        if (env != null)
+                        {
+                            // Read off the engine thread: a snapshot for the eye, not for analysis.
+                            var agents = Envir.Main.SimAgents;
+                            var steps = env.AgentSteps;
+                            double levels = 0; int alive = 0, deaths = 0;
+                            for (var i = 0; i < agents.Count; i++)
+                            {
+                                var player = agents[i].Player;
+                                deaths += agents[i].Deaths;
+                                if (player == null) continue;
+                                levels += player.Level;
+                                if (!player.Dead) alive++;
+                            }
+                            System.Console.WriteLine(
+                                $"[agents] {(steps - simLastSteps) * 1000.0 / (real - simLastReal):F0} steps/s, alive {alive}/{agents.Count}, " +
+                                $"mean level {levels / Math.Max(1, agents.Count):F2}, deaths {deaths}, rejected {env.RejectedActions}");
+                            simLastSteps = steps;
+                        }
+
                         simLastReal = real;
                         simLastVirtual = virt;
                         simLastTicks = ticks;
@@ -173,6 +206,11 @@ namespace Server.Console
                     if (!hadMessage)
                         Thread.Sleep(100);
                 }
+
+                while (Envir.Main.StateHashes.TryDequeue(out var lastHash))
+                    System.Console.WriteLine($"[hash] tick {lastHash.Tick} {lastHash.Hash:x16}");
+                if (Envir.Main.SimSummary != null)
+                    System.Console.Write(Envir.Main.SimSummary);
 
                 System.Console.WriteLine("Stopping server...");
                 if (admin != null) admin.Stop();

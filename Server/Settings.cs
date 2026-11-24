@@ -97,6 +97,22 @@ namespace Server
         public static int SimulationHashSeconds = 0;
         // Stop after this many game seconds. 0 runs until told to stop.
         public static int SimulationStopSeconds = 0;
+        // Characters to spawn in-process before the first tick.
+        public static int SimulationAgents = 0;
+        // How far an agent sees, in cells each way. At most Globals.DataRange.
+        public static int SimulationViewRadius = 7;
+        // Agents choose an action every this many ticks.
+        public static int SimulationDecisionTicks = 4;
+        // Built-in policy driving the agents: "none", "random" or "script".
+        public static string SimulationPolicy = "none";
+        // Parts of the scripted policy to switch off, comma separated:
+        // flee, potion, rest, select, memory, resupply.
+        public static string SimulationScriptOff = "";
+        // Whether a simulation opens the game and status ports. Off by default.
+        public static bool SimulationListen = false;
+        // Hand a simulation agent the starting weapon again when it has no weapon and
+        // cannot afford one. Applies to in-process agents only, never to players.
+        public static bool SimulationRelief = true;
 
         //Permission
         public static bool AllowNewAccount = true,
