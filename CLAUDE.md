@@ -26,3 +26,5 @@ Admin console (GM web UI): set `[Admin] Password` in `Build/Server/Debug/Configs
 
 Branch `headless-sim` turns the server into a headless, virtual-clock simulation environment for AI agents.
 Read `docs/headless-sim-plan.md` first: it holds the settled design decisions, the milestone plan (M0-M6) and known pitfalls. Update it when a milestone lands or a decision changes.
+
+Python side of the simulation (R5): `python/mccrystal`, see `python/README.md`. Run with `PYTHONPATH=python python3 python/bench.py`.

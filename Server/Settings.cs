@@ -110,6 +110,8 @@ namespace Server
         public static string SimulationScriptOff = "";
         // File a run's trace is written to when it stops (see SimTrace). Empty for none.
         public static string SimulationTracePath = "";
+        // Directory the "remote" policy shares with the trainer: shared.bin and bridge.json.
+        public static string SimulationRemotePath = "";
         // Game seconds between the samples in that trace.
         public static int SimulationTraceSeconds = 20;
         // Whether a simulation opens the game and status ports. Off by default.

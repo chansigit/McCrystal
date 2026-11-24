@@ -2195,6 +2195,8 @@ namespace Server.MirEnvir
                         SimEnv.Policy = new RandomSimPolicy(Settings.SimulationSeed + 1);
                     else if (string.Equals(Settings.SimulationPolicy, "script", StringComparison.OrdinalIgnoreCase))
                         SimEnv.Policy = new ScriptedSimPolicy(Settings.SimulationSeed + 1, Settings.SimulationScriptOff);
+                    else if (string.Equals(Settings.SimulationPolicy, "remote", StringComparison.OrdinalIgnoreCase))
+                        SimEnv.Policy = new RemoteSimPolicy(Settings.SimulationRemotePath);
                     if (!string.IsNullOrEmpty(Settings.SimulationTracePath))
                         SimTrace = new SimTrace(this, SimEnv, Settings.SimulationTracePath, Settings.SimulationTraceSeconds);
                 }
@@ -2261,6 +2263,15 @@ namespace Server.MirEnvir
                         {
                             SimEnv.Step();
                             SimTrace?.Step();
+                            // The trainer on the other end has finished or gone away.
+                            if (SimEnv.Policy is RemoteSimPolicy { Closed: true })
+                            {
+                                SimSummary = SimEnv.Summary();
+                                SimTrace?.Write();
+                                SimulationCompleted = true;
+                                Running = false;
+                                break;
+                            }
                         }
 
                         // A simulation tick covers the whole list, starting from the top.
@@ -2352,6 +2363,7 @@ namespace Server.MirEnvir
                                 // While the agents are still in the world: shutdown logs them out.
                                 SimSummary = SimEnv?.Summary();
                                 SimTrace?.Write();
+                                (SimEnv?.Policy as IDisposable)?.Dispose();
                                 SimulationCompleted = true;
                                 Running = false;
                                 break;

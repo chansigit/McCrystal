@@ -2638,6 +2638,7 @@ namespace Server.MirObjects
             ApplyNegativeEffects(attacker, type, levelOffset);
 
             Broadcast(new S.ObjectStruck { ObjectID = ObjectID, AttackerID = attacker.ObjectID, Direction = Direction, Location = CurrentLocation });
+            attacker.HitsLanded++;
 
             if (attacker.Stats[Stat.HPDrainRatePercent] > 0 && damageWeapon)
             {

@@ -64,7 +64,10 @@ namespace Server.MirEnvir
         public const int SfWeaponDura = 27;    // weapon durability left, 0..1 (0 with no weapon)
         public const int SfArmourDura = 28;    // armour durability left, 0..1 (0 with no armour)
         public const int SfLootValue = 29;     // log10(1 + what the bag's loot would sell for) / 6, capped at 1
-        public const int SelfSize = 30;
+        public const int SfTownDx = 30;        // direction to the nearest town, as a unit vector (0 when standing in it)
+        public const int SfTownDy = 31;
+        public const int SfTownDistance = 32;  // distance to it / the longer side of the map, capped at 1
+        public const int SelfSize = 33;
 
         // Actions.
         public const int ActNone = 0;
@@ -419,6 +422,22 @@ namespace Server.MirEnvir
             }
             Self[self + SfLoot] = loot / (float)bag.Length;
             Self[self + SfLootValue] = Math.Min(1f, (float)Math.Log10(1.0 + lootValue) / 6f);
+
+            // Where the nearest town is: what any player knows from the map.
+            SafeZoneInfo town = null;
+            var townDistance = double.MaxValue;
+            foreach (var zone in map.Info.SafeZones)
+            {
+                double zx = zone.Location.X - player.CurrentLocation.X, zy = zone.Location.Y - player.CurrentLocation.Y;
+                var away = Math.Sqrt(zx * zx + zy * zy);
+                if (away < townDistance) { townDistance = away; town = zone; }
+            }
+            if (town != null && townDistance > 0)
+            {
+                Self[self + SfTownDx] = (float)((town.Location.X - player.CurrentLocation.X) / townDistance);
+                Self[self + SfTownDy] = (float)((town.Location.Y - player.CurrentLocation.Y) / townDistance);
+                Self[self + SfTownDistance] = (float)Math.Min(1.0, townDistance / Math.Max(map.Width, map.Height));
+            }
             Self[self + SfWeapon] = Math.Min(1f, Math.Max(0, EquippedScore(player, EquipmentSlot.Weapon)) / GearScale);
             Self[self + SfArmour] = Math.Min(1f, Math.Max(0, EquippedScore(player, EquipmentSlot.Armour)) / GearScale);
             Self[self + SfWeaponDura] = DuraLeft(player.Info.Equipment[(int)EquipmentSlot.Weapon]);

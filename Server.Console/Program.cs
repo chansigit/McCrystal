@@ -59,6 +59,7 @@ namespace Server.Console
                 if (simPolicy != null) Settings.SimulationPolicy = simPolicy;
                 Settings.SimulationScriptOff = ContentPack.GetOption(args, "--sim-script-off") ?? Settings.SimulationScriptOff;
                 Settings.SimulationTracePath = ContentPack.GetOption(args, "--sim-trace") ?? Settings.SimulationTracePath;
+                Settings.SimulationRemotePath = ContentPack.GetOption(args, "--sim-remote") ?? Settings.SimulationRemotePath;
                 if (int.TryParse(ContentPack.GetOption(args, "--sim-trace-seconds"), out var simTraceSeconds) && simTraceSeconds > 0)
                     Settings.SimulationTraceSeconds = simTraceSeconds;
                 if (args.Contains("--sim-listen", StringComparer.Ordinal)) Settings.SimulationListen = true;

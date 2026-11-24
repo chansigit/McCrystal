@@ -83,6 +83,8 @@ namespace Server.MirObjects
         }
 
         public long MaxExperience;
+        // Blows that got through a monster's armour. Read by the simulation as a reward signal.
+        public long HitsLanded;
         public byte Hair
         {
             get { return Info.Hair; }
