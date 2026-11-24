@@ -1,0 +1,454 @@
+<title>比奇省模拟回放</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<style>
+/* Layout: a working desk. Run picker on top, the map with its transport controls as the main instrument, curves and tables below reading the same clock. */
+:root{
+  --bg:#f6f7f4; --panel:#ffffff; --ink:#14181a; --ink2:#4d5557; --ink3:#7d8587; --line:#dfe3df;
+  --ground:#e6ebe1; --wall:#c3cbc0; --accent:#2a78d6;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#6250d6; --bad:#e34948;
+  --sans:"PingFang SC","Hiragino Sans GB","Microsoft YaHei","Noto Sans SC",system-ui,sans-serif;
+  --mono:ui-monospace,"SF Mono",Menlo,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#121514; --panel:#1b1f1e; --ink:#eef0ec; --ink2:#bcc3bf; --ink3:#868e8a; --line:#2f3533;
+  --ground:#2b322e; --wall:#171b19; --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --bad:#e66767; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121514; --panel:#1b1f1e; --ink:#eef0ec; --ink2:#bcc3bf; --ink3:#868e8a; --line:#2f3533;
+  --ground:#2b322e; --wall:#171b19; --accent:#3987e5;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#0ca30c; --s7:#9085e9; --bad:#e66767; color-scheme:dark}
+body{background:var(--bg);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 48px}
+.wrap{max-width:1180px;margin:0 auto;display:flex;flex-direction:column;gap:28px}
+h1{font-size:24px;margin:0;font-weight:650;letter-spacing:.01em}
+h2{font-size:16px;margin:0;font-weight:650}
+p{margin:0}
+.sub{color:var(--ink2);max-width:70ch}
+.note{color:var(--ink3);font-size:12.5px;max-width:80ch}
+header{display:flex;flex-direction:column;gap:10px}
+.runs{display:flex;flex-wrap:wrap;gap:6px}
+button,select{font:inherit;color:var(--ink)}
+.runs button,.btn{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:5px 11px;cursor:pointer}
+.runs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+button:focus-visible,select:focus-visible,input:focus-visible,tr:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.tile{background:var(--panel);padding:12px 14px}
+.tile b{display:block;font-size:24px;font-weight:650;font-variant-numeric:tabular-nums;line-height:1.2}
+.tile span{color:var(--ink2);font-size:12.5px}
+section{display:flex;flex-direction:column;gap:12px}
+.mapgrid{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:860px){.mapgrid{grid-template-columns:minmax(0,1fr)}}
+.mapbox{position:relative;background:var(--wall);border:1px solid var(--line);border-radius:8px;overflow:hidden;aspect-ratio:1;max-width:100%}
+.mapbox canvas{position:absolute;inset:0;width:100%;height:100%;cursor:crosshair;touch-action:none}
+.side{display:flex;flex-direction:column;gap:14px;min-width:0}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.row{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center}
+.clock{font-family:var(--mono);font-size:20px;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+label.chk{display:inline-flex;gap:5px;align-items:center;cursor:pointer;color:var(--ink2)}
+.legend{display:flex;flex-wrap:wrap;gap:4px 12px;color:var(--ink2);font-size:12.5px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:5px;vertical-align:-1px}
+.legend i.sq{border-radius:2px}
+.kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px 10px;font-variant-numeric:tabular-nums}
+.kv div span{display:block;color:var(--ink3);font-size:12px}
+.log{font-size:12.5px;color:var(--ink2);display:flex;flex-direction:column;gap:2px;max-height:150px;overflow:auto}
+.log time{font-family:var(--mono);color:var(--ink3);margin-right:6px}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:12px 14px 8px;min-width:0;display:flex;flex-direction:column;gap:4px}
+.chart h3{margin:0;font-size:13.5px;font-weight:600}
+.chart canvas{width:100%;height:190px;display:block;cursor:crosshair}
+.bars{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:5px 10px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.bars .b{height:12px;background:var(--s1);border-radius:0 4px 4px 0;min-width:1px}
+.bars .b.bad{background:var(--bad)}
+.bars .v{color:var(--ink2);text-align:right}
+.tablebox{overflow:auto;max-height:380px;border:1px solid var(--line);border-radius:8px;background:var(--panel)}
+table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums;font-size:13px}
+th,td{padding:5px 10px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+thead th{position:sticky;top:0;background:var(--panel);color:var(--ink2);font-weight:600;cursor:pointer;user-select:none}
+#agents tbody tr{cursor:pointer}
+#agents tbody tr.sel{background:color-mix(in srgb,var(--accent) 16%,transparent)}
+#cmp th{cursor:default}
+#cmp tr.cur td{font-weight:650}
+#tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:var(--bg);padding:6px 9px;border-radius:6px;font-size:12.5px;line-height:1.45;max-width:260px;white-space:pre-line}
+#loading{color:var(--ink2)}
+</style>
+
+<div class="wrap">
+<header>
+  <h1>比奇省模拟回放</h1>
+  <p class="sub">100 个战士在只有比奇省的世界里过 6 个游戏小时。每一局都从一级、一把木剑、一件布衣开始。选一局,拖时间条,看他们去了哪、打了什么、死在哪、钱从哪来。</p>
+  <div class="runs" id="runs" role="group" aria-label="选择一局模拟"></div>
+  <p id="loading">正在读取数据…</p>
+</header>
+
+<div class="tiles" id="tiles"></div>
+
+<section>
+  <h2>地图回放</h2>
+  <div class="mapgrid">
+    <div class="mapbox"><canvas id="map" aria-label="比奇省地图,显示各角色的位置和轨迹"></canvas></div>
+    <div class="side">
+      <div class="card">
+        <div class="row" style="justify-content:space-between">
+          <span class="clock" id="clock">0:00:00</span>
+          <span class="row">
+            <button class="btn" id="play">播放</button>
+            <select id="speed" class="btn" aria-label="播放速度">
+              <option value="5">慢</option><option value="20" selected>中</option><option value="60">快</option>
+            </select>
+          </span>
+        </div>
+        <input type="range" id="time" min="0" max="1" step="1" value="0" aria-label="游戏时间">
+        <div class="row">
+          <label class="chk"><input type="checkbox" id="lyTrail" checked>最近 5 分钟轨迹</label>
+          <label class="chk"><input type="checkbox" id="lyKill" checked>击杀热力</label>
+          <label class="chk"><input type="checkbox" id="lyDeath" checked>死亡地点</label>
+          <label class="chk"><input type="checkbox" id="lySpawn">刷怪点</label>
+        </div>
+        <div class="row">
+          <span style="color:var(--ink2)">放大</span>
+          <select id="zoom" class="btn" aria-label="地图放大倍数"><option value="1">1×</option><option value="2">2×</option><option value="4">4×</option><option value="8">8×</option></select>
+          <span class="note">放大后可拖动;选中角色时镜头跟着他走。</span>
+        </div>
+      </div>
+      <div class="card">
+        <div class="legend" id="actLegend"></div>
+        <div class="legend">
+          <span><i class="sq" style="background:var(--s3);opacity:.5"></i>安全区</span>
+          <span><i class="sq" style="background:var(--ink)"></i>商店</span>
+          <span><i class="sq" style="background:var(--s1);opacity:.6"></i>击杀越多越深</span>
+          <span><b style="color:var(--bad)">×</b> 死亡</span>
+        </div>
+      </div>
+      <div class="card" id="selCard">
+        <div class="row" style="justify-content:space-between"><h2 id="selName">没有选中角色</h2><button class="btn" id="selClear" hidden>取消选中</button></div>
+        <p class="note" id="selHint">点地图上的圆点,或下方表格里的一行,可以只看一个角色:他的完整路线、曲线和大事记。</p>
+        <div class="kv" id="selKv" hidden></div>
+        <div class="log" id="selLog" hidden></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <h2>成长曲线</h2>
+  <p class="note">等级带小数:9.40 表示 9 级,离 10 级已经走了 40%。粗线是 100 个角色的中位数,浅色带是第 10 到第 90 百分位。选中角色后多一条黑线。点击曲线可以把回放跳到那个时刻。</p>
+  <div class="charts">
+    <div class="chart"><h3>等级(含升级进度)</h3><canvas id="cLevel"></canvas></div>
+    <div class="chart"><h3>累计经验</h3><canvas id="cExp"></canvas></div>
+    <div class="chart"><h3>手里的金币</h3><canvas id="cGold"></canvas></div>
+    <div class="chart"><h3>累计死亡次数</h3><canvas id="cDeaths"></canvas></div>
+  </div>
+</section>
+
+<section id="actSection">
+  <h2>时间都花在哪</h2>
+  <p class="note">每个时刻,100 个角色里各有多少比例在做哪件事(3 分钟滑动平均)。</p>
+  <div class="chart"><div class="legend" id="actLegend2"></div><canvas id="cAct" style="height:230px"></canvas></div>
+</section>
+
+<section>
+  <h2>打了什么,死在谁手里</h2>
+  <div class="charts">
+    <div class="chart"><h3>击杀数,按怪物</h3><div class="bars" id="bKills"></div></div>
+    <div class="chart"><h3>死亡数,按最后打中他的怪物</h3><div class="bars" id="bDeaths"></div></div>
+  </div>
+</section>
+
+<section>
+  <h2>钱从哪来,花到哪去</h2>
+  <div class="charts">
+    <div class="chart"><h3>全体累计金币</h3><div class="legend" id="ecoLegend"></div><canvas id="cEco"></canvas></div>
+    <div class="chart"><h3>收入和支出的构成</h3><div class="bars" id="bEco"></div><p class="note" id="ecoNote"></p></div>
+  </div>
+</section>
+
+<section>
+  <h2>100 个角色</h2>
+  <p class="note">点表头排序,点一行选中。</p>
+  <div class="tablebox"><table id="agents"><thead><tr></tr></thead><tbody></tbody></table></div>
+</section>
+
+<section>
+  <h2>各配置对比</h2>
+  <div class="tablebox" style="max-height:none"><table id="cmp"><thead><tr><th>配置</th><th>平均等级(含进度)</th><th>只算整数级</th><th>最低 / 最高等级</th><th>人均击杀</th><th>人均死亡</th><th>人均金币</th><th>救济木剑</th></tr></thead><tbody></tbody></table></div>
+  <p class="note">每种配置跑 5 个种子(42、7、99、1、2),表里是均值 ± 标准差;最低 / 最高等级取 5 局里的极值。</p>
+  <p class="note">脚本的打怪规则:城里的卫士和弓箭守卫永远不打;1 到 7 级只在出生点附近活动,半径 80 格,每升一级加 20 格,7 级以后全图自由;比自己高 12 级以上的怪不打,靠近到 4 格内就避开;高 7 到 12 级的怪,只有血量六成以上、它身边没有帮手时才打;挑怪按实际要走的步数算远近,走不到的不算目标;每个角色记得自己死过的地方,再高 3 级才回去;没血没药、被三只以上围住且血量不到一半、或被不该惹的东西追时逃跑。</p>
+</section>
+</div>
+<div id="tip" hidden></div>
+
+<script>
+const RUNS = [
+ {"id": "script", "cfg": "script", "label": "脚本基线 · 种子 42", "levelf": 10.38, "level": 9.99, "minlv": 8, "maxlv": 11, "kills": 784.1, "deaths": 1.14, "gold": 5370, "reliefs": 1},
+ {"id": "s7", "cfg": "script", "label": "脚本基线 · 种子 7", "levelf": 10.11, "level": 9.69, "minlv": 7, "maxlv": 11, "kills": 731.8, "deaths": 1.46, "gold": 4875, "reliefs": 2},
+ {"id": "s99", "cfg": "script", "label": "脚本基线 · 种子 99", "levelf": 10.25, "level": 9.8, "minlv": 8, "maxlv": 11, "kills": 754.7, "deaths": 1.24, "gold": 5521, "reliefs": 0},
+ {"id": "noresupply", "cfg": "noresupply", "label": "关掉回城补给 · 种子 42", "levelf": 7.06, "level": 6.56, "minlv": 3, "maxlv": 9, "kills": 279.4, "deaths": 3.79, "gold": 267, "reliefs": 5},
+ {"id": "random", "cfg": "random", "label": "随机策略 · 种子 42", "levelf": 1.73, "level": 1.4, "minlv": 1, "maxlv": 2, "kills": 15.6, "deaths": 17.23, "gold": 54, "reliefs": 47},
+];
+// One row per configuration: mean ± standard deviation over five seeds (42, 7, 99, 1, 2).
+const CMP = [{"cfg": "script", "cells": ["脚本基线", "10.19 ± 0.13", "9.75 ± 0.15", "5 / 11", "743 ± 27", "1.32 ± 0.13", "5178 ± 269", "2.0 ± 1.6"]}, {"cfg": "noresupply", "cells": ["关掉回城补给", "7.06 ± 0.20", "6.57 ± 0.18", "3 / 10", "279 ± 15", "3.75 ± 0.18", "256 ± 28", "4.8 ± 2.7"]}, {"cfg": "random", "cells": ["随机策略", "1.67 ± 0.05", "1.30 ± 0.08", "1 / 2", "14 ± 1", "16.46 ± 1.24", "51 ± 6", "45.0 ± 6.3"]}];
+// Activities of the scripted policy, folded into seven groups with a fixed colour each.
+const GROUPS = [
+ {name:'战斗',v:'--s1'},{name:'接近怪物',v:'--s2'},{name:'探索',v:'--s3'},{name:'捡东西、割肉',v:'--s4'},
+ {name:'回城补给',v:'--s5'},{name:'休息、等待',v:'--s6'},{name:'逃跑、喝药',v:'--s7'}];
+const GROUP_OF = {wait:5,flee:6,drink:6,rest:5,fight:0,loot:3,approach:1,explore:2,resupply:4};
+
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fmtT = s => { s=Math.round(s); return Math.floor(s/3600)+':'+String(Math.floor(s/60)%60).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); };
+const fmtN = v => v>=1e5 ? Math.round(v/1e4).toLocaleString('zh-CN')+' 万' : v>=1e4 ? (v/1e4).toFixed(1)+' 万' : Math.round(v).toLocaleString('zh-CN');
+const tip = $('tip');
+function showTip(e, text){ tip.textContent=text; tip.hidden=false;
+  const w=tip.offsetWidth,h=tip.offsetHeight; let x=e.clientX+14,y=e.clientY+14;
+  if(x+w>innerWidth-8) x=e.clientX-w-10; if(y+h>innerHeight-8) y=e.clientY-h-10;
+  tip.style.left=Math.max(4,x)+'px'; tip.style.top=Math.max(4,y)+'px'; }
+const hideTip = () => tip.hidden=true;
+
+let D=null, S=null;           // data, derived
+const st = {tf:0, playing:false, sel:-1, zoom:1, cx:350, cy:350, sort:'lvf', sortDir:-1};
+let C = {};                   // colours read from the theme
+
+function readColours(){
+  C = {ground:css('--ground'),wall:css('--wall'),ink:css('--ink'),ink2:css('--ink2'),ink3:css('--ink3'),line:css('--line'),
+       panel:css('--panel'),bad:css('--bad'),safe:css('--s3'),heat:css('--s1'),g:GROUPS.map(g=>css(g.v))};
+}
+
+// ---------- loading ----------
+async function load(id){
+  $('loading').hidden=false; $('loading').textContent='正在读取数据…';
+  st.playing=false; $('play').textContent='播放';
+  let d;
+  try{ const r=await fetch('data/'+id+'.json'); if(!r.ok) throw new Error(r.status); d=await r.json(); }
+  catch(err){ $('loading').textContent='这一局的数据没能读出来('+err.message+')。请刷新页面再试。'; return; }
+  D=d; D.id=id; derive(); st.sel=-1; st.tf=D.t.length-1; st.cx=D.map.w/2; st.cy=D.map.h/2;
+  $('time').max=D.t.length-1; $('time').value=st.tf;
+  $('loading').hidden=true;
+  buildGround(); renderStatic(); renderAll();
+}
+
+function derive(){
+  const n=D.agents.length, T=D.t.length;
+  for(const a of D.agents) a.lvf=a.lvp.map(v=>v/100);   // level plus progress to the next one
+  const q=(key)=>{ const lo=new Float64Array(T),mid=new Float64Array(T),hi=new Float64Array(T),buf=new Float64Array(n);
+    for(let k=0;k<T;k++){ for(let i=0;i<n;i++) buf[i]=D.agents[i][key][k]; const s=Float64Array.from(buf).sort();
+      lo[k]=s[Math.floor(n*.1)]; mid[k]=(s[Math.floor((n-1)/2)]+s[Math.ceil((n-1)/2)])/2; hi[k]=s[Math.min(n-1,Math.floor(n*.9))]; }
+    return {lo,mid,hi}; };
+  const sum=(key)=>{ const a=new Float64Array(T); for(const ag of D.agents) for(let k=0;k<T;k++) a[k]+=ag[key][k]; return a; };
+  const hasAct = D.activities.length>0;
+  const gmap = D.activities.map(a=>GROUP_OF[a] ?? 5);
+  let act=null;
+  if(hasAct){
+    const raw=GROUPS.map(()=>new Float64Array(T));
+    for(const ag of D.agents) for(let k=0;k<T;k++) raw[gmap[ag.do[k]]][k]+=1/n;
+    const W=4; act=raw.map(r=>{ const o=new Float64Array(T); for(let k=0;k<T;k++){ let s=0,c=0; for(let j=Math.max(0,k-W);j<=Math.min(T-1,k+W);j++){s+=r[j];c++;} o[k]=s/c; } return o; });
+  }
+  // events
+  const B=5, bw=Math.ceil(D.map.w/B), bh=Math.ceil(D.map.h/B);
+  const kills=[], deaths=[], perAgent=D.agents.map(()=>[]), killBy={}, deathBy={}, total=new Uint32Array(bw*bh);
+  let sales=0;
+  for(const e of D.events){
+    const [t,a,k,x,y,v,nm]=e;
+    if(k==='K'){ kills.push(e); const key=D.names[nm]+'|'+v; killBy[key]=(killBy[key]||0)+1; total[Math.floor(y/B)*bw+Math.floor(x/B)]++; }
+    else { perAgent[a].push(e); if(k==='D'){ deaths.push(e); const key=nm>=0?D.names[nm]:'不明'; deathBy[key]=(deathBy[key]||0)+1; } if(k==='S') sales+=v; }
+  }
+  let heatMax=1; for(const c of total) if(c>heatMax) heatMax=c;
+  S={T,n,hasAct,gmap,act,lvf:q('lvf'),exp:q('exp'),gold:q('gold'),deathsQ:q('deaths'),earned:sum('earned'),spent:sum('spent'),held:sum('gold'),
+     kills,deaths,perAgent,killBy,deathBy,B,bw,bh,heat:new Uint32Array(bw*bh),heatPtr:0,heatMax,sales};
+}
+
+// ---------- map ----------
+let ground=null;
+function buildGround(){
+  const {w,h,walk}=D.map; const bin=atob(walk); const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const g=cv.getContext('2d'); const img=g.createImageData(w,h);
+  const rgb=c=>{ g.fillStyle=c; g.fillRect(0,0,1,1); const p=g.getImageData(0,0,1,1).data; return [p[0],p[1],p[2]]; };
+  const a=rgb(C.ground), b=rgb(C.wall);
+  for(let i=0;i<w*h;i++){ const on=(bin.charCodeAt(i>>3)>>(i&7))&1; const c=on?a:b; img.data[i*4]=c[0]; img.data[i*4+1]=c[1]; img.data[i*4+2]=c[2]; img.data[i*4+3]=255; }
+  g.putImageData(img,0,0); ground=cv;
+}
+function fit(cv){ const dpr=devicePixelRatio||1, w=cv.clientWidth, h=cv.clientHeight;
+  if(cv.width!==Math.round(w*dpr)||cv.height!==Math.round(h*dpr)){ cv.width=Math.round(w*dpr); cv.height=Math.round(h*dpr); }
+  const g=cv.getContext('2d'); g.setTransform(dpr,0,0,dpr,0,0); return {g,w,h}; }
+
+function posOf(i,tf){ const a=D.agents[i], k=Math.min(S.T-1,Math.floor(tf)), k2=Math.min(S.T-1,k+1), f=tf-k;
+  const dx=a.x[k2]-a.x[k], dy=a.y[k2]-a.y[k];
+  if(Math.abs(dx)>60||Math.abs(dy)>60) return [a.x[k],a.y[k]];      // sent back to town: no gliding across the map
+  return [a.x[k]+dx*f, a.y[k]+dy*f]; }
+function view(w){ const mw=D.map.w, s=w/mw*st.zoom, half=mw/st.zoom/2;
+  if(st.sel>=0 && st.zoom>1){ const p=posOf(st.sel,st.tf); st.cx=p[0]; st.cy=p[1]; }
+  st.cx=Math.min(mw-half,Math.max(half,st.cx)); st.cy=Math.min(D.map.h-half,Math.max(half,st.cy));
+  return {s, ox:w/2-st.cx*s, oy:w/2-st.cy*s}; }
+
+function drawMap(){
+  if(!D) return; const {g,w}=fit($('map')); const {s,ox,oy}=view(w); const X=x=>ox+x*s, Y=y=>oy+y*s;
+  const now=D.t[Math.min(S.T-1,Math.floor(st.tf))];
+  g.fillStyle=C.wall; g.fillRect(0,0,w,w); g.imageSmoothingEnabled=false; g.drawImage(ground,ox,oy,D.map.w*s,D.map.h*s);
+
+  for(const z of D.safe){ g.fillStyle=C.safe; g.globalAlpha=.22; g.fillRect(X(z[0]-z[2]),Y(z[1]-z[2]),z[2]*2*s,z[2]*2*s); g.globalAlpha=.9; g.strokeStyle=C.safe; g.lineWidth=1; g.strokeRect(X(z[0]-z[2]),Y(z[1]-z[2]),z[2]*2*s,z[2]*2*s); g.globalAlpha=1; }
+
+  if($('lyKill').checked){
+    if(S.heatPtr>0 && S.kills[S.heatPtr-1][0]>now){ S.heat.fill(0); S.heatPtr=0; }
+    while(S.heatPtr<S.kills.length && S.kills[S.heatPtr][0]<=now){ const e=S.kills[S.heatPtr++]; S.heat[Math.floor(e[4]/S.B)*S.bw+Math.floor(e[3]/S.B)]++; }
+    g.fillStyle=C.heat; const cs=S.B*s;
+    for(let by=0;by<S.bh;by++) for(let bx=0;bx<S.bw;bx++){ const c=S.heat[by*S.bw+bx]; if(!c) continue;
+      g.globalAlpha=.12+.68*Math.sqrt(c/S.heatMax); g.fillRect(X(bx*S.B),Y(by*S.B),cs+.5,cs+.5); }
+    g.globalAlpha=1;
+  }
+  if($('lySpawn').checked){ g.strokeStyle=C.ink2; g.lineWidth=1; g.globalAlpha=.75;
+    for(const p of D.spawns){ g.beginPath(); g.arc(X(p[0]),Y(p[1]),Math.max(2,p[2]*s),0,6.3); g.stroke(); } g.globalAlpha=1; }
+  g.fillStyle=C.ink; for(const p of D.shops){ g.fillRect(X(p[0])-2.5,Y(p[1])-2.5,5,5); }
+
+  if($('lyDeath').checked){ g.strokeStyle=C.bad; g.lineWidth=1.5; g.globalAlpha=.8; g.beginPath();
+    for(const e of S.deaths){ if(e[0]>now) break; if(st.sel>=0&&e[1]!==st.sel) continue; const x=X(e[3]),y=Y(e[4]); g.moveTo(x-3,y-3); g.lineTo(x+3,y+3); g.moveTo(x+3,y-3); g.lineTo(x-3,y+3); }
+    g.stroke(); g.globalAlpha=1; }
+
+  const k=Math.min(S.T-1,Math.floor(st.tf));
+  const path=(i,from,width,alpha,col)=>{ const a=D.agents[i]; g.strokeStyle=col; g.lineWidth=width; g.globalAlpha=alpha; g.beginPath(); let pen=false;
+    for(let j=Math.max(0,from);j<=k;j++){ if(j>from && (Math.abs(a.x[j]-a.x[j-1])>60||Math.abs(a.y[j]-a.y[j-1])>60)) pen=false;
+      if(pen) g.lineTo(X(a.x[j]),Y(a.y[j])); else { g.moveTo(X(a.x[j]),Y(a.y[j])); pen=true; } }
+    const p=posOf(i,st.tf); if(pen) g.lineTo(X(p[0]),Y(p[1])); g.stroke(); g.globalAlpha=1; };
+  if(st.sel>=0) path(st.sel,0,1.5,.85,C.ink);
+  if($('lyTrail').checked) for(let i=0;i<S.n;i++){ if(i===st.sel) continue; path(i,k-15,1,st.sel>=0?.15:.4,C.g[colourGroup(i,k)] ?? C.ink2); }
+
+  for(let i=0;i<S.n;i++){ const a=D.agents[i], p=posOf(i,st.tf), x=X(p[0]), y=Y(p[1]), dead=a.hp[k]===0, r=i===st.sel?6:3.5;
+    g.globalAlpha=(st.sel>=0&&i!==st.sel)?.45:1;
+    g.beginPath(); g.arc(x,y,r,0,6.3);
+    if(dead){ g.fillStyle=C.panel; g.fill(); g.strokeStyle=C.bad; g.lineWidth=1.5; g.stroke(); }
+    else { g.fillStyle=S.hasAct?C.g[colourGroup(i,k)]:C.ink2; g.fill(); g.strokeStyle=C.panel; g.lineWidth=i===st.sel?2:1; g.stroke(); }
+  }
+  g.globalAlpha=1;
+  if(st.sel>=0){ const p=posOf(st.sel,st.tf); g.strokeStyle=C.ink; g.lineWidth=1.5; g.beginPath(); g.arc(X(p[0]),Y(p[1]),10,0,6.3); g.stroke(); }
+}
+const colourGroup=(i,k)=> S.hasAct ? S.gmap[D.agents[i].do[k]] : -1;
+
+function mapPoint(e){ const cv=$('map'), r=cv.getBoundingClientRect(), w=r.width; const {s,ox,oy}=view(w); return {px:e.clientX-r.left,py:e.clientY-r.top,s,ox,oy}; }
+function agentAt(e){ const m=mapPoint(e); let best=-1,bd=10*10;
+  for(let i=0;i<S.n;i++){ const p=posOf(i,st.tf), dx=m.ox+p[0]*m.s-m.px, dy=m.oy+p[1]*m.s-m.py, d=dx*dx+dy*dy; if(d<bd){bd=d;best=i;} } return best; }
+let drag=null;
+$('map').addEventListener('pointerdown',e=>{ if(!D) return; drag={x:e.clientX,y:e.clientY,cx:st.cx,cy:st.cy,moved:false}; $('map').setPointerCapture(e.pointerId); });
+$('map').addEventListener('pointermove',e=>{ if(!D) return;
+  if(drag){ const m=mapPoint(e); const dx=e.clientX-drag.x, dy=e.clientY-drag.y; if(Math.abs(dx)+Math.abs(dy)>4) drag.moved=true;
+    if(drag.moved && st.zoom>1 && st.sel<0){ st.cx=drag.cx-dx/m.s; st.cy=drag.cy-dy/m.s; drawMap(); } return; }
+  const i=agentAt(e), k=Math.min(S.T-1,Math.floor(st.tf));
+  if(i>=0){ const a=D.agents[i]; showTip(e,`${a.name} · ${a.lv[k]} 级\n${a.hp[k]===0?'已死亡':'血量 '+a.hp[k]+'%'} · 金币 ${fmtN(a.gold[k])}${S.hasAct?'\n正在:'+GROUPS[S.gmap[a.do[k]]].name:''}`); return; }
+  const m=mapPoint(e), wx=(m.px-m.ox)/m.s, wy=(m.py-m.oy)/m.s;
+  for(const p of D.shops) if(Math.abs(p[0]-wx)<4/m.s+1&&Math.abs(p[1]-wy)<4/m.s+1){ const does=[p[2]&&'卖红药',p[3]&&'卖装备',p[4]&&'修理',p[5]&&'收购'].filter(Boolean).join('、'); showTip(e,`${D.names[p[6]]}\n${does}`); return; }
+  if($('lySpawn').checked){ let hit=null,bd=1e9; for(const p of D.spawns){ const d=Math.hypot(p[0]-wx,p[1]-wy); if(d<=Math.max(p[2],3/m.s)&&d<bd){bd=d;hit=p;} }
+    if(hit){ showTip(e,`刷怪点:${D.names[hit[5]]} ×${hit[3]}\n${hit[4]} 级 · 血量 ${hit[7]} · 经验 ${hit[6]}`); return; } }
+  hideTip(); });
+$('map').addEventListener('pointerup',e=>{ if(!D) return; const was=drag; drag=null; if(was&&was.moved) return; const i=agentAt(e); select(i); });
+$('map').addEventListener('pointerleave',hideTip);
+
+// ---------- charts ----------
+function frame(cv,ymax,yfmt){ const {g,w,h}=fit(cv); const m={l:52,r:12,t:8,b:22}; const pw=w-m.l-m.r, ph=h-m.t-m.b;
+  g.clearRect(0,0,w,h); g.font='11px '+css('--sans'); g.textBaseline='middle';
+  const X=k=>m.l+pw*k/(S.T-1), Y=v=>m.t+ph*(1-v/ymax);
+  g.strokeStyle=C.line; g.fillStyle=C.ink3; g.lineWidth=1; g.textAlign='right';
+  for(let i=0;i<=4;i++){ const v=ymax*i/4, y=Math.round(Y(v))+.5; g.beginPath(); g.moveTo(m.l,y); g.lineTo(w-m.r,y); g.stroke(); g.fillText(yfmt(v),m.l-6,y); }
+  g.textAlign='center'; const total=D.t[S.T-1]; for(let hr=0;hr<=total/3600;hr++){ const k=hr*3600/total*(S.T-1); g.fillText(hr+' 小时',Math.min(w-m.r-14,Math.max(m.l+12,X(k))),h-9); }
+  return {g,w,h,m,pw,ph,X,Y}; }
+const nice=v=>{ if(v<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(v))); const f=v/p; return (f<=1?1:f<=2?2:f<=4?4:f<=5?5:f<=8?8:10)*p; };
+function cursor(f,k,col,dash){ const {g,m,h,X}=f; g.strokeStyle=col; g.lineWidth=1; g.setLineDash(dash||[]); g.beginPath(); const x=Math.round(X(k))+.5; g.moveTo(x,m.t); g.lineTo(x,h-m.b); g.stroke(); g.setLineDash([]); }
+function line(f,arr,col,width){ const {g,X,Y}=f; g.strokeStyle=col; g.lineWidth=width; g.lineJoin='round'; g.beginPath(); for(let k=0;k<S.T;k++){ k?g.lineTo(X(k),Y(arr[k])):g.moveTo(X(k),Y(arr[k])); } g.stroke(); }
+
+const QCH=[{id:'cLevel',q:'lvf',key:'lvf',fmt:v=>v.toFixed(v%1?(v*10%1?2:1):0),unit:' 级'},{id:'cExp',q:'exp',key:'exp',fmt:fmtN,unit:''},
+           {id:'cGold',q:'gold',key:'gold',fmt:fmtN,unit:''},{id:'cDeaths',q:'deathsQ',key:'deaths',fmt:v=>v.toFixed(v%1?1:0),unit:' 次'}];
+function drawQ(c,hover){ const cv=$(c.id), q=S[c.q]; let mx=0; for(const v of q.hi) if(v>mx) mx=v;
+  const sel=st.sel>=0?D.agents[st.sel][c.key]:null; if(sel) for(const v of sel) if(v>mx) mx=v;
+  const f=frame(cv,nice(mx),c.fmt), {g,X,Y}=f;
+  g.fillStyle=C.g[0]; g.globalAlpha=.18; g.beginPath(); for(let k=0;k<S.T;k++) k?g.lineTo(X(k),Y(q.hi[k])):g.moveTo(X(k),Y(q.hi[k])); for(let k=S.T-1;k>=0;k--) g.lineTo(X(k),Y(q.lo[k])); g.closePath(); g.fill(); g.globalAlpha=1;
+  line(f,q.mid,C.g[0],2); if(sel) line(f,sel,C.ink,1.5);
+  cursor(f,st.tf,C.ink2,[3,3]); if(hover!=null) cursor(f,hover,C.ink3); cv._f=f; }
+function drawAct(hover){ const cv=$('cAct'); if(!S.hasAct) return; const f=frame(cv,1,v=>Math.round(v*100)+'%'), {g,X,Y}=f;
+  const base=new Float64Array(S.T);
+  S.act.forEach((a,gi)=>{ g.fillStyle=C.g[gi]; g.beginPath(); for(let k=0;k<S.T;k++){ const y=Y(base[k]+a[k]); k?g.lineTo(X(k),y):g.moveTo(X(k),y); }
+    for(let k=S.T-1;k>=0;k--) g.lineTo(X(k),Y(base[k])); g.closePath(); g.fill();
+    g.strokeStyle=C.panel; g.lineWidth=1.5; g.beginPath(); for(let k=0;k<S.T;k++){ const y=Y(base[k]+a[k]); k?g.lineTo(X(k),y):g.moveTo(X(k),y); } g.stroke();
+    for(let k=0;k<S.T;k++) base[k]+=a[k]; });
+  cursor(f,st.tf,C.ink,[3,3]); if(hover!=null) cursor(f,hover,C.ink); cv._f=f; }
+function drawEco(hover){ const cv=$('cEco'); let mx=0; for(const v of S.earned) if(v>mx) mx=v;
+  const f=frame(cv,nice(mx),fmtN); line(f,S.earned,C.g[0],2); line(f,S.spent,C.g[1],2); line(f,S.held,C.g[2],2);
+  cursor(f,st.tf,C.ink2,[3,3]); if(hover!=null) cursor(f,hover,C.ink3); cv._f=f; }
+function hook(cv,draw,text){ const idx=e=>{ const f=cv._f; if(!f) return null; const r=cv.getBoundingClientRect(); return Math.max(0,Math.min(S.T-1,Math.round((e.clientX-r.left-f.m.l)/f.pw*(S.T-1)))); };
+  cv.addEventListener('pointermove',e=>{ if(!D) return; const k=idx(e); if(k==null) return; draw(k); showTip(e,fmtT(D.t[k])+'\n'+text(k)); });
+  cv.addEventListener('pointerleave',()=>{ hideTip(); if(D) draw(null); });
+  cv.addEventListener('click',e=>{ const k=idx(e); if(k!=null) setTime(k); }); }
+for(const c of QCH) hook($(c.id),h=>drawQ(c,h),k=>{ const q=S[c.q]; return `中位数 ${c.fmt(q.mid[k])}${c.unit}\n第 10–90 百分位 ${c.fmt(q.lo[k])} – ${c.fmt(q.hi[k])}`+(st.sel>=0?`\n${D.agents[st.sel].name} ${c.fmt(D.agents[st.sel][c.key][k])}${c.unit}`:''); });
+hook($('cAct'),drawAct,k=>GROUPS.map((g,i)=>`${g.name} ${(S.act[i][k]*100).toFixed(0)}%`).join('\n'));
+hook($('cEco'),drawEco,k=>`累计收入 ${fmtN(S.earned[k])}\n累计支出 ${fmtN(S.spent[k])}\n手里合计 ${fmtN(S.held[k])}`);
+
+// ---------- static parts ----------
+function bars(el,rows,bad){ const mx=Math.max(1,...rows.map(r=>r[1])); el.innerHTML='';
+  for(const [name,v,extra] of rows){ const a=document.createElement('span'); a.textContent=name; const b=document.createElement('span'); b.className='b'+(bad?' bad':''); b.style.width=(v/mx*100)+'%';
+    const c=document.createElement('span'); c.className='v'; c.textContent=fmtN(v)+(extra||''); el.append(a,b,c); }
+  if(!rows.length){ const p=document.createElement('span'); p.style.gridColumn='1/-1'; p.style.color='var(--ink3)'; p.textContent='没有记录'; el.append(p); } }
+function legend(el,items){ el.innerHTML=''; for(const [name,col] of items){ const s=document.createElement('span'); const i=document.createElement('i'); i.style.background=col; s.append(i,name); el.append(s); } }
+
+function renderStatic(){
+  const r=RUNS.find(r=>r.id===D.id), n=S.n, last=S.T-1;
+  const totalK=S.kills.length, totalD=S.deaths.length;
+  $('tiles').innerHTML=''; for(const [v,l] of [[r.levelf.toFixed(2),'平均等级,含升级进度(只算整数级是 '+r.level.toFixed(2)+')'],[r.kills.toFixed(0),'人均击杀'],[(totalD/n).toFixed(2),'人均死亡'],
+     [fmtN(S.held[last]/n),'人均手里的金币'],[r.reliefs,'发出的救济木剑']]){ const t=document.createElement('div'); t.className='tile'; const b=document.createElement('b'); b.textContent=v; const s=document.createElement('span'); s.textContent=l; t.append(b,s); $('tiles').append(t); }
+  for(const b of $('runs').children) b.setAttribute('aria-pressed', b.dataset.id===D.id);
+  const items=GROUPS.map((g,i)=>[g.name,C.g[i]]);
+  legend($('actLegend'),S.hasAct?items:[['随机策略没有"在做什么"的状态',C.ink2]]); legend($('actLegend2'),items);
+  $('actSection').hidden=!S.hasAct;
+  legend($('ecoLegend'),[['累计收入',C.g[0]],['累计支出',C.g[1]],['手里合计',C.g[2]]]);
+  bars($('bKills'),Object.entries(S.killBy).sort((a,b)=>b[1]-a[1]).map(([k,v])=>{ const [nm,lv]=k.split('|'); return [`${nm}(${lv} 级)`,v,` · ${(v/totalK*100).toFixed(0)}%`]; }));
+  bars($('bDeaths'),Object.entries(S.deathBy).sort((a,b)=>b[1]-a[1]).map(([k,v])=>[k,v,` · ${(v/Math.max(1,totalD)*100).toFixed(0)}%`]),true);
+  const earned=S.earned[last], spent=S.spent[last], picked=Math.max(0,earned-S.sales);
+  bars($('bEco'),[['卖东西',S.sales],['捡到的金币',picked],['花掉的',spent],['还在手里',S.held[last]]]);
+  const cnt=k=>D.agents.reduce((s,a)=>s+a[k],0);
+  $('ecoNote').textContent=`支出包括:买红药 ${fmtN(cnt('potions'))} 瓶,买装备 ${cnt('gear')} 件,修理 ${cnt('repairs')} 次。卖出物品 ${fmtN(cnt('sold'))} 件。`;
+  // comparison
+  const tb=$('cmp').tBodies[0]; tb.innerHTML=''; for(const x of CMP){ const tr=tb.insertRow(); if(x.cfg===r.cfg) tr.className='cur'; for(const v of x.cells) tr.insertCell().textContent=v; }
+  buildTable();
+}
+const COLS=[['name','角色'],['lvf','等级'],['kills','击杀'],['deaths','死亡'],['gold','金币'],['earned','累计收入'],['reliefs','救济']];
+function buildTable(){ const head=$('agents').tHead.rows[0]; head.innerHTML='';
+  for(const [k,l] of COLS){ const th=document.createElement('th'); th.textContent=l+(st.sort===k?(st.sortDir<0?' ↓':' ↑'):''); th.onclick=()=>{ st.sortDir=st.sort===k?-st.sortDir:-1; st.sort=k; buildTable(); }; head.append(th); }
+  const last=S.T-1, val=(a,k)=>k==='name'?a.name:k==='reliefs'?a.reliefs:a[k][last];
+  const order=D.agents.map((a,i)=>i).sort((i,j)=>{ const a=val(D.agents[i],st.sort), b=val(D.agents[j],st.sort); return (a<b?-1:a>b?1:i-j)*st.sortDir; });
+  const tb=$('agents').tBodies[0]; tb.innerHTML='';
+  for(const i of order){ const a=D.agents[i], tr=tb.insertRow(); tr.tabIndex=0; tr.dataset.i=i; if(i===st.sel) tr.className='sel';
+    for(const [k] of COLS) tr.insertCell().textContent=k==='name'?a.name:k==='lvf'?val(a,k).toFixed(2):fmtN(val(a,k));
+    tr.onclick=()=>select(i); tr.onkeydown=e=>{ if(e.key==='Enter') select(i); }; }
+}
+
+// ---------- selection and time ----------
+const EV={D:(e)=>`在 ${e[5]} 级时死亡`+(e[6]>=0?`,最后打中他的是${D.names[e[6]]}`:''),L:e=>`升到 ${e[5]} 级`,R:()=>'领到一把救济木剑',S:e=>`卖东西,收入 ${fmtN(e[5])}`,
+          G:()=>'买了一件装备并穿上',F:()=>'修理装备',P:e=>`买红药 ${e[5]} 瓶`};
+function select(i){ st.sel=(i===st.sel)?-1:i; for(const tr of $('agents').tBodies[0].rows) tr.classList.toggle('sel',+tr.dataset.i===st.sel);
+  renderAll(); }
+function renderSel(){ const on=st.sel>=0; $('selClear').hidden=!on; $('selHint').hidden=on; $('selKv').hidden=!on; $('selLog').hidden=!on;
+  if(!on){ $('selName').textContent='没有选中角色'; return; }
+  const a=D.agents[st.sel], k=Math.min(S.T-1,Math.floor(st.tf)), now=D.t[k]; $('selName').textContent=a.name;
+  $('selKv').innerHTML=''; for(const [l,v] of [['等级',a.lv[k]],['血量',a.hp[k]===0?'死亡':a.hp[k]+'%'],['金币',fmtN(a.gold[k])],['击杀',a.kills[k]],['死亡',a.deaths[k]],['正在',S.hasAct?GROUPS[S.gmap[a.do[k]]].name:'—']]){
+    const d=document.createElement('div'); const s=document.createElement('span'); s.textContent=l; d.append(s,String(v)); $('selKv').append(d); }
+  const ev=S.perAgent[st.sel].filter(e=>e[0]<=now&&e[2]!=='P').slice(-40).reverse(); $('selLog').innerHTML='';
+  for(const e of ev){ const d=document.createElement('div'); const t=document.createElement('time'); t.textContent=fmtT(e[0]); d.append(t,EV[e[2]](e)); $('selLog').append(d); }
+  if(!ev.length) $('selLog').textContent='到这个时刻还没有大事。'; }
+function renderAll(){ if(!D) return; $('clock').textContent=fmtT(D.t[Math.min(S.T-1,Math.floor(st.tf))]); drawMap(); for(const c of QCH) drawQ(c,null); drawAct(null); drawEco(null); renderSel(); }
+function setTime(k){ st.tf=Math.max(0,Math.min(S.T-1,k)); $('time').value=Math.floor(st.tf); renderAll(); }
+
+$('time').addEventListener('input',e=>setTime(+e.target.value));
+$('play').addEventListener('click',()=>{ if(!D) return; st.playing=!st.playing; $('play').textContent=st.playing?'暂停':'播放'; if(st.playing){ if(st.tf>=S.T-1) st.tf=0; lastFrame=performance.now(); requestAnimationFrame(tick); } });
+let lastFrame=0;
+function tick(now){ if(!st.playing||!D) return; const dt=Math.min(.1,(now-lastFrame)/1000); lastFrame=now; st.tf+=dt*(+$('speed').value);
+  if(st.tf>=S.T-1){ st.tf=S.T-1; st.playing=false; $('play').textContent='播放'; }
+  $('time').value=Math.floor(st.tf); renderAll(); if(st.playing) requestAnimationFrame(tick); }
+for(const id of ['lyTrail','lyKill','lyDeath','lySpawn']) $(id).addEventListener('change',drawMap);
+$('zoom').addEventListener('change',e=>{ st.zoom=+e.target.value; drawMap(); });
+$('selClear').addEventListener('click',()=>select(st.sel));
+
+const onTheme=()=>{ readColours(); if(D){ buildGround(); renderStatic(); renderAll(); } };
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',onTheme);
+new MutationObserver(onTheme).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+addEventListener('resize',()=>renderAll());
+
+readColours();
+for(const r of RUNS){ const b=document.createElement('button'); b.textContent=r.label; b.dataset.id=r.id; b.setAttribute('aria-pressed','false'); b.onclick=()=>load(r.id); $('runs').append(b); }
+load('script');
+</script>

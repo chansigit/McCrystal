@@ -108,6 +108,10 @@ namespace Server
         // Parts of the scripted policy to switch off, comma separated:
         // flee, potion, rest, select, memory, resupply.
         public static string SimulationScriptOff = "";
+        // File a run's trace is written to when it stops (see SimTrace). Empty for none.
+        public static string SimulationTracePath = "";
+        // Game seconds between the samples in that trace.
+        public static int SimulationTraceSeconds = 20;
         // Whether a simulation opens the game and status ports. Off by default.
         public static bool SimulationListen = false;
         // Hand a simulation agent the starting weapon again when it has no weapon and

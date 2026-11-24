@@ -987,6 +987,7 @@ namespace Server.MirObjects
                 {
                     PlayerObject playerObj = (PlayerObject)EXPOwner;
                     playerObj.CheckGroupQuestKill(Info);
+                    Envir.SimTrace?.Killed(this, playerObj);
                 }
 
             }

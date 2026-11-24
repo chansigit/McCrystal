@@ -141,6 +141,9 @@ namespace Server.MirEnvir
         // Observation and action interface for those characters. Null without agents.
         public SimEnv SimEnv { get; private set; }
 
+        // Record of what the agents did, written when the run stops. Null unless asked for.
+        public SimTrace SimTrace { get; private set; }
+
         // False once the loop thread has ended, whether it was asked to stop or it failed.
         public bool LoopAlive => _thread != null;
 
@@ -2192,6 +2195,8 @@ namespace Server.MirEnvir
                         SimEnv.Policy = new RandomSimPolicy(Settings.SimulationSeed + 1);
                     else if (string.Equals(Settings.SimulationPolicy, "script", StringComparison.OrdinalIgnoreCase))
                         SimEnv.Policy = new ScriptedSimPolicy(Settings.SimulationSeed + 1, Settings.SimulationScriptOff);
+                    if (!string.IsNullOrEmpty(Settings.SimulationTracePath))
+                        SimTrace = new SimTrace(this, SimEnv, Settings.SimulationTracePath, Settings.SimulationTraceSeconds);
                 }
 
                 var simSaveRealTime = Stopwatch.ElapsedMilliseconds + Settings.SimulationSaveMinutes * 60000L;
@@ -2253,7 +2258,10 @@ namespace Server.MirEnvir
                         // Agents decide every few ticks, after this tick's packets and before
                         // the world moves.
                         if (SimEnv != null && SimulationTicks % Settings.SimulationDecisionTicks == 0)
+                        {
                             SimEnv.Step();
+                            SimTrace?.Step();
+                        }
 
                         // A simulation tick covers the whole list, starting from the top.
                         if (Clock.IsVirtual)
@@ -2343,6 +2351,7 @@ namespace Server.MirEnvir
                                 if (!hashed) StateHashes.Enqueue((SimulationTicks, ComputeStateHash()));
                                 // While the agents are still in the world: shutdown logs them out.
                                 SimSummary = SimEnv?.Summary();
+                                SimTrace?.Write();
                                 SimulationCompleted = true;
                                 Running = false;
                                 break;

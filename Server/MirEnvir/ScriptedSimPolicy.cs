@@ -27,7 +27,7 @@ namespace Server.MirEnvir
     ///
     /// Each part can be switched off by name to measure what it contributes.
     /// </summary>
-    public sealed class ScriptedSimPolicy : ISimPolicy, ISimPolicyReport
+    public sealed class ScriptedSimPolicy : ISimPolicy, ISimPolicyReport, ISimPolicyTrace
     {
         private static readonly int[] Dx = { 0, 1, 1, 1, 0, -1, -1, -1 };
         private static readonly int[] Dy = { -1, -1, 0, 1, 1, 1, 0, -1 };
@@ -46,6 +46,11 @@ namespace Server.MirEnvir
             public int AllowedLevel = -1;
             public int EasyWins, LastKills, LastDeaths;
 
+            public Doing Now;
+            public int Level;
+            public Point Home;
+            public bool HasHome;
+            public int[] Danger;
             public int RestSteps, PotionCooldown;
             public bool Fleeing;
             public readonly long[] Doing = new long[(int)ScriptedSimPolicy.Doing.Count];
@@ -104,6 +109,51 @@ namespace Server.MirEnvir
         private readonly int[] _localParent = new int[33 * 33];
         private readonly int[] _localQueue = new int[33 * 33];
 
+        // How far above its own level a monster may be: beyond MaxLevelGap it is never
+        // attacked; beyond ComfortLevelGap only when the odds look good.
+        // Monster levels in this data run well ahead of player levels (a level 1 warrior
+        // kills level 5 hens and level 12 deer), so the gaps are wide. Of the pairs tried
+        // (8/5, 10/6, 12/7), this one levelled fastest and died least.
+        private const int MaxLevelGap = 12;
+        private const int ComfortLevelGap = 7;
+        private readonly int[] _seenX = new int[64], _seenY = new int[64], _seenLevel = new int[64];
+        private readonly bool[] _seenHunting = new bool[64];
+        private long _declined;
+        // Walking distance from the character to every cell in view, filled once per decision.
+        private readonly int[] _floodParent = new int[33 * 33], _floodSteps = new int[33 * 33];
+        private long _unreachable;
+
+        // What it is running from this step: everything hunting it, and anything far too
+        // strong that has come close.
+        private readonly int[] _fearX = new int[96], _fearY = new int[96];
+        private int _fears;
+
+        // Each character remembers the ground it died on, in blocks of the map, as the
+        // level it wants to have before going there again. The memory is its own.
+        private const int DangerMargin = 3;
+        private long _avoided;
+
+        private int DangerAt(Mind mind, int x, int y)
+        {
+            if (mind.Danger == null || x < 0 || y < 0 || x >= _width || y >= _height) return 0;
+            return mind.Danger[(y / Block) * _blocksWide + x / Block];
+        }
+
+        // Until it has outgrown level LeashLevels a character hunts around the place it
+        // started from, a little further with each level; after that the map is open.
+        // Of the ranges tried (40+12, 50+20, 80+20, 80+30, 100+20, 120+15 per level) 80+20
+        // lost the fewest lives without starving the character of things to hunt.
+        private const int LeashLevels = 7;
+        private const int LeashBase = 80;
+        private const int LeashStep = 20;
+        private long _leashed;
+
+        private bool InRange(Mind mind, int x, int y)
+        {
+            if (!_select || mind.Level > LeashLevels) return true;
+            return Math.Max(Math.Abs(x - mind.Home.X), Math.Abs(y - mind.Home.Y)) <= LeashBase + (mind.Level - 1) * LeashStep;
+        }
+
         private readonly long[] _doing = new long[(int)Doing.Count];
         private long _trips, _promotions, _demotions, _sawItem, _noRoom;
 
@@ -129,7 +179,7 @@ namespace Server.MirEnvir
             for (var d = 0; d < (int)Doing.Count; d++)
                 text.Append($" {((Doing)d).ToString().ToLowerInvariant()} {100.0 * _doing[d] / total:F1}%");
             text.AppendLine();
-            text.AppendLine($"[script] resupply trips {_trips}, moved up a monster tier {_promotions} times, stepped back {_demotions} times");
+            text.AppendLine($"[script] resupply trips {_trips}, moved up a monster tier {_promotions} times, stepped back {_demotions} times, passed over a risky target {_declined} times, ignored a monster it could not walk to {_unreachable} times, left alone a monster on ground it died on {_avoided} times, and one outside its range {_leashed} times");
             text.AppendLine($"[script] steps with an item in reach {_sawItem}, of which the bag had no room {_noRoom}");
 
             // The characters that got least done, with what the script was doing with them.
@@ -197,6 +247,13 @@ namespace Server.MirEnvir
                 _minds[i] = new Mind { Random = new Random(_seed * 7919 + i), Visited = new int[_blocksWide * _blocksHigh] };
         }
 
+        private static readonly string[] ActivityNames =
+            Enumerable.Range(0, (int)Doing.Count).Select(d => ((Doing)d).ToString().ToLowerInvariant()).ToArray();
+
+        public IReadOnlyList<string> Activities => ActivityNames;
+
+        public int Activity(int agent) => _minds == null ? 0 : (int)_minds[agent].Now;
+
         public void Decide(SimEnv env, int[] actions)
         {
             if (_minds == null) Learn(env);
@@ -207,6 +264,7 @@ namespace Server.MirEnvir
                 var doing = Doing.Wait;
                 actions[i] = Choose(i, ref doing);
                 _doing[(int)doing]++;
+                _minds[i].Now = doing;
                 _minds[i].Doing[(int)doing]++;
             }
         }
@@ -256,6 +314,14 @@ namespace Server.MirEnvir
             if (agent.Deaths != mind.LastDeaths)
             {
                 mind.LastDeaths = agent.Deaths;
+                var fell = agent.DeathLocation;
+                if (_select && fell.X >= 0 && fell.Y >= 0 && fell.X < _width && fell.Y < _height)
+                {
+                    mind.Danger ??= new int[_blocksWide * _blocksHigh];
+                    var where = (fell.Y / Block) * _blocksWide + fell.X / Block;
+                    var need = (int)Math.Round(S(i, SimEnv.SfLevel) * SimEnv.LevelScale) + DangerMargin;
+                    if (need > mind.Danger[where]) mind.Danger[where] = need;
+                }
                 StepBack(mind, 1);
                 mind.NextStepBack = _step + 300;
                 mind.Path = null; mind.ExploreGoal = null; mind.HuntSpot = null;
@@ -266,9 +332,35 @@ namespace Server.MirEnvir
 
             var health = S(i, SimEnv.SfHealth);
 
+            var myLevel = (int)Math.Round(S(i, SimEnv.SfLevel) * SimEnv.LevelScale);
+            var ceiling = myLevel + MaxLevelGap;
+            var threatened = false;   // something it must not fight is after it
+
+            mind.Level = myLevel;
+            if (!mind.HasHome) { mind.Home = mind.Position; mind.HasHome = true; }
+            _fears = 0;
+
+            // Monsters in view, for judging the company a target keeps.
+            var seen = 0;
+            for (var dy = -_radius; dy <= _radius; dy++)
+            {
+                for (var dx = -_radius; dx <= _radius; dx++)
+                {
+                    if (G(i, SimEnv.ChMonsterHunting, dx, dy) != 0 && _fears < _fearX.Length) { _fearX[_fears] = dx; _fearY[_fears] = dy; _fears++; }
+                    if (G(i, SimEnv.ChGuard, dx, dy) != 0 && G(i, SimEnv.ChMonsterHunting, dx, dy) != 0) threatened = true;
+                    if (G(i, SimEnv.ChMonster, dx, dy) == 0 || seen == _seenX.Length) continue;
+                    _seenX[seen] = dx; _seenY[seen] = dy;
+                    _seenLevel[seen] = (int)Math.Round(G(i, SimEnv.ChMonsterLevel, dx, dy) * SimEnv.LevelScale);
+                    _seenHunting[seen] = G(i, SimEnv.ChMonsterHunting, dx, dy) != 0;
+                    seen++;
+                }
+            }
+
             // Look around once.
             int hunters = 0, nearestHunter = int.MaxValue, monstersClose = 0;
             int targetDx = 0, targetDy = 0; var targetScore = float.MaxValue; var haveTarget = false;
+            var targetBeside = -1;
+            if (seen > 0) FloodView(i);
             int itemDx = 0, itemDy = 0, itemDistance = int.MaxValue;
             int corpseDx = 0, corpseDy = 0, corpseDistance = int.MaxValue;
 
@@ -310,9 +402,47 @@ namespace Server.MirEnvir
 
                     if (mind.AllowedLevel < 0) mind.AllowedLevel = mind.SeenLevels.Min;
                     var acceptable = !_select || hunting || level <= mind.AllowedLevel || level == mind.SeenLevels.Min;
+                    if (_select)
+                    {
+                        // Far above its own level: never, and if one is after it, get away.
+                        if (level > ceiling)
+                        {
+                            // Do not wait for it to notice: keep clear of it.
+                            if (hunting) threatened = true;
+                            else if (distance <= 4)
+                            {
+                                threatened = true;
+                                if (_fears < _fearX.Length) { _fearX[_fears] = dx; _fearY[_fears] = dy; _fears++; }
+                            }
+                            continue;
+                        }
+                        // Standing on ground that has killed characters of this level.
+                        if (!hunting && DangerAt(mind, mind.Position.X + dx, mind.Position.Y + dy) > myLevel) { _avoided++; continue; }
+                        // Beyond where it should be hunting yet.
+                        if (!hunting && !InRange(mind, mind.Position.X + dx, mind.Position.Y + dy)) { _leashed++; continue; }
+                        // A little above: only in good shape, and only if the monster is
+                        // not in company that would join in.
+                        if (acceptable && level > myLevel + ComfortLevelGap && !hunting)
+                        {
+                            var company = 0;
+                            for (var m = 0; m < seen; m++)
+                            {
+                                if (_seenX[m] == dx && _seenY[m] == dy) continue;
+                                if (_seenHunting[m]) { company++; continue; }
+                                if (_seenLevel[m] < myLevel + 3) continue; // too weak to matter
+                                if (Math.Max(Math.Abs(_seenX[m] - dx), Math.Abs(_seenY[m] - dy)) <= 3) company++;
+                            }
+                            if (company > 1 || health < 0.6f) { _declined++; acceptable = false; }
+                        }
+                    }
                     if (!acceptable) continue;
 
-                    float score = distance;
+                    // How far it is on foot, not as the crow flies: a hen behind a fence
+                    // or across the river is not a target at all.
+                    var beside = BesideCell(dx, dy, out var walk);
+                    if (beside < 0) { _unreachable++; continue; }
+
+                    float score = walk;
                     if (_select)
                     {
                         if (hunting) score -= 3;                                       // it is coming anyway
@@ -323,7 +453,7 @@ namespace Server.MirEnvir
                             if (Math.Abs(px) <= _radius && Math.Abs(py) <= _radius && G(i, SimEnv.ChPlayer, px, py) != 0) { score += 6; break; }
                         }
                     }
-                    if (score < targetScore) { targetScore = score; targetDx = dx; targetDy = dy; haveTarget = true; }
+                    if (score < targetScore) { targetScore = score; targetDx = dx; targetDy = dy; targetBeside = beside; haveTarget = true; }
                 }
             }
 
@@ -348,7 +478,13 @@ namespace Server.MirEnvir
                 return SimEnv.ActHealthPotion;
             }
 
-            var losing = hunters > 0 && health < 0.3f && !Can(i, SimEnv.ActHealthPotion);
+            // A fight it cannot win: out of health with nothing to drink, outnumbered while
+            // hurt, or chased by something it should never have met. Once running, it keeps
+            // running until it has shaken them off or recovered.
+            var losing = threatened ||
+                         (hunters > 0 && health < 0.3f && !Can(i, SimEnv.ActHealthPotion)) ||
+                         (hunters >= 3 && health < 0.5f) ||
+                         (mind.Fleeing && hunters > 0 && health < 0.5f);
             if (!losing) mind.Fleeing = false;
 
             if (_flee && losing)
@@ -474,7 +610,7 @@ namespace Server.MirEnvir
                 doing = Doing.Approach;
                 mind.ExploreGoal = null;
                 mind.Path = null;
-                var step = LocalStep(i, targetDx, targetDy, true);
+                var step = FloodStep(i, targetBeside);
                 if (step != SimEnv.ActNone) mind.TriedToMove = true;
                 return Unstick(i, mind, step);
             }
@@ -487,6 +623,7 @@ namespace Server.MirEnvir
         private void StepUp(Mind mind)
         {
             mind.EasyWins = 0;
+            // Guards are no longer among the levels seen, so the next tier is a real monster.
             var higher = mind.SeenLevels.FirstOrDefault(l => l > mind.AllowedLevel);
             mind.AllowedLevel = higher > mind.AllowedLevel ? higher : mind.AllowedLevel + 2;
             _promotions++;
@@ -537,10 +674,8 @@ namespace Server.MirEnvir
                     if (!Can(i, baseAction + d)) continue;
                     int x = Dx[d] * reach, y = Dy[d] * reach;
                     var gap = int.MaxValue;
-                    for (var dy = -_radius; dy <= _radius; dy++)
-                        for (var dx = -_radius; dx <= _radius; dx++)
-                            if (G(i, SimEnv.ChMonsterHunting, dx, dy) != 0)
-                                gap = Math.Min(gap, Math.Max(Math.Abs(dx - x), Math.Abs(dy - y)));
+                    for (var f = 0; f < _fears; f++)
+                        gap = Math.Min(gap, Math.Max(Math.Abs(_fearX[f] - x), Math.Abs(_fearY[f] - y)));
                     if (gap > bestGap) { bestGap = gap; best = baseAction + d; }
                 }
             }
@@ -548,6 +683,79 @@ namespace Server.MirEnvir
         }
 
         // ---- moving ----
+
+        // Breadth-first over the open cells in view, from the character outwards.
+        private void FloodView(int i)
+        {
+            var side = _side;
+            var cells = side * side;
+            var centre = _radius * side + _radius;
+
+            // Read the two planes once; the search then works on one flat array.
+            var walkable = i * _env.GridSize + SimEnv.ChWalkable * _plane;
+            var blocked = i * _env.GridSize + SimEnv.ChBlocked * _plane;
+            var grid = _env.Grid;
+            var steps = _floodSteps;
+            for (var c = 0; c < cells; c++)
+                steps[c] = grid[walkable + c] != 0 && grid[blocked + c] == 0 ? -1 : -2; // -1 open and unvisited, -2 closed
+
+            steps[centre] = 0;
+            _floodParent[centre] = centre;
+            int head = 0, tail = 0;
+            var queue = _localQueue;
+            queue[tail++] = centre;
+            while (head < tail)
+            {
+                var at = queue[head++];
+                int ax = at % side, ay = at / side;
+                var further = steps[at] + 1;
+                for (var d = 0; d < 8; d++)
+                {
+                    int nx = ax + Dx[d], ny = ay + Dy[d];
+                    if ((uint)nx >= (uint)side || (uint)ny >= (uint)side) continue;
+                    var next = ny * side + nx;
+                    if (steps[next] != -1) continue;
+                    steps[next] = further;
+                    _floodParent[next] = at;
+                    queue[tail++] = next;
+                }
+            }
+        }
+
+        // The cell next to (dx, dy) that is fewest steps away, or -1 if none can be walked to.
+        private int BesideCell(int dx, int dy, out int steps)
+        {
+            var best = -1;
+            steps = int.MaxValue;
+            for (var d = 0; d < 8; d++)
+            {
+                int nx = dx + Dx[d], ny = dy + Dy[d];
+                if (Math.Abs(nx) > _radius || Math.Abs(ny) > _radius) continue;
+                var cell = (ny + _radius) * _side + (nx + _radius);
+                if (_floodSteps[cell] < 0 || _floodSteps[cell] >= steps) continue;
+                steps = _floodSteps[cell];
+                best = cell;
+            }
+            return best;
+        }
+
+        // The first move of the flooded route to a cell: a run if its first two steps line up.
+        private int FloodStep(int i, int cell)
+        {
+            var centre = _radius * _side + _radius;
+            if (cell < 0 || cell == centre) return SimEnv.ActNone;
+            int first = cell, second = -1;
+            while (_floodParent[first] != centre) { second = first; first = _floodParent[first]; }
+
+            int fx = first % _side - _radius, fy = first / _side - _radius;
+            var direction = Direction(fx, fy);
+            if (second >= 0)
+            {
+                int sx = second % _side - _radius, sy = second / _side - _radius;
+                if (sx == 2 * fx && sy == 2 * fy && Can(i, SimEnv.ActRun + direction)) return SimEnv.ActRun + direction;
+            }
+            return Can(i, SimEnv.ActWalk + direction) ? SimEnv.ActWalk + direction : SimEnv.ActNone;
+        }
 
         // One step towards a cell inside the view, around whatever is in the way.
         // With stopBeside, arriving next to the cell is enough (it holds a monster or an NPC).
@@ -678,6 +886,63 @@ namespace Server.MirEnvir
 
         // A* over the terrain. Ignores monsters and players: they move, and the local
         // search deals with them on the way.
+        private readonly PriorityQueue<int, int> _open = new PriorityQueue<int, int>(4096);
+        private readonly Dictionary<Point, int[]> _fields = new Dictionary<Point, int[]>();
+        private int[] _fieldQueue;
+
+        // Steps from every cell of the map to a place agents keep coming back to. A route
+        // there is then read off the field in time proportional to its length.
+        private void LearnField(Point to)
+        {
+            if (_fields.ContainsKey(to) || to.X < 0 || to.Y < 0 || to.X >= _width || to.Y >= _height) return;
+            var field = new int[_width * _height];
+            Array.Fill(field, -1);
+            _fieldQueue ??= new int[_width * _height];
+            var queue = _fieldQueue;
+            int head = 0, tail = 0;
+            var goal = to.Y * _width + to.X;
+            field[goal] = 0;
+            queue[tail++] = goal;
+            while (head < tail)
+            {
+                var at = queue[head++];
+                int ax = at % _width, ay = at / _width;
+                for (var d = 0; d < 8; d++)
+                {
+                    int nx = ax + Dx[d], ny = ay + Dy[d];
+                    if (nx < 0 || ny < 0 || nx >= _width || ny >= _height) continue;
+                    var next = ny * _width + nx;
+                    if (field[next] >= 0 || !_terrain[next]) continue;
+                    field[next] = field[at] + 1;
+                    queue[tail++] = next;
+                }
+            }
+            _fields[to] = field;
+        }
+
+        private List<Point> Descend(int[] field, int start)
+        {
+            if (field[start] < 0) return null;
+            var route = new List<Point>(field[start]);
+            var at = start;
+            while (field[at] > 1)
+            {
+                int ax = at % _width, ay = at / _width;
+                var best = -1;
+                for (var d = 0; d < 8; d++)
+                {
+                    int nx = ax + Dx[d], ny = ay + Dy[d];
+                    if (nx < 0 || ny < 0 || nx >= _width || ny >= _height) continue;
+                    var next = ny * _width + nx;
+                    if (field[next] == field[at] - 1) { best = next; break; }
+                }
+                if (best < 0) break;
+                at = best;
+                route.Add(new Point(at % _width, at / _width));
+            }
+            return route.Count == 0 ? null : route;
+        }
+
         private List<Point> PlanRoute(Point from, Point to)
         {
             if (from.X < 0 || from.Y < 0 || from.X >= _width || from.Y >= _height) return null;
@@ -686,7 +951,12 @@ namespace Server.MirEnvir
             _search++;
             var start = from.Y * _width + from.X;
             var goal = to.Y * _width + to.X;
-            var open = new PriorityQueue<int, int>();
+            // A destination this trip has been made to before (a shop) has its distances
+            // worked out already: walk downhill.
+            if (_fields.TryGetValue(to, out var field)) return Descend(field, start);
+
+            var open = _open;
+            open.Clear();
             _cost[start] = 0; _stamp[start] = _search; _parent[start] = start;
             open.Enqueue(start, 0);
             var expanded = 0;
@@ -707,7 +977,9 @@ namespace Server.MirEnvir
                     var cost = _cost[at] + 1;
                     if (_stamp[next] == _search && _cost[next] <= cost) continue;
                     _stamp[next] = _search; _cost[next] = cost; _parent[next] = at;
-                    open.Enqueue(next, cost + Math.Max(Math.Abs(nx - to.X), Math.Abs(ny - to.Y)));
+                    // Among equally promising cells, the one further along comes first: on
+                    // open ground the search then runs at the goal instead of fanning out.
+                    open.Enqueue(next, ((cost + Math.Max(Math.Abs(nx - to.X), Math.Abs(ny - to.Y))) << 14) - cost);
                 }
             }
 
@@ -724,6 +996,8 @@ namespace Server.MirEnvir
         private int Explore(int i, Mind mind)
         {
             // Back to where the hunting was, if that is not here.
+            if (mind.HuntSpot.HasValue && (DangerAt(mind, mind.HuntSpot.Value.X, mind.HuntSpot.Value.Y) > mind.Level ||
+                                           !InRange(mind, mind.HuntSpot.Value.X, mind.HuntSpot.Value.Y))) mind.HuntSpot = null;
             if (_memory && mind.HuntSpot.HasValue)
             {
                 if (Functions.MaxDistance(mind.HuntSpot.Value, mind.Position) > 4)
@@ -733,6 +1007,13 @@ namespace Server.MirEnvir
 
             if (mind.ExploreGoal.HasValue && Functions.MaxDistance(mind.ExploreGoal.Value, mind.Position) <= 3)
                 mind.ExploreGoal = null;
+            // Learned since it set out that the place is not for it yet.
+            if (mind.ExploreGoal.HasValue && (DangerAt(mind, mind.ExploreGoal.Value.X, mind.ExploreGoal.Value.Y) > mind.Level ||
+                                              !InRange(mind, mind.ExploreGoal.Value.X, mind.ExploreGoal.Value.Y)))
+            {
+                mind.ExploreGoal = null;
+                mind.Path = null;
+            }
 
             if (!mind.ExploreGoal.HasValue)
             {
@@ -760,6 +1041,8 @@ namespace Server.MirEnvir
                         if (x < 0 || y < 0 || x >= _blocksWide || y >= _blocksHigh) continue;
                         var seen = mind.Visited[y * _blocksWide + x];
                         if (seen != 0 && _step - seen < 20000) continue;
+                        if (mind.Danger != null && mind.Danger[y * _blocksWide + x] > mind.Level) continue; // not yet
+                        if (!InRange(mind, x * Block + Block / 2, y * Block + Block / 2)) continue;
                         var cell = OpenCellIn(x, y);
                         if (cell.HasValue) candidates.Add(cell.Value);
                     }
@@ -785,9 +1068,9 @@ namespace Server.MirEnvir
             {
                 int x = Math.Clamp(mind.Position.X + mind.Random.Next(-80, 81), 0, _width - 1);
                 int y = Math.Clamp(mind.Position.Y + mind.Random.Next(-80, 81), 0, _height - 1);
-                if (_terrain[y * _width + x]) return new Point(x, y);
+                if (_terrain[y * _width + x] && InRange(mind, x, y)) return new Point(x, y);
             }
-            return mind.Position;
+            return mind.HasHome ? mind.Home : mind.Position;
         }
 
         // ---- resupplying ----
@@ -838,6 +1121,7 @@ namespace Server.MirEnvir
                 }
                 else if (++mind.StopSteps < 1500)
                 {
+                    LearnField(where);
                     return Unstick(i, mind, Travel(i, mind, where, true));
                 }
 

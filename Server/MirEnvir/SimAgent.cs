@@ -54,13 +54,22 @@ namespace Server.MirEnvir
             }
         }
 
+        /// <summary>Where the character last died, and the name of what hit it last.</summary>
+        public System.Drawing.Point DeathLocation { get; private set; }
+        public string DeathCause { get; private set; }
+
         private bool _wasDead;
 
         /// <summary>Counts a death the first time the character is seen dead.</summary>
         public void TrackDeath()
         {
             var dead = Player != null && Player.Dead;
-            if (dead && !_wasDead) Deaths++;
+            if (dead && !_wasDead)
+            {
+                Deaths++;
+                DeathLocation = Player.CurrentLocation;
+                DeathCause = Player.LastHitter?.Name;
+            }
             _wasDead = dead;
         }
 

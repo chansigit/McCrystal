@@ -37,7 +37,8 @@ namespace Server.MirEnvir
         public const int ChShopBuysLoot = 10;  // 1 if that NPC would buy something in this character's bag
         public const int ChShopGear = 11;      // 1 if that NPC sells or repairs equipment
         public const int ChCorpse = 12;        // 1 if a dead monster lies there that this character can still cut up
-        public const int Channels = 13;
+        public const int ChGuard = 13;         // 1 if a town guard stands there: never to be attacked
+        public const int Channels = 14;
 
         // Self vector.
         public const int SfHealth = 0;         // HP / max HP
@@ -166,6 +167,14 @@ namespace Server.MirEnvir
             }
         }
 
+        /// <summary>The do-not-fight list: melee guards and archer guards of the towns.</summary>
+        public static bool IsGuard(MapObject ob) =>
+            ob is Server.MirObjects.Monsters.Guard || ob is Server.MirObjects.Monsters.TownArcher;
+
+        /// <summary>Level with the progress towards the next one as its fraction: 9.40 is level 9 and 40% of the way to 10.</summary>
+        public static double FractionalLevel(PlayerObject player) =>
+            player.Level + (player.MaxExperience > 0 ? Math.Clamp(player.Experience / (double)player.MaxExperience, 0, 0.9999) : 0);
+
         // Bankruptcy relief, for training only. A character that dies can drop its weapon,
         // and a low-level warrior with no weapon does no damage at all: with no gold
         // either, it can never earn its way back and the rest of its run teaches nothing.
@@ -213,6 +222,7 @@ namespace Server.MirEnvir
         public string Summary()
         {
             var levels = new List<int>();
+            var fractional = new List<double>();
             long deaths = 0, kills = 0, experience = 0, goldGained = 0, goldSpent = 0, gold = 0;
             int potionsUsed = 0, potionsBought = 0, itemsSold = 0, gearBought = 0, armed = 0, armoured = 0, carried = 0, loot = 0;
             long weight = 0, weightLimit = 0;
@@ -227,6 +237,7 @@ namespace Server.MirEnvir
                 var player = agent.Player;
                 if (player == null) continue;
                 levels.Add(player.Level);
+                fractional.Add(FractionalLevel(player));
                 gold += player.Account.Gold;
                 if (player.Info.Equipment[(int)EquipmentSlot.Weapon] != null) armed++;
                 if (player.Info.Equipment[(int)EquipmentSlot.Armour] != null) armoured++;
@@ -244,7 +255,7 @@ namespace Server.MirEnvir
             var text = new System.Text.StringBuilder();
             text.AppendLine($"[summary] agents {_agents.Count}, in game {levels.Count}, decision steps {AgentSteps}, rejected actions {RejectedActions}");
             if (levels.Count > 0)
-                text.AppendLine($"[summary] level min {levels[0]}, median {levels[levels.Count / 2]}, mean {levels.Average():F2}, max {levels[^1]}");
+                text.AppendLine($"[summary] level min {levels[0]}, median {levels[levels.Count / 2]}, mean {levels.Average():F2}, max {levels[^1]}; with progress to the next level, mean {fractional.Average():F2}, min {fractional.Min():F2}, max {fractional.Max():F2}");
             text.AppendLine($"[summary] kills {kills} ({kills / (double)n:F1} each), experience {experience}, deaths {deaths} ({deaths / (double)n:F2} each)");
             text.AppendLine($"[summary] gold gained {goldGained}, spent {goldSpent}, held {gold}; items sold {itemsSold}");
             text.AppendLine($"[summary] potions bought {potionsBought}, used {potionsUsed}; gear bought {gearBought}, put on {_agents.Sum(a => a.GearEquipped)}, repairs {_agents.Sum(a => a.Repairs)}; wearing a weapon {armed}, armour {armoured}");
@@ -332,6 +343,15 @@ namespace Server.MirEnvir
                                     // and only by whoever earned the kill.
                                     if (!ob.Harvested && ob is HarvestMonster && (ob.EXPOwner == null || ob.EXPOwner == player))
                                         Grid[at + ChCorpse * plane] = 1;
+                                    break;
+                                }
+                                // Town guards are on the list of things not to fight: they are
+                                // far too strong and are no prey. They get a channel of their
+                                // own and never appear as monsters.
+                                if (IsGuard(ob))
+                                {
+                                    Grid[at + ChGuard * plane] = 1;
+                                    if (ob.Target == player) Grid[at + ChMonsterHunting * plane] = 1;
                                     break;
                                 }
                                 Grid[at + ChMonster * plane] = 1;
