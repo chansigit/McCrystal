@@ -44,7 +44,7 @@ namespace Server.MirDatabase
         {
             get
             {
-                return GTRent > DateTime.Now;
+                return GTRent > Envir.LocalNow;
             }
         }
         public GuildInfo(PlayerObject owner, string name)

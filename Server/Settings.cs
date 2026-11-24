@@ -83,6 +83,13 @@ namespace Server
         public static int AdminPort = 5081;
         public static string AdminPassword = string.Empty;
 
+        //Simulation (headless, virtual clock). See docs/headless-sim-plan.md.
+        public static bool SimulationEnabled = false;
+        // Virtual milliseconds added to the clock per tick.
+        public static int SimulationTickMs = 50;
+        // Virtual seconds per real second. 0 runs as fast as the machine allows.
+        public static double SimulationSpeed = 0;
+
         //Permission
         public static bool AllowNewAccount = true,
                            AllowChangePassword = true,
@@ -421,6 +428,11 @@ namespace Server
             AdminPort = Reader.ReadInt32("Admin", "Port", AdminPort);
             AdminPassword = Reader.ReadString("Admin", "Password", AdminPassword);
 
+            //Simulation
+            SimulationEnabled = Reader.ReadBoolean("Simulation", "Enabled", SimulationEnabled);
+            SimulationTickMs = Math.Max(1, Reader.ReadInt32("Simulation", "TickMs", SimulationTickMs));
+            SimulationSpeed = Math.Max(0, Reader.ReadDouble("Simulation", "Speed", SimulationSpeed));
+
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
             MaxNewAccountsPerIP = Reader.ReadInt32("Permission", "MaxNewAccountsPerIP", MaxNewAccountsPerIP);
@@ -714,6 +726,11 @@ namespace Server
             Reader.Write("Admin", "Enabled", AdminEnabled);
             Reader.Write("Admin", "Port", AdminPort);
             Reader.Write("Admin", "Password", AdminPassword);
+
+            //Simulation
+            Reader.Write("Simulation", "Enabled", SimulationEnabled);
+            Reader.Write("Simulation", "TickMs", SimulationTickMs);
+            Reader.Write("Simulation", "Speed", SimulationSpeed);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

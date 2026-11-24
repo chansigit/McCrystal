@@ -4,6 +4,7 @@ using Server.Admin;
 using Server.ContentPacks;
 using Server.MirEnvir;
 using System.Reflection;
+using System.Runtime.InteropServices;
 
 namespace Server.Console
 {
@@ -35,7 +36,15 @@ namespace Server.Console
                 }
 
                 Settings.Load();
+
+                // --sim turns the virtual clock on for this run only. The value in
+                // Setup.ini is put back before settings are saved on shutdown.
+                var simulationConfigured = Settings.SimulationEnabled;
+                if (args.Contains("--sim", StringComparer.Ordinal))
+                    Settings.SimulationEnabled = true;
                 System.Console.WriteLine($"Settings loaded from {contentPack.Describe()}.");
+                if (Settings.SimulationEnabled)
+                    System.Console.WriteLine($"Simulation mode: virtual clock, {Settings.SimulationTickMs}ms per tick.");
 
                 System.Console.WriteLine("Starting server...");
                 Envir.Main.Start();
@@ -73,7 +82,20 @@ namespace Server.Console
                     cts.Cancel();
                 };
 
+                // Ctrl+C never reaches a process started in the background or by a
+                // service manager; those send SIGTERM. Without this the server could
+                // only be killed, which skips the shutdown save.
+                using var sigterm = PosixSignalRegistration.Create(PosixSignal.SIGTERM, context =>
+                {
+                    context.Cancel = true;
+                    cts.Cancel();
+                });
+
                 var messageQueue = MessageQueue.Instance;
+
+                // In simulation mode, report how fast virtual time is moving.
+                var simReportClock = System.Diagnostics.Stopwatch.StartNew();
+                long simLastReal = 0, simLastVirtual = 0;
 
                 while (!cts.Token.IsCancellationRequested)
                 {
@@ -99,6 +121,17 @@ namespace Server.Console
                         hadMessage = true;
                     }
 
+                    if (Settings.SimulationEnabled && simReportClock.ElapsedMilliseconds - simLastReal >= 5000)
+                    {
+                        var real = simReportClock.ElapsedMilliseconds;
+                        var virt = Envir.Main.Time;
+                        var speed = (virt - simLastVirtual) / (double)(real - simLastReal);
+                        System.Console.WriteLine(
+                            $"[sim] virtual {virt / 1000}s, {speed:F1}x real time, monsters {Envir.Main.MonsterCount}, players {Envir.Main.Players.Count}");
+                        simLastReal = real;
+                        simLastVirtual = virt;
+                    }
+
                     if (!hadMessage)
                         Thread.Sleep(100);
                 }
@@ -108,6 +141,7 @@ namespace Server.Console
                 Envir.Main.Stop();
                 System.Console.WriteLine("Server stopped.");
 
+                Settings.SimulationEnabled = simulationConfigured;
                 Settings.Save();
                 return 0;
             }

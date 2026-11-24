@@ -70,7 +70,14 @@ namespace Server.MirEnvir
         public static int LoadCustomVersion;
 
         private readonly DateTime _startTime = DateTime.UtcNow;
+        private readonly DateTime _startLocalTime = DateTime.Now;
+
+        // Wall-clock time since the process started. Use it for real-time budgets and
+        // performance measurements only; game logic reads Time, which comes from Clock.
         public readonly Stopwatch Stopwatch = Stopwatch.StartNew();
+
+        // Source of Time. Real in normal mode, virtual when [Simulation] Enabled is set.
+        public GameClock Clock { get; private set; }
 
         public long Time { get; private set; }
         public RespawnTimer RespawnTick = new RespawnTimer();
@@ -84,6 +91,12 @@ namespace Server.MirEnvir
 
         public DateTime Now =>
             _startTime.AddMilliseconds(Time);
+
+        // Local calendar time for values that are stored and compared as local dates
+        // (guild territory rent). The wall clock in normal mode; under a virtual clock
+        // it follows Time, so it speeds up and repeats with the simulation.
+        public DateTime LocalNow =>
+            Clock != null && Clock.IsVirtual ? _startLocalTime.AddMilliseconds(Time) : DateTime.Now;
 
         public bool Running { get; private set; }
 
@@ -214,6 +227,8 @@ namespace Server.MirEnvir
 
         public static int LastCount = 0, LastRealCount = 0;
         public static long LastRunTime = 0;
+        // How long the last periodic save held the main loop, in real milliseconds.
+        public static long LastSaveMilliseconds = 0;
         public int MonsterCount;
 
         private long warTime, guildTime, conquestTime, rentalItemsTime, auctionTime, spawnTime, robotTime, timerTime;
@@ -2016,7 +2031,7 @@ namespace Server.MirEnvir
         {
             try
             {
-                Time = Stopwatch.ElapsedMilliseconds;
+                Time = Clock.ElapsedMilliseconds;
 
                 var conTime = Time;
                 var saveTime = Time + Settings.SaveDelay * Settings.Minute;
@@ -2071,7 +2086,12 @@ namespace Server.MirEnvir
                 {
                     while (Running)
                     {
-                        Time = Stopwatch.ElapsedMilliseconds;
+                        // Interim: a virtual clock moves one tick per loop iteration. The
+                        // fixed-step loop that makes each tick process the whole world
+                        // is milestone M2 (docs/headless-sim-plan.md).
+                        if (Clock.IsVirtual) Clock.Advance(Settings.SimulationTickMs);
+
+                        Time = Clock.ElapsedMilliseconds;
                         ProcessAdminActions();
 
                         if (Time >= processTime)
@@ -2167,10 +2187,13 @@ namespace Server.MirEnvir
                         if (Time >= saveTime)
                         {
                             saveTime = Time + Settings.SaveDelay * Settings.Minute;
+                            var saveStart = Stopwatch.ElapsedMilliseconds;
                             BeginSaveAccounts();
                             SaveGuilds();
                             SaveGoods();
                             SaveConquests();
+                            LastSaveMilliseconds = Stopwatch.ElapsedMilliseconds - saveStart;
+                            MessageQueue.EnqueueDebugging($"Periodic save blocked the main loop for {LastSaveMilliseconds}ms.");
                         }
 
                         if (Time >= userTime)
@@ -3268,6 +3291,8 @@ namespace Server.MirEnvir
 
             Running = true;
 
+            Clock = Settings.SimulationEnabled ? new VirtualClock() : new RealClock(Stopwatch);
+
             _thread = new Thread(WorkLoop) { IsBackground = true };
             _thread.Start();
         }
@@ -3480,11 +3505,11 @@ namespace Server.MirEnvir
                     StatusConnections[i].SendDisconnect();
             }
 
-            var expire = Time + 5000;
+            var expire = Stopwatch.ElapsedMilliseconds + 5000;
 
             while (Connections.Count != 0 && Stopwatch.ElapsedMilliseconds < expire)
             {
-                Time = Stopwatch.ElapsedMilliseconds;
+                Time = Clock.ElapsedMilliseconds;
 
                 for (var i = Connections.Count - 1; i >= 0; i--)
                     Connections[i].Process();
@@ -3495,10 +3520,10 @@ namespace Server.MirEnvir
 
             Connections.Clear();
 
-            expire = Time + 10000;
+            expire = Stopwatch.ElapsedMilliseconds + 10000;
             while (StatusConnections.Count != 0 && Stopwatch.ElapsedMilliseconds < expire)
             {
-                Time = Stopwatch.ElapsedMilliseconds;
+                Time = Clock.ElapsedMilliseconds;
 
                 for (var i = StatusConnections.Count - 1; i >= 0; i--)
                     StatusConnections[i].Process();

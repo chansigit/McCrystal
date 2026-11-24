@@ -10523,8 +10523,8 @@ namespace Server.MirObjects
             }
 
             MyGuild.GTIndex = gt.Index;
-            MyGuild.GTRent = DateTime.Now.AddDays(Settings.GTDays + 1);
-            MyGuild.GTBegin = DateTime.Now.AddDays(1);
+            MyGuild.GTRent = Envir.LocalNow.AddDays(Settings.GTDays + 1);
+            MyGuild.GTBegin = Envir.LocalNow.AddDays(1);
             MyGuild.GTKey = Envir.Random.Next(100, int.MaxValue - 100);
             MyGuild.GTPrice = 0;
             gt.Owner = MyGuild.Name;

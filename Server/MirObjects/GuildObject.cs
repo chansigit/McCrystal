@@ -97,7 +97,7 @@ namespace Server.MirObjects
         {
             get
             {
-                return GTRent > DateTime.Now;
+                return GTRent > Envir.LocalNow;
             }
         }
         public GuildObject(GuildInfo info)

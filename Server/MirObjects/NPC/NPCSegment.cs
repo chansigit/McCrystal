@@ -3170,7 +3170,7 @@ namespace Server.MirObjects
                         player.MyGuild.SendServerPacket(new S.GuildStorageGoldChange() { Type = 2, Amount = (uint)Settings.BuyGTGold });
                         player.ReceiveChat(GameLanguage.ServerTextMap.GetLocalization(ServerTextKeys.YouRentedGuildTerritory), ChatType.System);
                         player.MyGuild.GTIndex = GTmap.Index;
-                        player.MyGuild.GTRent = DateTime.Now.AddDays(Settings.GTDays);
+                        player.MyGuild.GTRent = Envir.LocalNow.AddDays(Settings.GTDays);
                         player.MyGuild.GTKey = Envir.Random.Next(100, int.MaxValue - 100);
                         player.MyGuild.GTPrice = 0;
                         GTmap.Owner = player.MyGuild.Name;
