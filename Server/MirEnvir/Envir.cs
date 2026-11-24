@@ -31,15 +31,25 @@ namespace Server.MirEnvir
         private static int seed = Environment.TickCount;
         private static readonly ThreadLocal<Random> RandomWrapper = new ThreadLocal<Random>(() => new Random(Interlocked.Increment(ref seed)));
 
+        // Set by Seed(). One generator for the whole world, so a simulation draws the
+        // same numbers in the same order on every run. Not thread-safe: a seeded world
+        // runs its logic on the loop thread only.
+        private static Random _seeded;
+
+        public static bool IsSeeded => _seeded != null;
+
+        public static void Seed(int value) =>
+            _seeded = new Random(value);
+
         public static Random GetThreadRandom() =>
-            RandomWrapper.Value;
+            _seeded ?? RandomWrapper.Value;
 
         public int Next() =>
-            RandomWrapper.Value.Next();
+            GetThreadRandom().Next();
         public int Next(int maxValue) =>
-            RandomWrapper.Value.Next(maxValue);
+            GetThreadRandom().Next(maxValue);
         public int Next(int minValue, int maxValue) =>
-            RandomWrapper.Value.Next(minValue, maxValue);
+            GetThreadRandom().Next(minValue, maxValue);
     }
 
     public class Envir
@@ -69,8 +79,12 @@ namespace Server.MirEnvir
         public static int LoadVersion;
         public static int LoadCustomVersion;
 
-        private readonly DateTime _startTime = DateTime.UtcNow;
-        private readonly DateTime _startLocalTime = DateTime.Now;
+        private DateTime _startTime = DateTime.UtcNow;
+        private DateTime _startLocalTime = DateTime.Now;
+
+        // Calendar date a simulation starts on. Fixed, so day rollover and time of day
+        // fall on the same ticks in every run.
+        private static readonly DateTime SimulationEpoch = new DateTime(2000, 1, 1, 0, 0, 0, DateTimeKind.Utc);
 
         // Wall-clock time since the process started. Use it for real-time budgets and
         // performance measurements only; game logic reads Time, which comes from Clock.
@@ -100,8 +114,52 @@ namespace Server.MirEnvir
         public bool UseMobThreads =>
             Settings.Multithreaded && !(Clock != null && Clock.IsVirtual);
 
+        // False once the loop thread has ended, whether it was asked to stop or it failed.
+        public bool LoopAlive => _thread != null;
+
         // Ticks completed under a virtual clock.
         public long SimulationTicks { get; private set; }
+
+        // (tick, hash) pairs recorded every [Simulation] HashSeconds of game time.
+        // Two runs with the same seed and the same inputs must produce the same list.
+        public readonly ConcurrentQueue<(long Tick, ulong Hash)> StateHashes = new ConcurrentQueue<(long, ulong)>();
+
+        // FNV-1a over every world object's identity, place and health, in list order.
+        // Call it on the loop thread.
+        public ulong ComputeStateHash()
+        {
+            const ulong prime = 1099511628211UL;
+            var hash = 14695981039346656037UL;
+
+            void Mix(long value)
+            {
+                for (var i = 0; i < 8; i++)
+                {
+                    hash ^= (byte)(value >> (i * 8));
+                    hash *= prime;
+                }
+            }
+
+            // Time is left out on purpose: the tick is reported beside the hash, and a
+            // hash that changes between samples then means the world itself changed.
+            Mix(Objects.Count);
+
+            for (var node = Objects.First; node != null; node = node.Next)
+            {
+                var ob = node.Value;
+                Mix(ob.ObjectID);
+                Mix((long)ob.Race);
+                Mix(ob.CurrentMapIndex);
+                Mix(ob.CurrentLocation.X);
+                Mix(ob.CurrentLocation.Y);
+                Mix((long)ob.Direction);
+                // Only creatures have health; NPCs, items and spells throw on the getter.
+                if (ob is MonsterObject || ob is HumanObject) Mix(ob.Health);
+                Mix(ob.Dead ? 1 : 0);
+            }
+
+            return hash;
+        }
 
         public DateTime LocalNow =>
             Clock != null && Clock.IsVirtual ? _startLocalTime.AddMilliseconds(Time) : DateTime.Now;
@@ -2091,6 +2149,7 @@ namespace Server.MirEnvir
                     http.Start();
                 }
                 var simSaveRealTime = Stopwatch.ElapsedMilliseconds + Settings.SimulationSaveMinutes * 60000L;
+                var simHashTime = Settings.SimulationHashSeconds * 1000L;
                 _paceRealStart = Stopwatch.ElapsedMilliseconds;
                 _paceVirtualStart = Clock.ElapsedMilliseconds;
 
@@ -2216,6 +2275,25 @@ namespace Server.MirEnvir
                         DragonSystem?.Process();
 
                         Process();
+
+                        if (Clock.IsVirtual)
+                        {
+                            var hashed = false;
+                            if (Settings.SimulationHashSeconds > 0 && Time >= simHashTime)
+                            {
+                                simHashTime = Time + Settings.SimulationHashSeconds * 1000L;
+                                StateHashes.Enqueue((SimulationTicks, ComputeStateHash()));
+                                hashed = true;
+                            }
+
+                            // Stop on an exact tick so runs of the same length can be compared.
+                            if (Settings.SimulationStopSeconds > 0 && Time >= Settings.SimulationStopSeconds * 1000L)
+                            {
+                                if (!hashed) StateHashes.Enqueue((SimulationTicks, ComputeStateHash()));
+                                Running = false;
+                                break;
+                            }
+                        }
 
                         // A simulation does not save on game time: at 100x that would be a
                         // full write every few seconds. It saves on shutdown, and on a real
@@ -3357,6 +3435,13 @@ namespace Server.MirEnvir
             Running = true;
 
             Clock = Settings.SimulationEnabled ? new VirtualClock() : new RealClock(Stopwatch);
+
+            if (Clock.IsVirtual)
+            {
+                RandomProvider.Seed(Settings.SimulationSeed);
+                _startTime = SimulationEpoch;
+                _startLocalTime = DateTime.SpecifyKind(SimulationEpoch, DateTimeKind.Local);
+            }
 
             _thread = new Thread(WorkLoop) { IsBackground = true };
             _thread.Start();

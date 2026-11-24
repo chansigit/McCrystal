@@ -91,6 +91,12 @@ namespace Server
         public static double SimulationSpeed = 0;
         // Real minutes between saves while simulating. 0 saves on shutdown only.
         public static int SimulationSaveMinutes = 0;
+        // Seed for the world's random numbers while simulating.
+        public static int SimulationSeed = 1;
+        // Game seconds between state hashes. 0 records none.
+        public static int SimulationHashSeconds = 0;
+        // Stop after this many game seconds. 0 runs until told to stop.
+        public static int SimulationStopSeconds = 0;
 
         //Permission
         public static bool AllowNewAccount = true,
@@ -435,6 +441,8 @@ namespace Server
             SimulationTickMs = Math.Max(1, Reader.ReadInt32("Simulation", "TickMs", SimulationTickMs));
             SimulationSpeed = Math.Max(0, Reader.ReadDouble("Simulation", "Speed", SimulationSpeed));
             SimulationSaveMinutes = Math.Max(0, Reader.ReadInt32("Simulation", "SaveMinutes", SimulationSaveMinutes));
+            SimulationSeed = Reader.ReadInt32("Simulation", "Seed", SimulationSeed);
+            SimulationHashSeconds = Math.Max(0, Reader.ReadInt32("Simulation", "HashSeconds", SimulationHashSeconds));
 
             //Permission
             AllowNewAccount = Reader.ReadBoolean("Permission", "AllowNewAccount", AllowNewAccount);
@@ -735,6 +743,8 @@ namespace Server
             Reader.Write("Simulation", "TickMs", SimulationTickMs);
             Reader.Write("Simulation", "Speed", SimulationSpeed);
             Reader.Write("Simulation", "SaveMinutes", SimulationSaveMinutes);
+            Reader.Write("Simulation", "Seed", SimulationSeed);
+            Reader.Write("Simulation", "HashSeconds", SimulationHashSeconds);
 
             //Permission
             Reader.Write("Permission", "AllowNewAccount", AllowNewAccount);

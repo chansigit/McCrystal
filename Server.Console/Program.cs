@@ -40,7 +40,8 @@ namespace Server.Console
                 // --sim turns the virtual clock on for this run only; --sim-speed and
                 // --sim-tick override its pace. The values in Setup.ini are put back
                 // before settings are saved on shutdown.
-                var simulationConfigured = (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs);
+                var simulationConfigured = (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs,
+                    Settings.SimulationSeed, Settings.SimulationHashSeconds);
                 if (args.Contains("--sim", StringComparer.Ordinal))
                     Settings.SimulationEnabled = true;
                 if (double.TryParse(ContentPack.GetOption(args, "--sim-speed"), System.Globalization.NumberStyles.Float,
@@ -48,10 +49,18 @@ namespace Server.Console
                     Settings.SimulationSpeed = simSpeed;
                 if (int.TryParse(ContentPack.GetOption(args, "--sim-tick"), out var simTick) && simTick > 0)
                     Settings.SimulationTickMs = simTick;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-seed"), out var simSeed))
+                    Settings.SimulationSeed = simSeed;
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-hash"), out var simHash) && simHash >= 0)
+                    Settings.SimulationHashSeconds = simHash;
+                // Never written to Setup.ini: a stop time is a property of one run.
+                if (int.TryParse(ContentPack.GetOption(args, "--sim-until"), out var simUntil) && simUntil > 0)
+                    Settings.SimulationStopSeconds = simUntil;
                 System.Console.WriteLine($"Settings loaded from {contentPack.Describe()}.");
                 if (Settings.SimulationEnabled)
                     System.Console.WriteLine($"Simulation mode: virtual clock, {Settings.SimulationTickMs}ms per tick, " +
-                        (Settings.SimulationSpeed > 0 ? $"held to {Settings.SimulationSpeed}x." : "no speed limit."));
+                        (Settings.SimulationSpeed > 0 ? $"held to {Settings.SimulationSpeed}x" : "no speed limit") +
+                        $", seed {Settings.SimulationSeed}.");
 
                 System.Console.WriteLine("Starting server...");
                 Envir.Main.Start();
@@ -99,6 +108,7 @@ namespace Server.Console
                 });
 
                 var messageQueue = MessageQueue.Instance;
+                var exitCode = 0;
 
                 // In simulation mode, report how fast virtual time is moving.
                 var simReportClock = System.Diagnostics.Stopwatch.StartNew();
@@ -128,6 +138,23 @@ namespace Server.Console
                         hadMessage = true;
                     }
 
+                    while (Envir.Main.StateHashes.TryDequeue(out var stateHash))
+                        System.Console.WriteLine($"[hash] tick {stateHash.Tick} {stateHash.Hash:x16}");
+
+                    // The loop thread is gone: it reached --sim-until, or it failed. Either
+                    // way there is no world left to serve, so exit instead of idling.
+                    if (!Envir.Main.LoopAlive)
+                    {
+                        var finished = Settings.SimulationEnabled && Settings.SimulationStopSeconds > 0 &&
+                                       Envir.Main.Time >= Settings.SimulationStopSeconds * 1000L;
+                        if (!finished)
+                        {
+                            exitCode = 1;
+                            System.Console.WriteLine("The engine loop ended unexpectedly; see the log above.");
+                        }
+                        cts.Cancel();
+                    }
+
                     if (Settings.SimulationEnabled && simReportClock.ElapsedMilliseconds - simLastReal >= 5000)
                     {
                         var real = simReportClock.ElapsedMilliseconds;
@@ -152,9 +179,10 @@ namespace Server.Console
                 Envir.Main.Stop();
                 System.Console.WriteLine("Server stopped.");
 
-                (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs) = simulationConfigured;
+                (Settings.SimulationEnabled, Settings.SimulationSpeed, Settings.SimulationTickMs,
+                    Settings.SimulationSeed, Settings.SimulationHashSeconds) = simulationConfigured;
                 Settings.Save();
-                return 0;
+                return exitCode;
             }
             catch (Exception ex)
             {
